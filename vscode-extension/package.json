@@ -1,0 +1,78 @@
+{
+  "name": "contextos",
+  "displayName": "ContextOS",
+  "description": "AI assistant that understands your entire project context",
+  "version": "0.0.1",
+  "publisher": "contextos",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "contextos-sidebar",
+          "title": "ContextOS",
+          "icon": "$(hubot)"
+        }
+      ]
+    },
+    "views": {
+      "contextos-sidebar": [
+        {
+          "type": "webview",
+          "id": "contextos.chatView",
+          "name": "ContextOS"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "contextos.connect",
+        "title": "ContextOS: Connect API Key"
+      },
+      {
+        "command": "contextos.sync",
+        "title": "ContextOS: Sync Workspace"
+      },
+      {
+        "command": "contextos.clearChat",
+        "title": "ContextOS: Clear Chat"
+      }
+    ],
+    "configuration": {
+      "title": "ContextOS",
+      "properties": {
+        "contextos.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "ContextOS API server URL"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "webpack --mode production",
+    "watch": "webpack --mode development --watch",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4",
+    "ts-loader": "^9.5.1",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {
+    "axios": "^1.6.5"
+  }
+}
