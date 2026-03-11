@@ -1,6 +1,6 @@
 # backend/app/core/config.py
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
 
@@ -52,8 +52,9 @@ class Settings(BaseSettings):
     SLACK_CLIENT_SECRET: str = ""
     SLACK_SIGNING_SECRET: str = ""
 
-    # Anthropic
-    ANTHROPIC_API_KEY: str = ""
+    # OpenAI
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o"
 
     # Stripe
     STRIPE_SECRET_KEY: str = ""
@@ -75,11 +76,12 @@ class Settings(BaseSettings):
     RATE_LIMIT_FREE: str = "50/day"
     RATE_LIMIT_PRO: str = "1000/day"
 
-    model_config = {
-        "env_file": ".env",
-        "env_file_encoding": "utf-8",
-        "case_sensitive": True,
-    }
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="ignore",
+    )
 
 
 settings = Settings()

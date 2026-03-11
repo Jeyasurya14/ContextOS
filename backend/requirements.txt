@@ -37,7 +37,7 @@ loguru==0.7.2
 slowapi==0.1.9
 
 # LLM + AI
-anthropic==0.25.8
+openai>=1.30.0
 langchain-core==0.2.5
 langgraph==0.0.55
 sentence-transformers==2.7.0

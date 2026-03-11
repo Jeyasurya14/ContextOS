@@ -3,7 +3,7 @@
 import json
 from collections.abc import AsyncGenerator
 
-import anthropic
+from openai import AsyncOpenAI, OpenAIError
 from loguru import logger
 
 from app.core.config import settings
@@ -13,7 +13,7 @@ from app.services.intent_classifier import intent_classifier
 
 
 class ReactAgent:
-    """ReAct-style agent that retrieves context and streams answers via Claude."""
+    """ReAct-style agent that retrieves context and streams answers via OpenAI."""
 
     SYSTEM_PROMPT = (
         "You are ContextOS, an AI assistant that helps developers by answering questions "
@@ -28,14 +28,14 @@ class ReactAgent:
     )
 
     def __init__(self) -> None:
-        """Initialize the ReAct agent with Anthropic client."""
-        self._client: anthropic.AsyncAnthropic | None = None
+        """Initialize the ReAct agent with OpenAI client."""
+        self._client: AsyncOpenAI | None = None
 
     @property
-    def client(self) -> anthropic.AsyncAnthropic:
-        """Lazy-initialize the Anthropic client."""
+    def client(self) -> AsyncOpenAI:
+        """Lazy-initialize the OpenAI client."""
         if self._client is None:
-            self._client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+            self._client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
         return self._client
 
     async def stream_response(
@@ -126,11 +126,11 @@ class ReactAgent:
 
             yield {"event": "thinking", "message": "Generating answer..."}
 
-            if not settings.ANTHROPIC_API_KEY:
+            if not settings.OPENAI_API_KEY:
                 yield {
                     "event": "token",
-                    "content": "I found relevant context but the Anthropic API key is not configured. "
-                    "Please set ANTHROPIC_API_KEY in your environment to enable AI responses.\n\n"
+                    "content": "I found relevant context but the OpenAI API key is not configured. "
+                    "Please set OPENAI_API_KEY in your environment to enable AI responses.\n\n"
                     "Here's what I found in your context:\n\n"
                 }
                 for chunk in retrieved_chunks[:5]:
@@ -141,22 +141,27 @@ class ReactAgent:
                         "content": f"- **{chunk.get('source_type', '')}**: {source_url}\n  {preview}...\n\n",
                     }
             else:
-                async with self.client.messages.stream(
-                    model="claude-sonnet-4-20250514",
-                    max_tokens=4096,
-                    system=self.SYSTEM_PROMPT,
-                    messages=messages,
-                ) as stream:
-                    async for text in stream.text_stream:
-                        yield {"event": "token", "content": text}
+                stream = await self.client.chat.completions.create(
+                    model=settings.OPENAI_MODEL,
+                    messages=[
+                        {"role": "system", "content": self.SYSTEM_PROMPT},
+                        *messages,
+                    ],
+                    stream=True,
+                    max_tokens=2048,
+                )
+                async for chunk in stream:
+                    token = chunk.choices[0].delta.content
+                    if token:
+                        yield {"event": "token", "content": token}
 
             if sources:
                 yield {"event": "sources", "sources": sources}
 
             yield {"event": "done", "conversation_id": ""}
 
-        except anthropic.APIError as e:
-            logger.error("Anthropic API error: {}", str(e))
+        except OpenAIError as e:
+            logger.error("OpenAI API error: {}", str(e))
             yield {"event": "error", "message": "AI service temporarily unavailable. Please try again."}
         except Exception as e:
             logger.error("ReAct agent error: {}", type(e).__name__)
@@ -168,7 +173,7 @@ class ReactAgent:
         context: str,
         conversation_history: list[dict] | None = None,
     ) -> list[dict]:
-        """Build the message list for the Anthropic API.
+        """Build the message list for the OpenAI API.
 
         Args:
             question: The current user question.
@@ -176,7 +181,7 @@ class ReactAgent:
             conversation_history: Optional previous messages.
 
         Returns:
-            List of message dicts for the Anthropic API.
+            List of message dicts for the OpenAI API.
         """
         messages: list[dict] = []
 
