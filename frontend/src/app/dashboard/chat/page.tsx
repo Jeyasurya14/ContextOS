@@ -167,7 +167,8 @@ export default function ChatPage() {
     setIsStreaming(true)
 
     try {
-      const response = await fetch('/api/v1/query', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${apiUrl}/api/v1/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -287,12 +288,12 @@ export default function ChatPage() {
                       : 'hover:bg-gray-800/50'
                   }`}
                 >
-                  <button
+                  <div
                     onClick={() => {
                       setCurrentChatId(chat.id)
                       setMessages(chat.messages)
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left cursor-pointer"
                   >
                     <MessageSquare className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     {editingChatId === chat.id ? (
@@ -356,7 +357,7 @@ export default function ChatPage() {
                         </div>
                       </>
                     )}
-                  </button>
+                  </div>
                 </div>
               ))}
             </div>

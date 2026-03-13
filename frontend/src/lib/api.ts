@@ -82,7 +82,7 @@ export const integrationsApi = {
   disconnect: (tool: string) =>
     api.delete(`/api/v1/integrations/${tool}/disconnect`),
   syncGithub: () => api.post('/api/v1/integrations/github/sync'),
-  getStats: () => api.get('/api/v1/admin/stats'),
+  getStats: () => api.get('/api/v1/integrations/stats'),
   clearAll: () => api.delete('/api/v1/context/all'),
 }
 
