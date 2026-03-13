@@ -10,6 +10,15 @@ from app.integrations.notion import notion_integration
 from app.core.database import async_session_factory
 
 
+def run_async(coro):
+    """Helper to run async coroutines in sync Celery workers."""
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
 async def _run_initial_notion_sync(
     user_id: str, integration_id: str, access_token: str
 ) -> int:
@@ -120,7 +129,7 @@ def initial_notion_sync(
         Total number of chunks stored.
     """
     try:
-        return asyncio.get_event_loop().run_until_complete(
+        return run_async(
             _run_initial_notion_sync(user_id, integration_id, access_token)
         )
     except Exception as exc:
@@ -228,7 +237,7 @@ def sync_notion_changes(
         Total number of new chunks stored.
     """
     try:
-        return asyncio.get_event_loop().run_until_complete(
+        return run_async(
             _run_sync_notion_changes(user_id, integration_id, access_token)
         )
     except Exception as exc:
