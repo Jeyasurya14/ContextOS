@@ -6,6 +6,7 @@ services:
     plan: starter
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
+    buildCommand: ./backend/render-build.sh
     healthCheckPath: /health/ready
     autoDeploy: true
     envVars:
