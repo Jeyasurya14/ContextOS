@@ -14,7 +14,7 @@ from app.models.integration import Integration
 from app.integrations.notion import notion_integration
 from app.api.deps import get_current_user
 
-router = APIRouter(prefix="/integrations/notion", tags=["notion"])
+router = APIRouter(tags=["notion"])
 
 
 @router.get("/connect")

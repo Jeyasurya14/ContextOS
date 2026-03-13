@@ -10,7 +10,7 @@ from app.models.user import User
 from app.models.integration import Integration
 from app.api.deps import get_current_user
 
-router = APIRouter(prefix="/integrations", tags=["integrations"])
+router = APIRouter(tags=["integrations"])
 
 
 @router.get("/")
@@ -80,6 +80,43 @@ async def get_integration(
         "last_synced_at": integration.last_synced_at.isoformat() if integration.last_synced_at else None,
         "created_at": integration.created_at.isoformat(),
         "updated_at": integration.updated_at.isoformat(),
+    }
+
+
+@router.get("/stats")
+async def get_user_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get integration stats for the current user.
+
+    Returns:
+        Dict with total chunks and integration counts.
+    """
+    from sqlalchemy import func
+    from app.models.context_chunk import ContextChunk
+    from app.models.conversation import Conversation
+    
+    result = await db.execute(
+        select(Integration).where(Integration.user_id == current_user.id)
+    )
+    integrations = result.scalars().all()
+    
+    chunks_result = await db.execute(
+        select(func.count(ContextChunk.id)).where(ContextChunk.user_id == current_user.id)
+    )
+    total_chunks = chunks_result.scalar() or 0
+    
+    conversations_result = await db.execute(
+        select(func.count(Conversation.id)).where(Conversation.user_id == current_user.id)
+    )
+    total_conversations = conversations_result.scalar() or 0
+    
+    return {
+        "total_chunks": total_chunks,
+        "total_integrations": len(integrations),
+        "active_integrations": len([i for i in integrations if i.is_active]),
+        "total_conversations": total_conversations,
     }
 
 

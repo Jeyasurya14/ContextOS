@@ -24,7 +24,7 @@ from app.schemas.team import (
 from app.schemas.auth import MessageResponse
 from app.api.deps import get_current_user
 
-router = APIRouter(prefix="/teams", tags=["teams"])
+router = APIRouter(tags=["teams"])
 
 
 def _slugify(name: str) -> str:

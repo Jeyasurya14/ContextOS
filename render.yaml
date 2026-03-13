@@ -1,0 +1,159 @@
+services:
+  - type: web
+    name: contextos-api
+    runtime: python
+    region: singapore
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && alembic upgrade head
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2
+    healthCheckPath: /health/ready
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DEBUG
+        value: false
+      - key: ENVIRONMENT
+        value: production
+      - key: APP_NAME
+        value: ContextOS
+      - key: APP_VERSION
+        value: 1.0.0
+      - key: QDRANT_COLLECTION
+        value: context_chunks
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+        value: 30
+      - key: JWT_REFRESH_TOKEN_EXPIRE_DAYS
+        value: 7
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: OPENAI_EMBEDDING_MODEL
+        value: text-embedding-3-small
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: QDRANT_HOST
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: GITHUB_REDIRECT_URI
+        sync: false
+      - key: NOTION_CLIENT_ID
+        sync: false
+      - key: NOTION_CLIENT_SECRET
+        sync: false
+      - key: NOTION_REDIRECT_URI
+        sync: false
+      - key: SLACK_CLIENT_ID
+        sync: false
+      - key: SLACK_CLIENT_SECRET
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRO_PRICE_ID
+        sync: false
+      - key: STRIPE_TEAM_PRICE_ID
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: BACKEND_URL
+        sync: false
+
+  - type: worker
+    name: contextos-worker
+    runtime: python
+    region: singapore
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: QDRANT_COLLECTION
+        value: context_chunks
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: QDRANT_HOST
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: GITHUB_CLIENT_ID
+        sync: false
+      - key: GITHUB_CLIENT_SECRET
+        sync: false
+      - key: GITHUB_WEBHOOK_SECRET
+        sync: false
+      - key: NOTION_CLIENT_ID
+        sync: false
+      - key: NOTION_CLIENT_SECRET
+        sync: false
+      - key: SLACK_CLIENT_ID
+        sync: false
+      - key: SLACK_CLIENT_SECRET
+        sync: false
+      - key: SLACK_SIGNING_SECRET
+        sync: false
+
+  - type: cron
+    name: contextos-beat
+    runtime: python
+    region: singapore
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    schedule: "*/30 * * * *"
+    startCommand: celery -A app.workers.celery_app beat --loglevel=info
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: ENVIRONMENT
+        value: production
+      - key: QDRANT_COLLECTION
+        value: context_chunks
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: QDRANT_HOST
+        sync: false
+      - key: QDRANT_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false

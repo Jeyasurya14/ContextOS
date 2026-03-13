@@ -4,236 +4,195 @@ from uuid import uuid4
 
 from loguru import logger
 from qdrant_client import QdrantClient
-from qdrant_client.http import models as qdrant_models
-from qdrant_client.http.exceptions import UnexpectedResponse
+from qdrant_client.models import (
+    Distance,
+    VectorParams,
+    PointStruct,
+    Filter,
+    FieldCondition,
+    MatchValue,
+    MatchAny,
+)
 
 from app.core.config import settings
 
 
-class QdrantService:
-    """Service for vector storage and similarity search using Qdrant."""
+def get_qdrant_client() -> QdrantClient:
+    """Get Qdrant client configured for local or cloud."""
+    if settings.QDRANT_API_KEY:
+        return QdrantClient(
+            url=settings.qdrant_url,
+            api_key=settings.QDRANT_API_KEY,
+            timeout=30,
+        )
+    return QdrantClient(
+        host=settings.QDRANT_HOST,
+        port=settings.QDRANT_PORT,
+        timeout=30,
+    )
 
-    def __init__(self) -> None:
-        """Initialize Qdrant client and ensure collection exists."""
-        self._client: QdrantClient | None = None
-        self.collection_name = settings.QDRANT_COLLECTION
-        self.vector_size = 384
 
-    @property
-    def client(self) -> QdrantClient:
-        """Lazy-initialize the Qdrant client."""
-        if self._client is None:
-            self._client = QdrantClient(
-                host=settings.QDRANT_HOST,
-                port=settings.QDRANT_PORT,
-                timeout=30.0,
+qdrant_client = get_qdrant_client()
+
+async def init_collection():
+    """Create collection if not exists. Called on startup."""
+    try:
+        collections = qdrant_client.get_collections()
+        names = [c.name for c in collections.collections]
+        if settings.QDRANT_COLLECTION not in names:
+            qdrant_client.create_collection(
+                collection_name=settings.QDRANT_COLLECTION,
+                vectors_config=VectorParams(
+                    size=1536,
+                    distance=Distance.COSINE,
+                ),
             )
-            self._ensure_collection()
-        return self._client
+            logger.info(f"Created Qdrant collection: {settings.QDRANT_COLLECTION}")
+        else:
+            logger.info(f"Qdrant collection exists: {settings.QDRANT_COLLECTION}")
+    except Exception as e:
+        logger.error(f"Qdrant init failed: {e}")
+        raise
 
-    def _ensure_collection(self) -> None:
-        """Create the collection if it does not exist."""
-        try:
-            collections = self.client.get_collections().collections
-            exists = any(c.name == self.collection_name for c in collections)
-            if not exists:
-                self.client.create_collection(
-                    collection_name=self.collection_name,
-                    vectors_config=qdrant_models.VectorParams(
-                        size=self.vector_size,
-                        distance=qdrant_models.Distance.COSINE,
-                    ),
-                )
-                self.client.create_payload_index(
-                    collection_name=self.collection_name,
-                    field_name="user_id",
-                    field_schema=qdrant_models.PayloadSchemaType.KEYWORD,
-                )
-                self.client.create_payload_index(
-                    collection_name=self.collection_name,
-                    field_name="source_type",
-                    field_schema=qdrant_models.PayloadSchemaType.KEYWORD,
-                )
-                logger.info("Created Qdrant collection: {}", self.collection_name)
-            else:
-                logger.info("Qdrant collection already exists: {}", self.collection_name)
-        except Exception as e:
-            logger.error("Failed to ensure Qdrant collection: {}", type(e).__name__)
-            raise
-
-    def upsert_vector(
-        self,
-        point_id: str,
-        vector: list[float],
-        payload: dict,
-    ) -> None:
-        """Insert or update a single vector point.
-
-        Args:
-            point_id: Unique identifier for the point.
-            vector: The embedding vector.
-            payload: Metadata payload to store with the vector.
-        """
-        try:
-            self.client.upsert(
-                collection_name=self.collection_name,
-                points=[
-                    qdrant_models.PointStruct(
-                        id=point_id,
-                        vector=vector,
-                        payload=payload,
-                    )
-                ],
+async def upsert_vectors(points: list[dict]) -> bool:
+    """Upsert batch of vectors to Qdrant."""
+    try:
+        qdrant_points = [
+            PointStruct(
+                id=p["id"],
+                vector=p["vector"],
+                payload=p["payload"],
             )
-        except Exception as e:
-            logger.error("Failed to upsert vector {}: {}", point_id, type(e).__name__)
-            raise
+            for p in points
+        ]
+        qdrant_client.upsert(
+            collection_name=settings.QDRANT_COLLECTION,
+            points=qdrant_points,
+            wait=True,
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Qdrant upsert failed: {e}")
+        return False
 
-    def upsert_batch(
-        self,
-        points: list[dict],
-    ) -> None:
-        """Insert or update a batch of vector points.
-
-        Args:
-            points: List of dicts with keys: id, vector, payload.
-        """
-        if not points:
-            return
-
-        try:
-            qdrant_points = [
-                qdrant_models.PointStruct(
-                    id=p["id"],
-                    vector=p["vector"],
-                    payload=p["payload"],
-                )
-                for p in points
-            ]
-            self.client.upsert(
-                collection_name=self.collection_name,
-                points=qdrant_points,
-            )
-            logger.info("Upserted {} vectors to Qdrant", len(points))
-        except Exception as e:
-            logger.error("Failed to upsert batch ({} points): {}", len(points), type(e).__name__)
-            raise
-
-    def search(
-        self,
-        query_vector: list[float],
-        user_id: str,
-        source_types: list[str] | None = None,
-        limit: int = 10,
-        score_threshold: float = 0.3,
-    ) -> list[dict]:
-        """Search for similar vectors filtered by user_id.
-
-        Args:
-            query_vector: The query embedding vector.
-            user_id: Filter results to this user.
-            source_types: Optional filter for specific source types.
-            limit: Maximum number of results.
-            score_threshold: Minimum similarity score.
-
-        Returns:
-            List of dicts with id, score, and payload.
-        """
+async def search_vectors(
+    query_vector: list[float],
+    user_id: str,
+    limit: int = 10,
+    score_threshold: float = 0.3,
+    filters: dict | None = None,
+) -> list[dict]:
+    """Search for similar vectors."""
+    try:
         must_conditions = [
-            qdrant_models.FieldCondition(
+            FieldCondition(
                 key="user_id",
-                match=qdrant_models.MatchValue(value=user_id),
+                match=MatchValue(value=user_id),
             )
         ]
-
-        if source_types:
-            must_conditions.append(
-                qdrant_models.FieldCondition(
-                    key="source_type",
-                    match=qdrant_models.MatchAny(any=source_types),
+        if filters:
+            for key, value in filters.items():
+                must_conditions.append(
+                    FieldCondition(key=key, match=MatchValue(value=value))
                 )
-            )
 
-        try:
-            results = self.client.search(
-                collection_name=self.collection_name,
-                query_vector=query_vector,
-                query_filter=qdrant_models.Filter(must=must_conditions),
-                limit=limit,
-                score_threshold=score_threshold,
-            )
+        results = qdrant_client.search(
+            collection_name=settings.QDRANT_COLLECTION,
+            query_vector=query_vector,
+            query_filter=Filter(must=must_conditions),
+            limit=limit,
+            score_threshold=score_threshold,
+            with_payload=True,
+        )
+        return [
+            {
+                "id": str(r.id),
+                "score": r.score,
+                "payload": r.payload,
+            }
+            for r in results
+        ]
+    except Exception as e:
+        logger.error(f"Qdrant search failed: {e}")
+        return []
 
-            return [
-                {
-                    "id": str(r.id),
-                    "score": r.score,
-                    "payload": r.payload or {},
-                }
-                for r in results
-            ]
-        except Exception as e:
-            logger.error("Qdrant search failed: {}", type(e).__name__)
-            return []
-
-    def delete_by_user(self, user_id: str) -> None:
-        """Delete all vectors for a specific user.
-
-        Args:
-            user_id: The user whose vectors to delete.
-        """
-        try:
-            self.client.delete(
-                collection_name=self.collection_name,
-                points_selector=qdrant_models.FilterSelector(
-                    filter=qdrant_models.Filter(
-                        must=[
-                            qdrant_models.FieldCondition(
-                                key="user_id",
-                                match=qdrant_models.MatchValue(value=user_id),
-                            )
-                        ]
+async def delete_by_integration(integration_id: str) -> bool:
+    """Delete vectors by integration ID."""
+    try:
+        qdrant_client.delete(
+            collection_name=settings.QDRANT_COLLECTION,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(
+                        key="integration_id",
+                        match=MatchValue(value=integration_id),
                     )
-                ),
-            )
-            logger.info("Deleted all Qdrant vectors for user_id={}", user_id)
-        except Exception as e:
-            logger.error("Failed to delete vectors for user_id={}: {}", user_id, type(e).__name__)
-            raise
+                ]
+            ),
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Qdrant delete failed: {e}")
+        return False
 
-    def delete_by_integration(self, user_id: str, integration_id: str) -> None:
-        """Delete all vectors for a specific integration.
 
-        Args:
-            user_id: The user ID.
-            integration_id: The integration whose vectors to delete.
-        """
-        try:
-            self.client.delete(
-                collection_name=self.collection_name,
-                points_selector=qdrant_models.FilterSelector(
-                    filter=qdrant_models.Filter(
-                        must=[
-                            qdrant_models.FieldCondition(
-                                key="user_id",
-                                match=qdrant_models.MatchValue(value=user_id),
-                            ),
-                            qdrant_models.FieldCondition(
-                                key="integration_id",
-                                match=qdrant_models.MatchValue(value=integration_id),
-                            ),
-                        ]
+async def delete_by_user(user_id: str) -> bool:
+    """Delete all vectors for a user."""
+    try:
+        qdrant_client.delete(
+            collection_name=settings.QDRANT_COLLECTION,
+            points_selector=Filter(
+                must=[
+                    FieldCondition(
+                        key="user_id",
+                        match=MatchValue(value=user_id),
                     )
-                ),
-            )
-            logger.info("Deleted Qdrant vectors for integration_id={}", integration_id)
-        except Exception as e:
-            logger.error("Failed to delete vectors for integration_id={}: {}", integration_id, type(e).__name__)
-            raise
+                ]
+            ),
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Qdrant delete by user failed: {e}")
+        return False
 
+
+async def get_collection_stats() -> dict:
+    """Get Qdrant collection statistics."""
+    try:
+        info = qdrant_client.get_collection(settings.QDRANT_COLLECTION)
+        return {
+            "total_vectors": info.vectors_count,
+            "indexed_vectors": info.indexed_vectors_count,
+            "status": str(info.status),
+        }
+    except Exception as e:
+        logger.error(f"Qdrant stats failed: {e}")
+        return {"total_vectors": 0, "status": "error"}
+
+
+async def check_qdrant_health() -> bool:
+    """Check if Qdrant is accessible."""
+    try:
+        qdrant_client.get_collections()
+        return True
+    except Exception:
+        return False
+
+
+class QdrantService:
+    """Legacy compatibility wrapper."""
+    
     @staticmethod
     def generate_point_id() -> str:
-        """Generate a new UUID for a Qdrant point."""
         return str(uuid4())
+    
+    def upsert_batch(self, points: list[dict]) -> None:
+        import asyncio
+        asyncio.create_task(upsert_vectors(points))
+    
+    def delete_by_integration(self, user_id: str, integration_id: str) -> None:
+        import asyncio
+        asyncio.create_task(delete_by_integration(integration_id))
 
 
 qdrant_service = QdrantService()

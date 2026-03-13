@@ -1,32 +1,30 @@
 # backend/app/services/embedding_service.py
 
 import hashlib
-from functools import lru_cache
 
 from loguru import logger
-from sentence_transformers import SentenceTransformer
+from openai import AsyncOpenAI
+
+from app.core.config import settings
 
 
 class EmbeddingService:
-    """Service for generating text embeddings using sentence-transformers."""
+    """Service for generating text embeddings using OpenAI."""
 
-    MODEL_NAME = "all-MiniLM-L6-v2"
-    EMBEDDING_DIM = 384
+    EMBEDDING_DIM = 1536
 
     def __init__(self) -> None:
-        """Initialize the embedding service. Model is lazy-loaded on first use."""
-        self._model: SentenceTransformer | None = None
+        """Initialize the embedding service."""
+        self._client: AsyncOpenAI | None = None
 
     @property
-    def model(self) -> SentenceTransformer:
-        """Lazy-load the sentence transformer model."""
-        if self._model is None:
-            logger.info("Loading embedding model: {}", self.MODEL_NAME)
-            self._model = SentenceTransformer(self.MODEL_NAME)
-            logger.info("Embedding model loaded successfully")
-        return self._model
+    def client(self) -> AsyncOpenAI:
+        """Lazy-load the OpenAI client."""
+        if self._client is None:
+            self._client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+        return self._client
 
-    def embed_text(self, text: str) -> list[float]:
+    async def embed_text(self, text: str) -> list[float]:
         """Generate an embedding vector for a single text string.
 
         Args:
@@ -39,11 +37,17 @@ class EmbeddingService:
             logger.warning("Attempted to embed empty text, returning zero vector")
             return [0.0] * self.EMBEDDING_DIM
 
-        truncated = text[:8192]
-        embedding = self.model.encode(truncated, show_progress_bar=False)
-        return embedding.tolist()
+        try:
+            response = await self.client.embeddings.create(
+                model=settings.OPENAI_EMBEDDING_MODEL,
+                input=text[:8192],
+            )
+            return response.data[0].embedding
+        except Exception as e:
+            logger.error(f"OpenAI embedding failed: {e}")
+            return [0.0] * self.EMBEDDING_DIM
 
-    def embed_batch(self, texts: list[str]) -> list[list[float]]:
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
         """Generate embedding vectors for a batch of texts.
 
         Args:
@@ -55,22 +59,27 @@ class EmbeddingService:
         if not texts:
             return []
 
-        cleaned = []
-        for t in texts:
-            if t and t.strip():
-                cleaned.append(t[:8192])
-            else:
-                cleaned.append("")
+        cleaned = [t[:8192] if t and t.strip() else "" for t in texts]
 
-        embeddings = self.model.encode(cleaned, show_progress_bar=False, batch_size=32)
-        result = []
-        for i, emb in enumerate(embeddings):
-            if cleaned[i]:
-                result.append(emb.tolist())
-            else:
-                result.append([0.0] * self.EMBEDDING_DIM)
+        try:
+            response = await self.client.embeddings.create(
+                model=settings.OPENAI_EMBEDDING_MODEL,
+                input=cleaned,
+            )
+            return [item.embedding for item in response.data]
+        except Exception as e:
+            logger.error(f"OpenAI batch embedding failed: {e}")
+            return [[0.0] * self.EMBEDDING_DIM for _ in texts]
 
-        return result
+    def embed_text_sync(self, text: str) -> list[float]:
+        """Synchronous embedding for backward compatibility."""
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop.run_until_complete(self.embed_text(text))
 
     @staticmethod
     def content_hash(text: str) -> str:

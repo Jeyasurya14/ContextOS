@@ -10,14 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from loguru import logger
 
-from app.core.database import get_db
+from app.core.database import get_db, AsyncSessionLocal
 from app.core.security import hash_api_key
 from app.models.user import User
 from app.models.conversation import Conversation, ConversationMessage
 from app.services.react_agent import react_agent
 from app.services.billing_service import billing_service
 
-router = APIRouter(prefix="/query", tags=["query"])
+router = APIRouter(tags=["query"])
 
 
 BLOCKED_PATTERNS = [
@@ -253,8 +253,6 @@ async def query(
                 await save_db.commit()
         except Exception as e:
             logger.error("Failed to save assistant message: {}", type(e).__name__)
-
-    from app.core.database import async_session_factory
 
     return StreamingResponse(
         event_stream(),

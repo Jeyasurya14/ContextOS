@@ -118,7 +118,7 @@ class ContextProcessor:
                 logger.debug("Skipping duplicate chunk: hash={}", content_hash[:12])
                 continue
 
-            embedding = embedding_service.embed_text(chunk_text)
+            embedding = await embedding_service.embed_text(chunk_text)
             point_id = qdrant_service.generate_point_id()
 
             token_count = len(chunk_text.split())

@@ -12,7 +12,7 @@ from app.models.user import User
 from app.models.context_chunk import ContextChunk
 from app.services.context_processor import context_processor
 
-router = APIRouter(prefix="/context", tags=["context"])
+router = APIRouter(tags=["context"])
 
 
 async def _extract_api_key(

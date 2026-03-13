@@ -14,7 +14,7 @@ from app.models.integration import Integration
 from app.integrations.slack import slack_integration
 from app.api.deps import get_current_user
 
-router = APIRouter(prefix="/integrations/slack", tags=["slack"])
+router = APIRouter(tags=["slack"])
 
 
 @router.get("/connect")

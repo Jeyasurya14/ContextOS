@@ -1,81 +1,87 @@
 # backend/app/core/config.py
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # Application
     APP_NAME: str = "ContextOS"
-    APP_VERSION: str = "0.1.0"
+    APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
-    API_V1_PREFIX: str = "/api/v1"
+    ENVIRONMENT: str = "production"
 
-    # Database
-    DATABASE_URL: str = Field(
-        default="postgresql+asyncpg://contextos:contextos_dev_password@localhost:5432/contextos"
-    )
+    DATABASE_URL: str = ""
+    DATABASE_POOL_SIZE: int = 10
+    DATABASE_MAX_OVERFLOW: int = 20
+    DATABASE_POOL_TIMEOUT: int = 30
 
-    # Redis
-    REDIS_URL: str = Field(default="redis://localhost:6379/0")
+    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_MAX_CONNECTIONS: int = 10
 
-    # Qdrant
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333
+    QDRANT_API_KEY: str = ""
     QDRANT_COLLECTION: str = "context_chunks"
+    QDRANT_USE_HTTPS: bool = False
 
-    # JWT
-    JWT_SECRET_KEY: str = Field(default="change-me-in-production-use-a-real-secret-key")
+    JWT_SECRET_KEY: str = "change-me-in-production-minimum-32-chars"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
-    # Encryption (AES-256-GCM for OAuth tokens)
-    ENCRYPTION_KEY: str = Field(
-        default="change-me-32-byte-key-for-aes256!"
-    )
+    ENCRYPTION_KEY: str = "change-me-in-production-32-bytes"
 
-    # GitHub OAuth
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-4o"
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    OPENAI_MAX_TOKENS: int = 2000
+    OPENAI_TEMPERATURE: float = 0.1
+
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
     GITHUB_WEBHOOK_SECRET: str = ""
+    GITHUB_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/github/callback"
 
-    # Notion OAuth
     NOTION_CLIENT_ID: str = ""
     NOTION_CLIENT_SECRET: str = ""
-    NOTION_REDIRECT_URI: str = ""
+    NOTION_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/notion/callback"
 
-    # Slack OAuth
     SLACK_CLIENT_ID: str = ""
     SLACK_CLIENT_SECRET: str = ""
     SLACK_SIGNING_SECRET: str = ""
+    SLACK_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/slack/callback"
 
-    # OpenAI
-    OPENAI_API_KEY: str = ""
-    OPENAI_MODEL: str = "gpt-4o"
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_PRO_PRICE_ID: str = ""
+    STRIPE_TEAM_PRICE_ID: str = ""
+    STRIPE_PRO_MONTHLY_PRICE_USD: float = 20.0
+    STRIPE_TEAM_MONTHLY_PRICE_USD: float = 99.0
 
-    # Razorpay
-    RAZORPAY_KEY_ID: str = ""
-    RAZORPAY_KEY_SECRET: str = ""
-    RAZORPAY_PRO_PLAN_ID: str = ""
-    RAZORPAY_TEAM_PLAN_ID: str = ""
-    RAZORPAY_WEBHOOK_SECRET: str = ""
-
-    # Frontend
     FRONTEND_URL: str = "http://localhost:3000"
     BACKEND_URL: str = "http://localhost:8000"
 
-    # CORS
-    CORS_ORIGINS: list[str] = [
-        "http://localhost:3000",
-        "http://localhost:8000",
-    ]
+    RATE_LIMIT_FREE: int = 50
+    RATE_LIMIT_PRO: int = 500
+    RATE_LIMIT_TEAM: int = 2000
 
-    # Rate limits
-    RATE_LIMIT_FREE: str = "50/day"
-    RATE_LIMIT_PRO: str = "1000/day"
+    @property
+    def qdrant_url(self) -> str:
+        if self.QDRANT_API_KEY:
+            return f"https://{self.QDRANT_HOST}"
+        return f"http://{self.QDRANT_HOST}:{self.QDRANT_PORT}"
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [
+            self.FRONTEND_URL,
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "https://contextos.vercel.app",
+            "https://*.vercel.app",
+        ]
 
     model_config = SettingsConfigDict(
         env_file=".env",

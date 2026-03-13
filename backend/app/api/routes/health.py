@@ -1,11 +1,13 @@
 # backend/app/api/routes/health.py
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import text
+from datetime import datetime
+from fastapi import APIRouter, Response, status
 from loguru import logger
+import redis.asyncio as aioredis
 
-from app.core.database import get_db
+from app.core.config import settings
+from app.core.database import check_database_health
+from app.services.qdrant_service import check_qdrant_health
 
 router = APIRouter(tags=["health"])
 
@@ -14,24 +16,54 @@ router = APIRouter(tags=["health"])
 async def root() -> dict:
     """Root endpoint providing basic API information."""
     return {
-        "message": "ContextOS API",
-        "version": "v0.1.0",
-        "docs": "/docs",
-        "health": "/health"
+        "name": "ContextOS API",
+        "version": settings.APP_VERSION,
+        "status": "running",
+        "docs": "/docs" if settings.DEBUG else "disabled in production",
     }
 
 
 @router.get("/health")
-async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
-    """Health check endpoint verifying API and database connectivity."""
+async def health_check(response: Response) -> dict:
+    """Health check endpoint verifying all services."""
+    db_ok = await check_database_health()
+    
+    redis_ok = False
     try:
-        await db.execute(text("SELECT 1"))
-        db_status = "ok"
-    except Exception as e:
-        logger.error("Database health check failed: {}", type(e).__name__)
-        db_status = "error"
-
+        redis_client = aioredis.from_url(settings.REDIS_URL)
+        await redis_client.ping()
+        await redis_client.close()
+        redis_ok = True
+    except Exception:
+        pass
+    
+    qdrant_ok = await check_qdrant_health()
+    
+    all_ok = db_ok and redis_ok and qdrant_ok
+    
+    if not all_ok:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    
     return {
-        "status": "ok" if db_status == "ok" else "degraded",
-        "database": db_status,
+        "status": "ok" if all_ok else "degraded",
+        "version": settings.APP_VERSION,
+        "environment": settings.ENVIRONMENT,
+        "services": {
+            "postgres": "connected" if db_ok else "error",
+            "redis": "connected" if redis_ok else "error",
+            "qdrant": "connected" if qdrant_ok else "error",
+        },
+        "timestamp": datetime.utcnow().isoformat(),
     }
+
+
+@router.get("/health/ready")
+async def readiness_check() -> dict:
+    """Lightweight readiness check for Render."""
+    return {"ready": True}
+
+
+@router.get("/health/live")
+async def liveness_check() -> dict:
+    """Lightweight liveness check."""
+    return {"alive": True}

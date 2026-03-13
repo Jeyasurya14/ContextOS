@@ -16,7 +16,7 @@ from app.schemas.project import (
 )
 from app.api.deps import get_current_user
 
-router = APIRouter(prefix="/projects", tags=["projects"])
+router = APIRouter(tags=["projects"])
 
 
 @router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)

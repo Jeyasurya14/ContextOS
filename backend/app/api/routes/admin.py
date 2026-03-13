@@ -13,7 +13,7 @@ from app.models.context_chunk import ContextChunk
 from app.models.billing import BillingEvent
 from app.api.deps import get_current_user
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(tags=["admin"])
 
 
 async def _require_admin(user: User) -> User:
