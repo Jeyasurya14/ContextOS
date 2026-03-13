@@ -5,25 +5,35 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 
-class CheckoutCreate(BaseModel):
-    """Schema for creating a Stripe checkout session."""
+class OrderCreate(BaseModel):
+    """Schema for creating a Razorpay order."""
 
-    price_id: str = Field(min_length=1)
-    success_url: str | None = None
-    cancel_url: str | None = None
+    plan: str = Field(pattern="^(pro|team)$")
 
 
-class CheckoutResponse(BaseModel):
-    """Schema for checkout session response."""
+class OrderResponse(BaseModel):
+    """Schema for Razorpay order response."""
 
-    checkout_url: str
-    session_id: str
+    order_id: str
+    amount: int
+    currency: str
+    razorpay_key_id: str
 
 
-class PortalResponse(BaseModel):
-    """Schema for Stripe customer portal response."""
+class PaymentVerify(BaseModel):
+    """Schema for verifying a Razorpay payment."""
 
-    portal_url: str
+    razorpay_order_id: str
+    razorpay_payment_id: str
+    razorpay_signature: str
+    plan: str = Field(pattern="^(pro|team)$")
+
+
+class PaymentVerifyResponse(BaseModel):
+    """Schema for payment verification response."""
+
+    success: bool
+    plan: str
 
 
 class SubscriptionResponse(BaseModel):
@@ -31,9 +41,8 @@ class SubscriptionResponse(BaseModel):
 
     plan: str
     status: str
-    stripe_subscription_id: str | None = None
+    razorpay_subscription_id: str | None = None
     current_period_end: datetime | None = None
-    cancel_at_period_end: bool = False
 
 
 class UsageResponse(BaseModel):
@@ -64,10 +73,8 @@ class PlanInfo(BaseModel):
     """Schema for plan details."""
 
     name: str
-    price_monthly: float
-    price_yearly: float
-    queries_per_day: int
-    max_integrations: int
-    max_chunks: int
-    team_members: int
+    price_inr: int
+    queries_per_day: str
+    max_integrations: str
+    max_chunks: str
     features: list[str]

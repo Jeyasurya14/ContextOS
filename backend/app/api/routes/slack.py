@@ -12,14 +12,14 @@ from app.core.config import settings
 from app.models.user import User
 from app.models.integration import Integration
 from app.integrations.slack import slack_integration
-from app.api.routes.auth import get_current_user_from_token
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/integrations/slack", tags=["slack"])
 
 
 @router.get("/connect")
 async def slack_connect(
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Generate Slack OAuth URL for the user to authorize.
 
@@ -37,7 +37,7 @@ async def slack_callback(
     code: str,
     state: str,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+):
     """Handle Slack OAuth callback.
 
     Args:
@@ -96,20 +96,20 @@ async def slack_callback(
                 integration.user_id, str(integration.id), decrypted
             )
 
-        return {
-            "status": "connected",
-            "provider": "slack",
-            "team": team_name,
-            "redirect_url": f"{settings.FRONTEND_URL}/dashboard/integrations",
-        }
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/dashboard/integrations?success=slack&team={team_name}",
+            status_code=302,
+        )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Slack OAuth callback failed: {}", type(e).__name__)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to connect Slack workspace",
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/dashboard/integrations?error=slack",
+            status_code=302,
         )
 
 
@@ -176,7 +176,7 @@ async def slack_events(
 @router.post("/sync")
 async def slack_manual_sync(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Trigger a manual Slack sync for the current user.
 
@@ -218,7 +218,7 @@ async def slack_manual_sync(
 @router.delete("/disconnect")
 async def slack_disconnect(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Disconnect Slack integration.
 

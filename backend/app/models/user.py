@@ -23,10 +23,10 @@ class User(Base):
     plan: Mapped[str] = mapped_column(
         String(50), default="free", nullable=False
     )
-    stripe_customer_id: Mapped[str | None] = mapped_column(
+    razorpay_customer_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
-    stripe_subscription_id: Mapped[str | None] = mapped_column(
+    razorpay_subscription_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
     api_key_hash: Mapped[str | None] = mapped_column(
@@ -68,3 +68,8 @@ class User(Base):
     conversations: Mapped[list["Conversation"]] = relationship(
         "Conversation", back_populates="user", lazy="selectin"
     )
+
+    @property
+    def name(self) -> str:
+        """Name property for frontend compatibility."""
+        return self.full_name

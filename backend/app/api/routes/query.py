@@ -20,6 +20,38 @@ from app.services.billing_service import billing_service
 router = APIRouter(prefix="/query", tags=["query"])
 
 
+BLOCKED_PATTERNS = [
+    "how do i", "how to", "what is", "explain ", "teach me",
+    "tutorial", "example of", "show me how", "can you write",
+    "write a ", "create a ", "generate a ", "give me an example",
+    "what are the best", "recommend a", "which is better",
+]
+
+
+def is_out_of_scope(question: str) -> bool:
+    """
+    Quick pre-filter before hitting the agent.
+    Catches obvious general knowledge questions.
+    Only triggers if question has NO project-specific terms.
+    """
+    question_lower = question.lower().strip()
+
+    PROJECT_TERMS = [
+        "commit", "push", "pull request", "pr", "issue", "branch",
+        "notion", "slack", "github", "vscode", "file", "function",
+        "class", "error", "bug", "deploy", "yesterday", "last week",
+        "we decided", "our ", "my code", "my project", "i worked",
+        "the repo", "the database", "the api", "the backend", "the frontend"
+    ]
+    if any(term in question_lower for term in PROJECT_TERMS):
+        return False
+
+    if any(pattern in question_lower for pattern in BLOCKED_PATTERNS):
+        return True
+
+    return False
+
+
 class QueryRequest(BaseModel):
     """Schema for query request from VS Code extension or frontend."""
     question: str
@@ -105,6 +137,29 @@ async def query(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Question is required",
         )
+
+    if is_out_of_scope(data.question):
+        if data.stream:
+            async def out_of_scope_stream():
+                msg = (
+                    "I can only answer questions about your project — your commits, "
+                    "documents, Slack messages, and code files. "
+                    "Try asking: 'what did I work on this week?' or "
+                    "'what decisions did we make about the database?'"
+                )
+                yield f"data: {json.dumps({'event': 'token', 'content': msg})}\n\n"
+                yield f"data: {json.dumps({'event': 'done'})}\n\n"
+            return StreamingResponse(out_of_scope_stream(), media_type="text/event-stream")
+        else:
+            return {
+                "answer": (
+                    "I can only answer questions about your project — your commits, "
+                    "documents, Slack messages, and code files. "
+                    "Try asking: 'what did I work on this week?' or "
+                    "'what decisions did we make about the database?'"
+                ),
+                "sources": []
+            }
 
     allowed = await billing_service.check_query_limit(user, db)
     if not allowed:

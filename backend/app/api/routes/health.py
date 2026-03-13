@@ -10,6 +10,17 @@ from app.core.database import get_db
 router = APIRouter(tags=["health"])
 
 
+@router.get("/")
+async def root() -> dict:
+    """Root endpoint providing basic API information."""
+    return {
+        "message": "ContextOS API",
+        "version": "v0.1.0",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
+
 @router.get("/health")
 async def health_check(db: AsyncSession = Depends(get_db)) -> dict:
     """Health check endpoint verifying API and database connectivity."""

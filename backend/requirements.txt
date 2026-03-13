@@ -46,7 +46,7 @@ sentence-transformers==2.7.0
 qdrant-client==1.9.1
 
 # Billing
-stripe==9.6.0
+razorpay>=1.4.2
 
 # Utilities
 python-dateutil==2.9.0

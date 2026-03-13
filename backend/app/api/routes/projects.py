@@ -14,7 +14,7 @@ from app.schemas.project import (
     ProjectResponse,
     ProjectListResponse,
 )
-from app.api.routes.auth import get_current_user_from_token
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 async def create_project(
     data: ProjectCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> ProjectResponse:
     """Create a new project for the current user."""
     project = Project(
@@ -45,7 +45,7 @@ async def list_projects(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> ProjectListResponse:
     """List all projects for the current user."""
     count_query = select(func.count(Project.id)).where(
@@ -74,7 +74,7 @@ async def list_projects(
 async def get_project(
     project_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> ProjectResponse:
     """Get a specific project by ID."""
     result = await db.execute(
@@ -99,7 +99,7 @@ async def update_project(
     project_id: str,
     data: ProjectUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> ProjectResponse:
     """Update a project."""
     result = await db.execute(
@@ -131,7 +131,7 @@ async def update_project(
 async def delete_project(
     project_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Delete a project."""
     result = await db.execute(

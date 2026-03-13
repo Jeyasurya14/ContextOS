@@ -8,7 +8,7 @@ from loguru import logger
 from app.core.database import get_db
 from app.models.user import User
 from app.models.integration import Integration
-from app.api.routes.auth import get_current_user_from_token
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/integrations", tags=["integrations"])
 @router.get("/")
 async def list_integrations(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> list[dict]:
     """List all integrations for the current user.
 
@@ -47,7 +47,7 @@ async def list_integrations(
 async def get_integration(
     integration_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Get details of a specific integration.
 
@@ -85,7 +85,7 @@ async def get_integration(
 
 @router.get("/status/all")
 async def integration_status(
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Get connection status for all integration providers.

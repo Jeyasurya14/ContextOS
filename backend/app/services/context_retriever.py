@@ -16,7 +16,7 @@ class ContextRetriever:
     def __init__(self) -> None:
         """Initialize the context retriever."""
         self.max_results = 15
-        self.score_threshold = 0.3
+        self.score_threshold = 0.1  # Lowered to retrieve more results
 
     async def retrieve(
         self,

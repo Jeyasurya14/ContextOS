@@ -155,7 +155,7 @@ class GitHubIntegration:
             detailed_commits = []
             for commit_summary in commits_list:
                 sha = commit_summary.get("sha", "")
-                await asyncio.sleep(1)
+                await asyncio.sleep(0.2)  # Reduced delay to speed up sync
                 try:
                     detail_resp = await client.get(
                         f"{self.API_BASE}/repos/{repo_full_name}/commits/{sha}",

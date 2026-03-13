@@ -89,3 +89,34 @@ def hash_api_key(api_key: str) -> str:
 def generate_state_token() -> str:
     """Generate a random state token for OAuth flows."""
     return secrets.token_urlsafe(32)
+
+
+def create_oauth_state_token(user_id: str) -> str:
+    """Create a JWT state token containing user_id for OAuth flows."""
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=10)  # State token expires in 10 minutes
+    
+    to_encode = {
+        "sub": user_id,
+        "exp": expire,
+        "iat": now,
+        "type": "oauth_state",
+    }
+    encoded_jwt = jwt.encode(
+        to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM
+    )
+    return encoded_jwt
+
+
+def decode_oauth_state_token(state_token: str) -> str | None:
+    """Decode OAuth state token and return user_id."""
+    try:
+        payload = jwt.decode(
+            state_token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM]
+        )
+        if payload.get("type") != "oauth_state":
+            return None
+        return payload.get("sub")
+    except JWTError as e:
+        logger.debug("OAuth state token decode failed: {}", str(e))
+        return None

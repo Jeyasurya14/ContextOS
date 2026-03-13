@@ -9,7 +9,7 @@ from app.core.database import Base
 
 
 class BillingEvent(Base):
-    """Record of billing events from Stripe."""
+    """Record of billing events from Razorpay."""
 
     __tablename__ = "billing_events"
 
@@ -22,20 +22,20 @@ class BillingEvent(Base):
     event_type: Mapped[str] = mapped_column(
         String(100), nullable=False, index=True
     )
-    stripe_event_id: Mapped[str] = mapped_column(
+    razorpay_event_id: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False
     )
-    stripe_subscription_id: Mapped[str | None] = mapped_column(
+    razorpay_payment_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
-    stripe_invoice_id: Mapped[str | None] = mapped_column(
+    razorpay_order_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
     amount: Mapped[float | None] = mapped_column(
         Float, nullable=True
     )
     currency: Mapped[str] = mapped_column(
-        String(10), default="usd", nullable=False
+        String(10), default="inr", nullable=False
     )
     status: Mapped[str] = mapped_column(
         String(50), nullable=False

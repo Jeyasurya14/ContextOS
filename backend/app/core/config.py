@@ -56,11 +56,12 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str = ""
     OPENAI_MODEL: str = "gpt-4o"
 
-    # Stripe
-    STRIPE_SECRET_KEY: str = ""
-    STRIPE_WEBHOOK_SECRET: str = ""
-    STRIPE_PRICE_PRO_MONTHLY: str = ""
-    STRIPE_PRICE_PRO_YEARLY: str = ""
+    # Razorpay
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_PRO_PLAN_ID: str = ""
+    RAZORPAY_TEAM_PLAN_ID: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
 
     # Frontend
     FRONTEND_URL: str = "http://localhost:3000"

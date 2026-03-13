@@ -12,14 +12,14 @@ from app.core.config import settings
 from app.models.user import User
 from app.models.integration import Integration
 from app.integrations.notion import notion_integration
-from app.api.routes.auth import get_current_user_from_token
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/integrations/notion", tags=["notion"])
 
 
 @router.get("/connect")
 async def notion_connect(
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Generate Notion OAuth URL for the user to authorize.
 
@@ -37,7 +37,7 @@ async def notion_callback(
     code: str,
     state: str,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+):
     """Handle Notion OAuth callback.
 
     Args:
@@ -97,27 +97,27 @@ async def notion_callback(
                 integration.user_id, str(integration.id), decrypted
             )
 
-        return {
-            "status": "connected",
-            "provider": "notion",
-            "workspace": workspace_name,
-            "redirect_url": f"{settings.FRONTEND_URL}/dashboard/integrations",
-        }
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/dashboard/integrations?success=notion&workspace={workspace_name}",
+            status_code=302,
+        )
 
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Notion OAuth callback failed: {}", type(e).__name__)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to connect Notion account",
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/dashboard/integrations?error=notion",
+            status_code=302,
         )
 
 
 @router.post("/sync")
 async def notion_manual_sync(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Trigger a manual Notion sync for the current user.
 
@@ -159,7 +159,7 @@ async def notion_manual_sync(
 @router.delete("/disconnect")
 async def notion_disconnect(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Disconnect Notion integration.
 

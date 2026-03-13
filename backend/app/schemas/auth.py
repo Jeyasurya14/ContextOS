@@ -20,14 +20,6 @@ class UserLogin(BaseModel):
     password: str
 
 
-class TokenResponse(BaseModel):
-    """Schema for authentication token response."""
-
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-
-
 class TokenRefresh(BaseModel):
     """Schema for token refresh request."""
 
@@ -39,10 +31,10 @@ class UserResponse(BaseModel):
 
     id: str
     email: str
-    full_name: str
+    name: str  # Changed from full_name to name
     is_active: bool
     is_verified: bool
-    plan: str
+    plan: str = "free"
     api_key_prefix: str | None = None
     team_id: str | None = None
     team_role: str | None = None
@@ -50,6 +42,15 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class TokenResponse(BaseModel):
+    """Schema for authentication token response."""
+
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    user: UserResponse | None = None
 
 
 class APIKeyResponse(BaseModel):

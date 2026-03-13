@@ -22,7 +22,7 @@ from app.schemas.team import (
     InviteAccept,
 )
 from app.schemas.auth import MessageResponse
-from app.api.routes.auth import get_current_user
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/teams", tags=["teams"])
 

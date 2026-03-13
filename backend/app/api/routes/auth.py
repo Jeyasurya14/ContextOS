@@ -1,7 +1,6 @@
 # backend/app/api/routes/auth.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from loguru import logger
@@ -12,9 +11,9 @@ from app.core.security import (
     verify_password,
     create_access_token,
     create_refresh_token,
-    decode_token,
     generate_api_key,
     hash_api_key,
+    decode_token,
 )
 from app.models.user import User
 from app.schemas.auth import (
@@ -26,42 +25,9 @@ from app.schemas.auth import (
     APIKeyResponse,
     MessageResponse,
 )
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-_bearer_scheme = HTTPBearer(auto_error=True)
-
-
-async def get_current_user_from_token(
-    db: AsyncSession = Depends(get_db),
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
-) -> User:
-    """Dependency to get current user from Bearer token."""
-    token = credentials.credentials
-    payload = decode_token(token)
-    if payload is None or payload.get("type") != "access":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-        )
-
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload",
-        )
-
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-
-    if user is None or not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or inactive",
-        )
-
-    return user
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -124,9 +90,15 @@ async def login(
     access_token = create_access_token(subject=user.id)
     refresh_token = create_refresh_token(subject=user.id)
 
+    # Include user data in response
+    user_data = UserResponse.model_validate(user)
+    
+    await db.commit()
+    
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
+        user=user_data,
     )
 
 
@@ -164,7 +136,7 @@ async def refresh_token(
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> UserResponse:
     """Get current authenticated user profile."""
     return UserResponse.model_validate(current_user)
@@ -173,7 +145,7 @@ async def get_me(
 @router.post("/api-key", response_model=APIKeyResponse)
 async def generate_user_api_key(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> APIKeyResponse:
     """Generate a new API key for the current user."""
     api_key = generate_api_key()
@@ -195,7 +167,7 @@ async def generate_user_api_key(
 @router.delete("/api-key", response_model=MessageResponse)
 async def revoke_api_key(
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user_from_token),
+    current_user: User = Depends(get_current_user),
 ) -> MessageResponse:
     """Revoke the current user's API key."""
     current_user.api_key_hash = None

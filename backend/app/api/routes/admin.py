@@ -11,7 +11,7 @@ from app.models.team import Team
 from app.models.integration import Integration
 from app.models.context_chunk import ContextChunk
 from app.models.billing import BillingEvent
-from app.api.routes.auth import get_current_user
+from app.api.deps import get_current_user
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

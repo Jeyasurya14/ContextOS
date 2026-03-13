@@ -117,10 +117,10 @@ export default function LandingPage() {
       <section className="py-20">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <h2 className="text-3xl font-bold text-dark-50 mb-12">Simple Pricing</h2>
-          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             <div className="bg-dark-900 border border-dark-700 rounded-xl p-8">
               <h3 className="text-lg font-semibold text-dark-50 mb-2">Free</h3>
-              <p className="text-3xl font-bold text-dark-50 mb-1">$0<span className="text-sm text-dark-400 font-normal">/month</span></p>
+              <p className="text-3xl font-bold text-dark-50 mb-1">₹0<span className="text-sm text-dark-400 font-normal">/month</span></p>
               <p className="text-dark-400 text-sm mb-6">For individual developers</p>
               <ul className="text-sm text-dark-300 space-y-2 text-left">
                 <li>- 50 queries/day</li>
@@ -140,10 +140,10 @@ export default function LandingPage() {
                 Popular
               </div>
               <h3 className="text-lg font-semibold text-dark-50 mb-2">Pro</h3>
-              <p className="text-3xl font-bold text-dark-50 mb-1">$20<span className="text-sm text-dark-400 font-normal">/month</span></p>
-              <p className="text-dark-400 text-sm mb-6">For teams and power users</p>
+              <p className="text-3xl font-bold text-dark-50 mb-1">₹1,667<span className="text-sm text-dark-400 font-normal">/month</span></p>
+              <p className="text-dark-400 text-sm mb-6">For developers and small teams</p>
               <ul className="text-sm text-dark-300 space-y-2 text-left">
-                <li>- 1,000 queries/day</li>
+                <li>- Unlimited queries/day</li>
                 <li>- Unlimited integrations</li>
                 <li>- 100K context chunks</li>
                 <li>- Team shared context</li>
@@ -156,6 +156,25 @@ export default function LandingPage() {
                 Start Pro Trial
               </Link>
             </div>
+            <div className="bg-dark-900 border border-dark-700 rounded-xl p-8">
+              <h3 className="text-lg font-semibold text-dark-50 mb-2">Team</h3>
+              <p className="text-3xl font-bold text-dark-50 mb-1">₹8,282<span className="text-sm text-dark-400 font-normal">/month</span></p>
+              <p className="text-dark-400 text-sm mb-6">For growing teams and orgs</p>
+              <ul className="text-sm text-dark-300 space-y-2 text-left">
+                <li>- Unlimited queries/day</li>
+                <li>- Unlimited integrations</li>
+                <li>- Unlimited context chunks</li>
+                <li>- Unlimited team members</li>
+                <li>- SSO & SAML</li>
+                <li>- Dedicated support</li>
+              </ul>
+              <Link
+                href="/register"
+                className="mt-6 block w-full text-center border border-dark-600 text-dark-200 py-2 rounded-lg hover:bg-dark-800 transition"
+              >
+                Contact Sales
+              </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -165,9 +184,9 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between">
           <span className="text-dark-400 text-sm">&copy; 2026 ContextOS. All rights reserved.</span>
           <div className="flex gap-6 text-sm text-dark-400">
-            <a href="#" className="hover:text-dark-200 transition">Privacy</a>
-            <a href="#" className="hover:text-dark-200 transition">Terms</a>
-            <a href="https://github.com" className="hover:text-dark-200 transition">GitHub</a>
+            <Link href="/privacy" className="hover:text-dark-200 transition">Privacy</Link>
+            <Link href="/terms" className="hover:text-dark-200 transition">Terms</Link>
+            <Link href="/refund" className="hover:text-dark-200 transition">Refund Policy</Link>
           </div>
         </div>
       </footer>
