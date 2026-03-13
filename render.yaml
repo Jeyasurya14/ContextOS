@@ -1,12 +1,11 @@
 services:
   - type: web
     name: contextos-api
-    runtime: python
+    runtime: docker
     region: singapore
     plan: starter
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt && alembic upgrade head
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
     healthCheckPath: /health/ready
     autoDeploy: true
     envVars:
@@ -66,15 +65,15 @@ services:
         sync: false
       - key: SLACK_SIGNING_SECRET
         sync: false
-      - key: STRIPE_SECRET_KEY
+      - key: RAZORPAY_KEY_ID
         sync: false
-      - key: STRIPE_PUBLISHABLE_KEY
+      - key: RAZORPAY_KEY_SECRET
         sync: false
-      - key: STRIPE_WEBHOOK_SECRET
+      - key: RAZORPAY_WEBHOOK_SECRET
         sync: false
-      - key: STRIPE_PRO_PRICE_ID
+      - key: RAZORPAY_PRO_PLAN_ID
         sync: false
-      - key: STRIPE_TEAM_PRICE_ID
+      - key: RAZORPAY_TEAM_PLAN_ID
         sync: false
       - key: FRONTEND_URL
         sync: false
@@ -83,12 +82,12 @@ services:
 
   - type: worker
     name: contextos-worker
-    runtime: python
+    runtime: docker
     region: singapore
     plan: starter
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: worker
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
@@ -130,13 +129,13 @@ services:
 
   - type: cron
     name: contextos-beat
-    runtime: python
+    runtime: docker
     region: singapore
     plan: starter
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
     schedule: "*/30 * * * *"
-    startCommand: celery -A app.workers.celery_app beat --loglevel=info
+    dockerCommand: beat
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION

@@ -15,6 +15,8 @@ ENV CARGO_TARGET_DIR=/tmp/cargo_target
 RUN pip install --no-cache-dir -r requirements.txt && rm -rf /tmp/cargo /tmp/cargo_target
 
 COPY . .
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 RUN adduser --disabled-password --gecos '' appuser
 RUN chown -R appuser:appuser /app
@@ -27,4 +29,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["web"]

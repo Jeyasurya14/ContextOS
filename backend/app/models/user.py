@@ -23,13 +23,10 @@ class User(Base):
     plan: Mapped[str] = mapped_column(
         String(50), default="free", nullable=False
     )
-    stripe_customer_id: Mapped[str | None] = mapped_column(
+    razorpay_customer_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True, index=True
     )
-    stripe_subscription_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True
-    )
-    stripe_price_id: Mapped[str | None] = mapped_column(
+    razorpay_subscription_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
     subscription_status: Mapped[str | None] = mapped_column(

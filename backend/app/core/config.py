@@ -52,13 +52,14 @@ class Settings(BaseSettings):
     SLACK_SIGNING_SECRET: str = ""
     SLACK_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/slack/callback"
 
-    STRIPE_SECRET_KEY: str = ""
-    STRIPE_PUBLISHABLE_KEY: str = ""
-    STRIPE_WEBHOOK_SECRET: str = ""
-    STRIPE_PRO_PRICE_ID: str = ""
-    STRIPE_TEAM_PRICE_ID: str = ""
-    STRIPE_PRO_MONTHLY_PRICE_USD: float = 20.0
-    STRIPE_TEAM_MONTHLY_PRICE_USD: float = 99.0
+    RAZORPAY_KEY_ID: str = ""
+    RAZORPAY_KEY_SECRET: str = ""
+    RAZORPAY_WEBHOOK_SECRET: str = ""
+    RAZORPAY_PRO_PLAN_ID: str = ""
+    RAZORPAY_TEAM_PLAN_ID: str = ""
+    RAZORPAY_CURRENCY: str = "INR"
+    RAZORPAY_PRO_AMOUNT: int = 166700
+    RAZORPAY_TEAM_AMOUNT: int = 828200
 
     FRONTEND_URL: str = "http://localhost:3000"
     BACKEND_URL: str = "http://localhost:8000"

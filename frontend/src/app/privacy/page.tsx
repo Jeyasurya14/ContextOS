@@ -50,8 +50,8 @@ export default function PrivacyPage() {
                 <strong className="text-dark-200">Usage data:</strong> Query counts, feature usage, API call frequency, and error logs for service improvement.
               </li>
               <li>
-                <strong className="text-dark-200">Billing data:</strong> Subscription plan, payment history, and Stripe customer ID. We do not store credit card
-                numbers — all payment processing is handled by Stripe.
+                <strong className="text-dark-200">Billing data:</strong> Subscription plan, payment history, and Razorpay customer ID. We do not store credit card
+                numbers — all payment processing is handled by Razorpay.
               </li>
             </ul>
           </section>
@@ -96,7 +96,7 @@ export default function PrivacyPage() {
             <p className="mb-3">We integrate with the following third-party services:</p>
             <ul className="list-disc list-inside space-y-1 text-dark-300">
               <li><strong className="text-dark-200">GitHub, Notion, Slack:</strong> For fetching your project context via OAuth. Data access is limited to the scopes you authorize.</li>
-              <li><strong className="text-dark-200">Stripe:</strong> For payment processing. Stripe handles all credit card data under their own PCI-DSS compliant infrastructure.</li>
+              <li><strong className="text-dark-200">Razorpay:</strong> For payment processing. Razorpay handles all credit card data under their own PCI-DSS compliant infrastructure.</li>
               <li><strong className="text-dark-200">OpenAI:</strong> For generating AI responses. Query context is sent to OpenAI&apos;s API for processing. OpenAI&apos;s data usage policies apply.</li>
             </ul>
           </section>

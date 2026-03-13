@@ -94,10 +94,9 @@ export default function RefundPage() {
             <h2 className="text-xl font-semibold text-dark-50 mb-3">7. Cancellation</h2>
             <p>
               You can cancel your subscription at any time through the{' '}
-              <Link href="/dashboard/billing" className="text-brand-light hover:underline">Billing dashboard</Link>{' '}
-              or via the Stripe customer portal. Cancellation stops future charges but does not trigger an
-              automatic refund. If you wish to receive a refund, please follow the process described in
-              Section 5.
+              <Link href="/dashboard/billing" className="text-brand-light hover:underline">Billing dashboard</Link>.
+              Cancellation stops future charges but does not trigger an automatic refund. If you wish to receive
+              a refund, please follow the process described in Section 5.
             </p>
           </section>
 
