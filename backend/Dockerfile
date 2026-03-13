@@ -6,10 +6,12 @@ RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
     curl \
+    cargo \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+ENV CARGO_TARGET_DIR=/tmp/cargo_target
+RUN pip install --no-cache-dir -r requirements.txt && rm -rf /tmp/cargo_target
 
 COPY . .
 
