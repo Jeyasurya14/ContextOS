@@ -1,5 +1,10 @@
 FROM python:3.11.9-slim
 
+# Prevent Render from using system Python
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PATH="/usr/local/bin:$PATH"
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y \
@@ -9,7 +14,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN python3.11 -m pip install --upgrade pip && \
+    python3.11 -m pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 COPY entrypoint.sh /entrypoint.sh
