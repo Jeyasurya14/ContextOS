@@ -20,7 +20,6 @@ redis==5.0.4
 flower==2.0.1
 qdrant-client==1.9.1
 openai==1.30.0
-tiktoken==0.8.0
 langchain==0.2.1
 langgraph==0.1.1
 razorpay==1.4.2
