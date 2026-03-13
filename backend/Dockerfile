@@ -10,8 +10,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
+ENV CARGO_HOME=/tmp/cargo
 ENV CARGO_TARGET_DIR=/tmp/cargo_target
-RUN pip install --no-cache-dir -r requirements.txt && rm -rf /tmp/cargo_target
+RUN pip install --no-cache-dir -r requirements.txt && rm -rf /tmp/cargo /tmp/cargo_target
 
 COPY . .
 
