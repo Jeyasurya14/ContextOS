@@ -233,7 +233,7 @@ async def query(
             yield f"data: {json.dumps(event)}\n\n"
 
         try:
-            async with async_session_factory() as save_db:
+            async with AsyncSessionLocal() as save_db:
                 assistant_msg = ConversationMessage(
                     conversation_id=conversation_id,
                     role="assistant",

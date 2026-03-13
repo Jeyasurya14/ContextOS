@@ -207,10 +207,16 @@ export default function ChatPage() {
                 updatedMessages[updatedMessages.length - 1].content = accumulatedContent
                 setMessages(updatedMessages)
                 saveCurrentChat(updatedMessages)
+              } else if (data.event === 'searching') {
+                // Update message to show searching status
+                const updatedMessages = [...newMessages]
+                updatedMessages[updatedMessages.length - 1].content = `🔎 Searching ${data.source || 'your content'}...`
+                setMessages(updatedMessages)
               } else if (data.event === 'thinking') {
                 thinkingSteps.push(data.message)
                 const updatedMessages = [...newMessages]
                 updatedMessages[updatedMessages.length - 1].thinkingSteps = thinkingSteps
+                updatedMessages[updatedMessages.length - 1].content = `💭 ${data.message}`
                 setMessages(updatedMessages)
               } else if (data.event === 'sources') {
                 sources = data.sources
