@@ -10,7 +10,9 @@ from app.core.database import get_db
 from app.core.security import hash_api_key
 from app.models.user import User
 from app.models.context_chunk import ContextChunk
+from app.api.deps import get_current_user
 from app.services.context_processor import context_processor
+from app.services.qdrant_service import delete_by_user
 
 router = APIRouter(tags=["context"])
 
@@ -212,4 +214,30 @@ async def context_stats(
         "by_source": breakdown,
     }
 
+
+@router.delete("/all")
+async def clear_all_context(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Delete all stored context chunks for the current authenticated user."""
+    await delete_by_user(str(current_user.id))
+
+    result = await db.execute(
+        select(ContextChunk).where(ContextChunk.user_id == current_user.id)
+    )
+    chunks = result.scalars().all()
+    deleted_count = len(chunks)
+    for chunk in chunks:
+        await db.delete(chunk)
+
+    # Reset per-integration chunk counters after context deletion.
+    for integration in current_user.integrations or []:
+        integration.total_chunks = 0
+        integration.sync_status = "pending" if integration.is_active else integration.sync_status
+
+    await db.flush()
+
+    logger.info("All context cleared for user_id={}, deleted_chunks={}", current_user.id, deleted_count)
+    return {"message": "All context cleared successfully", "deleted_chunks": deleted_count}
 

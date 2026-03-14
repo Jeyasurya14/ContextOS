@@ -50,6 +50,7 @@ export default function TeamPage() {
     try {
       const res = await teamsApi.create(teamName)
       setTeam(res.data)
+      setMembers(user ? [{ ...user, full_name: user.name, team_role: 'owner' }] : [])
       toast.success('Team created!')
     } catch (err: any) {
       toast.error(err?.response?.data?.detail || 'Failed to create team')
@@ -63,7 +64,7 @@ export default function TeamPage() {
     setInviting(true)
     try {
       const res = await teamsApi.invite(team.id, inviteEmail, inviteRole)
-      setInviteLink(res.data.invite_link)
+      setInviteLink(res.data.invite_url)
       setInviteEmail('')
       toast.success('Invitation created!')
     } catch (err: any) {
@@ -204,11 +205,11 @@ export default function TeamPage() {
           {members.map((member) => (
             <div key={member.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
               <div>
-                <p className="text-sm font-medium text-white">{member.name}</p>
+                <p className="text-sm font-medium text-white">{member.full_name}</p>
                 <p className="text-xs text-gray-400">{member.email}</p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-500 capitalize">{member.role}</span>
+                <span className="text-xs text-gray-500 capitalize">{member.team_role}</span>
                 {member.id !== user?.id && (
                   <button
                     onClick={() => setRemovingMember(member)}
@@ -228,7 +229,7 @@ export default function TeamPage() {
         onClose={() => setRemovingMember(null)}
         onConfirm={handleRemoveMember}
         title="Remove Member"
-        message={`Are you sure you want to remove ${removingMember?.name} from the team?`}
+        message={`Are you sure you want to remove ${removingMember?.full_name} from the team?`}
         confirmLabel="Remove"
         isDangerous
       />

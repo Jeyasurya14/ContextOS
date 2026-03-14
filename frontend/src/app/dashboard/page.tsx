@@ -96,7 +96,7 @@ export default function DashboardPage() {
             />
             <StatCard
               label="Queries Today"
-              value={usage?.queries_today ?? 0}
+              value={usage?.queries_count ?? 0}
               icon={MessageSquare}
             />
             <StatCard

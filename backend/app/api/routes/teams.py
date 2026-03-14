@@ -4,6 +4,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
@@ -25,6 +26,12 @@ from app.schemas.auth import MessageResponse
 from app.api.deps import get_current_user
 
 router = APIRouter(tags=["teams"])
+
+
+class TeamRoleUpdate(BaseModel):
+    """Schema for updating an existing team member's role."""
+
+    role: str = Field(pattern="^(member|admin)$")
 
 
 def _slugify(name: str) -> str:
@@ -353,6 +360,146 @@ async def accept_invitation(
         user.id, team.id,
     )
     return MessageResponse(message=f"You have joined team '{team.name}'")
+
+
+@router.get("/invitations/{token}")
+async def get_invitation(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Get public details for a pending invitation token."""
+    result = await db.execute(
+        select(TeamInvitation).where(
+            TeamInvitation.token == token,
+            TeamInvitation.status == "pending",
+        )
+    )
+    invitation = result.scalar_one_or_none()
+    if not invitation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invitation not found or already used",
+        )
+
+    if invitation.expires_at < datetime.now(timezone.utc):
+        invitation.status = "expired"
+        await db.flush()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invitation has expired",
+        )
+
+    team_result = await db.execute(select(Team).where(Team.id == invitation.team_id))
+    team = team_result.scalar_one_or_none()
+    if not team or not team.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Team no longer exists",
+        )
+
+    return {
+        "team": {
+            "id": team.id,
+            "name": team.name,
+            "slug": team.slug,
+        },
+        "email": invitation.email,
+        "role": invitation.role,
+        "expires_at": invitation.expires_at.isoformat(),
+    }
+
+
+@router.delete("/{team_id}/members/{member_id}", response_model=MessageResponse)
+async def remove_member(
+    team_id: str,
+    member_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    """Remove a member from the current team."""
+    team = await _require_team_admin(user, db)
+    if team.id != team_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage members in your own team",
+        )
+
+    result = await db.execute(
+        select(User).where(
+            User.id == member_id,
+            User.team_id == team.id,
+        )
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Team member not found",
+        )
+    if member.id == user.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Use the leave team flow to remove yourself",
+        )
+    if member.team_role == "owner":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The team owner cannot be removed",
+        )
+
+    member.team_id = None
+    member.team_role = None
+    await db.flush()
+
+    logger.info(
+        "Team member removed: team_id={} member_id={} by user_id={}",
+        team.id, member.id, user.id,
+    )
+    return MessageResponse(message="Member removed successfully")
+
+
+@router.put("/{team_id}/members/{member_id}/role", response_model=MessageResponse)
+async def update_member_role(
+    team_id: str,
+    member_id: str,
+    body: TeamRoleUpdate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    """Update a member's role."""
+    team = await _require_team_admin(user, db)
+    if team.id != team_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only manage members in your own team",
+        )
+
+    result = await db.execute(
+        select(User).where(
+            User.id == member_id,
+            User.team_id == team.id,
+        )
+    )
+    member = result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Team member not found",
+        )
+    if member.team_role == "owner":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The team owner's role cannot be changed",
+        )
+
+    member.team_role = body.role
+    await db.flush()
+
+    logger.info(
+        "Team member role updated: team_id={} member_id={} role={} by user_id={}",
+        team.id, member.id, body.role, user.id,
+    )
+    return MessageResponse(message="Member role updated successfully")
 
 
 @router.post("/leave", response_model=MessageResponse)

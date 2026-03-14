@@ -1,7 +1,7 @@
 // frontend/src/app/dashboard/settings/page.tsx
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Key, Copy, AlertTriangle, Loader2, Trash2 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
@@ -10,7 +10,7 @@ import { useToast } from '@/components/ui/Toast'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
 export default function SettingsPage() {
-  const { user, logout } = useAuthStore()
+  const { user, logout, setUser } = useAuthStore()
   const { toast } = useToast()
   const router = useRouter()
   const [newKey, setNewKey] = useState<string | null>(null)
@@ -20,6 +20,10 @@ export default function SettingsPage() {
   const [showDeleteAccount, setShowDeleteAccount] = useState(false)
   const [name, setName] = useState(user?.name || '')
   const [updatingProfile, setUpdatingProfile] = useState(false)
+
+  useEffect(() => {
+    setName(user?.name || '')
+  }, [user?.name])
 
   const handleGenerateKey = async () => {
     setGenerating(true)
@@ -47,7 +51,8 @@ export default function SettingsPage() {
     if (!name.trim()) return
     setUpdatingProfile(true)
     try {
-      await authApi.updateProfile(name)
+      const res = await authApi.updateProfile(name)
+      setUser(res.data)
       toast.success('Profile updated!')
     } catch (err: any) {
       toast.error('Failed to update profile')

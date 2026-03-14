@@ -1,8 +1,9 @@
 # backend/app/api/routes/auth.py
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from loguru import logger
 
 from app.core.database import get_db
@@ -16,6 +17,7 @@ from app.core.security import (
     decode_token,
 )
 from app.models.user import User
+from app.models.team import Team
 from app.schemas.auth import (
     UserRegister,
     UserLogin,
@@ -26,8 +28,15 @@ from app.schemas.auth import (
     MessageResponse,
 )
 from app.api.deps import get_current_user
+from app.services.qdrant_service import delete_by_user
 
 router = APIRouter(tags=["auth"])
+
+
+class ProfileUpdateRequest(BaseModel):
+    """Schema for updating the current user's profile."""
+
+    full_name: str = Field(min_length=1, max_length=255)
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -142,6 +151,29 @@ async def get_me(
     return UserResponse.model_validate(current_user)
 
 
+@router.put("/me", response_model=UserResponse)
+async def update_me(
+    data: ProfileUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """Update the current authenticated user's profile."""
+    current_user.full_name = data.full_name
+    await db.flush()
+
+    logger.info("User profile updated: user_id={}", current_user.id)
+    return UserResponse.model_validate(current_user)
+
+
+@router.post("/logout", response_model=MessageResponse)
+async def logout(
+    current_user: User = Depends(get_current_user),
+) -> MessageResponse:
+    """Client-side logout acknowledgement for compatibility."""
+    logger.info("User logged out: user_id={}", current_user.id)
+    return MessageResponse(message="Logged out successfully")
+
+
 @router.post("/api-key", response_model=APIKeyResponse)
 async def generate_user_api_key(
     db: AsyncSession = Depends(get_db),
@@ -164,6 +196,32 @@ async def generate_user_api_key(
     )
 
 
+@router.post("/api-keys", response_model=APIKeyResponse)
+async def generate_user_api_key_compat(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> APIKeyResponse:
+    """Compatibility alias for frontend clients expecting plural API key routes."""
+    return await generate_user_api_key(db=db, current_user=current_user)
+
+
+@router.get("/api-keys")
+async def list_api_keys(
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Return the current user's API key metadata."""
+    keys = []
+    if current_user.api_key_prefix:
+        keys.append(
+            {
+                "id": "default",
+                "name": "Default Key",
+                "prefix": current_user.api_key_prefix,
+            }
+        )
+    return {"api_keys": keys}
+
+
 @router.delete("/api-key", response_model=MessageResponse)
 async def revoke_api_key(
     db: AsyncSession = Depends(get_db),
@@ -177,3 +235,44 @@ async def revoke_api_key(
     logger.info("API key revoked for user_id={}", current_user.id)
 
     return MessageResponse(message="API key revoked successfully")
+
+
+@router.delete("/api-keys/{key_id}", response_model=MessageResponse)
+async def revoke_api_key_compat(
+    key_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> MessageResponse:
+    """Compatibility alias for frontend clients expecting plural API key routes."""
+    return await revoke_api_key(db=db, current_user=current_user)
+
+
+@router.delete("/me", response_model=MessageResponse)
+async def delete_me(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> MessageResponse:
+    """Delete the current authenticated user and associated application data."""
+    if current_user.team_id and current_user.team_role == "owner":
+        member_count_result = await db.execute(
+            select(func.count(User.id)).where(User.team_id == current_user.team_id)
+        )
+        member_count = member_count_result.scalar_one()
+        if member_count > 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Transfer ownership or remove other members before deleting your account",
+            )
+
+        team_result = await db.execute(select(Team).where(Team.id == current_user.team_id))
+        team = team_result.scalar_one_or_none()
+        if team:
+            team.is_active = False
+
+    await delete_by_user(str(current_user.id))
+
+    await db.delete(current_user)
+    await db.flush()
+
+    logger.info("User account deleted: user_id={}", current_user.id)
+    return MessageResponse(message="Account deleted successfully")

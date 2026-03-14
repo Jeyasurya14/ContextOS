@@ -6,7 +6,7 @@ from sqlalchemy import select
 from loguru import logger
 
 from app.core.database import get_db
-from app.core.security import generate_state_token
+from app.core.security import create_oauth_state_token, decode_oauth_state_token
 from app.core.encryption import encrypt_token, decrypt_token
 from app.core.config import settings
 from app.models.user import User
@@ -26,7 +26,7 @@ async def notion_connect(
     Returns:
         Dict with oauth_url to redirect the user to.
     """
-    state = generate_state_token()
+    state = create_oauth_state_token(current_user.id)
     oauth_url = notion_integration.get_oauth_url(current_user.id, state)
     logger.info("Notion connect initiated for user_id={}", current_user.id)
     return {"oauth_url": oauth_url, "state": state}
@@ -48,6 +48,13 @@ async def notion_callback(
         Dict with connection status and redirect URL.
     """
     try:
+        user_id = decode_oauth_state_token(state)
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired state token",
+            )
+
         token_data = await notion_integration.exchange_code_for_token(code)
         access_token = token_data.get("access_token", "")
         if not access_token:
@@ -66,7 +73,7 @@ async def notion_callback(
         existing = await db.execute(
             select(Integration).where(
                 Integration.provider == "notion",
-                Integration.provider_user_id == workspace_id,
+                Integration.user_id == user_id,
             )
         )
         integration = existing.scalar_one_or_none()
@@ -77,6 +84,7 @@ async def notion_callback(
             integration.is_active = True
         else:
             integration = Integration(
+                user_id=user_id,
                 provider="notion",
                 provider_user_id=workspace_id,
                 provider_username=workspace_name,
@@ -86,7 +94,7 @@ async def notion_callback(
             )
             db.add(integration)
 
-        await db.flush()
+        await db.commit()
 
         logger.info("Notion OAuth callback successful: workspace={}", workspace_name)
 

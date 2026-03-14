@@ -67,7 +67,7 @@ export const projectsApi = {
   create: (name: string, description?: string) =>
     api.post('/api/v1/projects', { name, description }),
   update: (id: string, name: string, description?: string) =>
-    api.put(`/api/v1/projects/${id}`, { name, description }),
+    api.patch(`/api/v1/projects/${id}`, { name, description }),
   delete: (id: string) => api.delete(`/api/v1/projects/${id}`),
 }
 
