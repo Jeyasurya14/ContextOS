@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"Environment: {settings.ENVIRONMENT}")
     
     await init_db()
-    await init_collection()
+    qdrant_initialized = await init_collection()
     
     db_ok = await check_database_health()
     qdrant_ok = await check_qdrant_health()
@@ -43,7 +43,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if not db_ok:
         logger.error("Database connection FAILED on startup")
     if not qdrant_ok:
-        logger.error("Qdrant connection FAILED on startup")
+        logger.warning(
+            "Qdrant connection FAILED on startup; API is running in degraded mode"
+        )
+    elif qdrant_initialized:
+        logger.info("Qdrant connection verified on startup")
     
     logger.info("ContextOS API started successfully")
     yield

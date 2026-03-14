@@ -1,6 +1,7 @@
 # backend/app/core/config.py
 
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -112,9 +113,27 @@ class Settings(BaseSettings):
 
     @property
     def qdrant_url(self) -> str:
-        if self.QDRANT_API_KEY:
-            return f"https://{self.QDRANT_HOST}"
-        return f"http://{self.QDRANT_HOST}:{self.QDRANT_PORT}"
+        raw_host = self.QDRANT_HOST.strip().rstrip("/")
+        if raw_host.startswith(("http://", "https://")):
+            return raw_host
+
+        scheme = "https" if self.QDRANT_API_KEY or self.QDRANT_USE_HTTPS else "http"
+        if scheme == "https":
+            return f"{scheme}://{raw_host}"
+        return f"{scheme}://{raw_host}:{self.QDRANT_PORT}"
+
+    @property
+    def qdrant_uses_url(self) -> bool:
+        raw_host = self.QDRANT_HOST.strip()
+        return raw_host.startswith(("http://", "https://")) or bool(self.QDRANT_API_KEY) or self.QDRANT_USE_HTTPS
+
+    @property
+    def qdrant_host_display(self) -> str:
+        raw_host = self.QDRANT_HOST.strip().rstrip("/")
+        if raw_host.startswith(("http://", "https://")):
+            parsed = urlsplit(raw_host)
+            return parsed.netloc or raw_host
+        return raw_host
 
     @property
     def cors_origins(self) -> list[str]:

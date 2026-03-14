@@ -19,10 +19,10 @@ from app.core.config import settings
 
 def get_qdrant_client() -> QdrantClient:
     """Get Qdrant client configured for local or cloud."""
-    if settings.QDRANT_API_KEY:
+    if settings.qdrant_uses_url:
         return QdrantClient(
             url=settings.qdrant_url,
-            api_key=settings.QDRANT_API_KEY,
+            api_key=settings.QDRANT_API_KEY or None,
             timeout=30,
         )
     return QdrantClient(
@@ -33,9 +33,12 @@ def get_qdrant_client() -> QdrantClient:
 
 
 qdrant_client = get_qdrant_client()
+qdrant_available = False
 
-async def init_collection():
+
+async def init_collection() -> bool:
     """Create collection if not exists. Called on startup."""
+    global qdrant_available
     try:
         collections = qdrant_client.get_collections()
         names = [c.name for c in collections.collections]
@@ -50,9 +53,18 @@ async def init_collection():
             logger.info(f"Created Qdrant collection: {settings.QDRANT_COLLECTION}")
         else:
             logger.info(f"Qdrant collection exists: {settings.QDRANT_COLLECTION}")
+        qdrant_available = True
+        return True
     except Exception as e:
-        logger.error(f"Qdrant init failed: {e}")
-        raise
+        qdrant_available = False
+        logger.warning(
+            "Qdrant unavailable during startup; continuing without vector search. "
+            "endpoint={} collection={} error={}",
+            settings.qdrant_host_display,
+            settings.QDRANT_COLLECTION,
+            e,
+        )
+        return False
 
 async def upsert_vectors(points: list[dict]) -> bool:
     """Upsert batch of vectors to Qdrant."""
@@ -172,10 +184,13 @@ async def get_collection_stats() -> dict:
 
 async def check_qdrant_health() -> bool:
     """Check if Qdrant is accessible."""
+    global qdrant_available
     try:
         qdrant_client.get_collections()
+        qdrant_available = True
         return True
     except Exception:
+        qdrant_available = False
         return False
 
 
