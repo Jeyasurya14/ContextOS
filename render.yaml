@@ -6,13 +6,15 @@ services:
     plan: starter
     rootDir: backend
     pythonVersion: "3.11.9"
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    buildCommand: mkdir -p /tmp/cargo && CARGO_HOME=/tmp/cargo pip install --upgrade pip && CARGO_HOME=/tmp/cargo pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2
     healthCheckPath: /health/ready
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: CARGO_HOME
+        value: /tmp/cargo
       - key: DEBUG
         value: false
       - key: ENVIRONMENT
@@ -91,12 +93,14 @@ services:
     plan: starter
     rootDir: backend
     pythonVersion: "3.11.9"
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    buildCommand: mkdir -p /tmp/cargo && CARGO_HOME=/tmp/cargo pip install --upgrade pip && CARGO_HOME=/tmp/cargo pip install -r requirements.txt
     startCommand: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: CARGO_HOME
+        value: /tmp/cargo
       - key: ENVIRONMENT
         value: production
       - key: QDRANT_COLLECTION
@@ -139,13 +143,15 @@ services:
     plan: starter
     rootDir: backend
     pythonVersion: "3.11.9"
-    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    buildCommand: mkdir -p /tmp/cargo && CARGO_HOME=/tmp/cargo pip install --upgrade pip && CARGO_HOME=/tmp/cargo pip install -r requirements.txt
     schedule: "*/30 * * * *"
     startCommand: celery -A app.workers.celery_app beat --loglevel=info
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: CARGO_HOME
+        value: /tmp/cargo
       - key: ENVIRONMENT
         value: production
       - key: QDRANT_COLLECTION

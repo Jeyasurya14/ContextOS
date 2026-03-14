@@ -11,6 +11,7 @@ from loguru import logger
 from app.core.config import settings
 
 Base = declarative_base()
+import app.models  # noqa: E402,F401 - register model metadata after Base exists
 
 # ── Async engine — FastAPI routes ──────────────────────────────
 engine = create_async_engine(
@@ -99,5 +100,18 @@ async def check_database_health() -> bool:
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
         return False
+
+async def init_db() -> None:
+    """Verify the database connection during application startup."""
+    async with engine.begin() as conn:
+        await conn.execute(text("SELECT 1"))
+    logger.info("Database connection initialized")
+
+
+async def close_db() -> None:
+    """Dispose the async engine during shutdown."""
+    await engine.dispose()
+    logger.info("Database engine disposed")
+
 
 async_session_factory = AsyncSessionLocal

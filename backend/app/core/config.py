@@ -1,6 +1,12 @@
 # backend/app/core/config.py
 
+from pathlib import Path
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -68,6 +74,42 @@ class Settings(BaseSettings):
     RATE_LIMIT_PRO: int = 500
     RATE_LIMIT_TEAM: int = 2000
 
+    @field_validator("DEBUG", "QDRANT_USE_HTTPS", mode="before")
+    @classmethod
+    def parse_bool_like_values(cls, value: object) -> object:
+        """Accept common deployment booleans like release/production/1/0."""
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on", "debug", "development"}:
+                return True
+            if normalized in {"0", "false", "no", "off", "release", "production"}:
+                return False
+        return value
+
+    @field_validator(
+        "DATABASE_POOL_SIZE",
+        "DATABASE_MAX_OVERFLOW",
+        "DATABASE_POOL_TIMEOUT",
+        "REDIS_MAX_CONNECTIONS",
+        "OPENAI_MAX_TOKENS",
+        "RAZORPAY_PRO_AMOUNT",
+        "RAZORPAY_TEAM_AMOUNT",
+        "RATE_LIMIT_FREE",
+        "RATE_LIMIT_PRO",
+        "RATE_LIMIT_TEAM",
+        mode="before",
+    )
+    @classmethod
+    def parse_int_like_values(cls, value: object) -> object:
+        """Allow values like `50/day` in env files by extracting the leading int."""
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if "/" in cleaned:
+                cleaned = cleaned.split("/", 1)[0]
+            if cleaned.isdigit():
+                return int(cleaned)
+        return value
+
     @property
     def qdrant_url(self) -> str:
         if self.QDRANT_API_KEY:
@@ -85,7 +127,7 @@ class Settings(BaseSettings):
         ]
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
