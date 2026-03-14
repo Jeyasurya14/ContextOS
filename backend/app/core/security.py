@@ -7,11 +7,16 @@ from uuid import uuid4
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from passlib.exc import PasswordSizeError
 from loguru import logger
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+pwd_context = CryptContext(
+    schemes=["bcrypt_sha256", "bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=12,
+)
 
 
 def hash_password(password: str) -> str:
@@ -21,7 +26,11 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a bcrypt hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except (ValueError, PasswordSizeError) as exc:
+        logger.warning("Password verification rejected: {}", type(exc).__name__)
+        return False
 
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
