@@ -1,7 +1,6 @@
 // frontend/src/app/layout.tsx
 'use client'
 
-import { Inter } from 'next/font/google'
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { useAuthStore } from '@/store/auth'
@@ -9,8 +8,6 @@ import { ToastProvider } from '@/components/ui/Toast'
 import { LayoutDashboard, MessageSquare, Plug, FolderOpen, Users, CreditCard, Settings, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import '@/globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
 
 export default function RootLayout({
   children,
@@ -53,7 +50,7 @@ export default function RootLayout({
   if (isDashboard && !isInitialized) {
     return (
       <html lang="en" className="dark">
-        <body className={inter.className}>
+        <body>
           <div className="flex items-center justify-center min-h-screen bg-gray-950">
             <div className="flex flex-col items-center gap-4">
               <div className="w-10 h-10 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -77,7 +74,7 @@ export default function RootLayout({
 
   return (
     <html lang="en" className="dark">
-      <body className={inter.className}>
+      <body>
         <ToastProvider>
           {isDashboard ? (
             <div className="flex h-screen bg-gray-950">

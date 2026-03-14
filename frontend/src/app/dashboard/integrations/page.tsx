@@ -1,9 +1,9 @@
 // frontend/src/app/dashboard/integrations/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Github, FileText, MessageSquare, Loader2, CheckCircle, XCircle, RefreshCw, Code2, Unlink } from 'lucide-react'
+import { Github, FileText, MessageSquare, Loader2, RefreshCw, Code2, Unlink } from 'lucide-react'
 import { integrationsApi } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 import { IntegrationCardSkeleton } from '@/components/ui/Skeleton'
@@ -16,7 +16,7 @@ const providers = [
   { key: 'vscode', label: 'VS Code', icon: Code2, color: 'text-blue-400', desc: 'Workspace files (via extension)' },
 ]
 
-export default function IntegrationsPage() {
+function IntegrationsPageContent() {
   const { toast } = useToast()
   const searchParams = useSearchParams()
   const [integrations, setIntegrations] = useState<any[]>([])
@@ -204,5 +204,26 @@ export default function IntegrationsPage() {
         isDangerous
       />
     </div>
+  )
+}
+
+export default function IntegrationsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div>
+          <h1 className="text-2xl font-bold text-white mb-1">Integrations</h1>
+          <p className="text-gray-400 text-sm mb-8">Connect your tools to build context.</p>
+          <div className="grid md:grid-cols-2 gap-4">
+            <IntegrationCardSkeleton />
+            <IntegrationCardSkeleton />
+            <IntegrationCardSkeleton />
+            <IntegrationCardSkeleton />
+          </div>
+        </div>
+      }
+    >
+      <IntegrationsPageContent />
+    </Suspense>
   )
 }

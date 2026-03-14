@@ -1,5 +1,23 @@
 services:
   - type: web
+    name: contextos-frontend
+    runtime: node
+    region: singapore
+    plan: starter
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- --hostname 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
+
+  - type: web
     name: contextos-api
     runtime: python
     region: singapore
