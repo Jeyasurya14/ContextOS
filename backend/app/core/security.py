@@ -5,6 +5,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+import bcrypt as bcrypt_lib
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from passlib.exc import PasswordSizeError
@@ -17,11 +18,26 @@ pwd_context = CryptContext(
     deprecated="auto",
     bcrypt__rounds=12,
 )
+fallback_pwd_context = CryptContext(
+    schemes=["pbkdf2_sha256"],
+    deprecated="auto",
+)
+
+
+def _is_bcrypt_hash(hashed_password: str) -> bool:
+    return hashed_password.startswith(("$2a$", "$2b$", "$2y$"))
 
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt with cost factor 12."""
-    return pwd_context.hash(password)
+    try:
+        return pwd_context.hash(password)
+    except (ValueError, PasswordSizeError) as exc:
+        logger.warning(
+            "Primary password hashing backend unavailable; falling back to pbkdf2_sha256: {}",
+            type(exc).__name__,
+        )
+        return fallback_pwd_context.hash(password)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -29,8 +45,29 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
         return pwd_context.verify(plain_password, hashed_password)
     except (ValueError, PasswordSizeError) as exc:
-        logger.warning("Password verification rejected: {}", type(exc).__name__)
-        return False
+        logger.warning("Primary password verification failed: {}", type(exc).__name__)
+
+        if _is_bcrypt_hash(hashed_password):
+            try:
+                return bcrypt_lib.checkpw(
+                    plain_password.encode("utf-8"),
+                    hashed_password.encode("utf-8"),
+                )
+            except ValueError as bcrypt_exc:
+                logger.warning(
+                    "Direct bcrypt verification rejected: {}",
+                    type(bcrypt_exc).__name__,
+                )
+                return False
+
+        try:
+            return fallback_pwd_context.verify(plain_password, hashed_password)
+        except (ValueError, PasswordSizeError) as fallback_exc:
+            logger.warning(
+                "Fallback password verification rejected: {}",
+                type(fallback_exc).__name__,
+            )
+            return False
 
 
 def create_access_token(subject: str, expires_delta: timedelta | None = None) -> str:
