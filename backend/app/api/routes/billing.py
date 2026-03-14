@@ -117,6 +117,12 @@ async def create_order(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
+    except RuntimeError as e:
+        logger.error(f"Billing provider unavailable while creating order: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        )
     except Exception as e:
         logger.error(f"Failed to create order: {e}")
         raise HTTPException(
@@ -132,11 +138,18 @@ async def verify_payment(
     db: AsyncSession = Depends(get_db),
 ) -> PaymentVerifyResponse:
     """Verify Razorpay payment and activate subscription."""
-    is_valid = billing_service.verify_payment(
-        payment_data.razorpay_order_id,
-        payment_data.razorpay_payment_id,
-        payment_data.razorpay_signature,
-    )
+    try:
+        is_valid = billing_service.verify_payment(
+            payment_data.razorpay_order_id,
+            payment_data.razorpay_payment_id,
+            payment_data.razorpay_signature,
+        )
+    except RuntimeError as e:
+        logger.error(f"Billing provider unavailable while verifying payment: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(e),
+        )
     
     if not is_valid:
         raise HTTPException(
@@ -185,6 +198,15 @@ async def razorpay_webhook(
         return JSONResponse(
             status_code=400,
             content={"error": "Invalid signature"}
+        )
+
+    try:
+        billing_service.ensure_billing_provider_available()
+    except RuntimeError as e:
+        logger.error(f"Billing provider unavailable while processing webhook: {e}")
+        return JSONResponse(
+            status_code=503,
+            content={"error": str(e)}
         )
     
     try:

@@ -16,8 +16,8 @@
 #    UPI test: success@razorpay
 
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
-import razorpay
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
@@ -26,6 +26,14 @@ from app.core.config import settings
 from app.models.user import User
 from app.models.team import Team
 from app.models.billing import BillingEvent, UsageRecord
+
+try:
+    import razorpay
+except ModuleNotFoundError as exc:
+    razorpay = None
+    _razorpay_import_error = exc
+else:
+    _razorpay_import_error = None
 
 
 PLAN_LIMITS = {
@@ -60,11 +68,22 @@ class BillingService:
 
     def __init__(self) -> None:
         """Initialize the billing service."""
-        self._client: razorpay.Client | None = None
+        self._client: Any | None = None
+
+    def ensure_billing_provider_available(self) -> None:
+        """Raise a clear error if Razorpay or one of its dependencies is unavailable."""
+        if razorpay is None:
+            missing_dependency = _razorpay_import_error.name if _razorpay_import_error else "razorpay"
+            raise RuntimeError(
+                "Razorpay billing is unavailable because a required dependency could not be imported: "
+                f"{missing_dependency}. Install backend dependencies including setuptools."
+            ) from _razorpay_import_error
 
     @property
-    def client(self) -> razorpay.Client:
+    def client(self) -> Any:
         """Lazy-initialize the Razorpay client."""
+        self.ensure_billing_provider_available()
+        assert razorpay is not None
         if self._client is None:
             self._client = razorpay.Client(
                 auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
@@ -121,6 +140,8 @@ class BillingService:
         Returns:
             True if signature is valid, False otherwise.
         """
+        self.ensure_billing_provider_available()
+        assert razorpay is not None
         try:
             self.client.utility.verify_payment_signature({
                 "razorpay_order_id": razorpay_order_id,
