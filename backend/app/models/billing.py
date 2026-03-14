@@ -1,8 +1,9 @@
 # backend/app/models/billing.py
 
 from datetime import datetime, timezone
+from uuid import uuid4
 
-from sqlalchemy import String, DateTime, Integer, Float
+from sqlalchemy import String, DateTime, Integer, Float, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -12,6 +13,12 @@ class BillingEvent(Base):
     """Record of billing events from Razorpay."""
 
     __tablename__ = "billing_events"
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
 
     user_id: Mapped[str] = mapped_column(
         String(36), nullable=False, index=True
@@ -51,6 +58,12 @@ class UsageRecord(Base):
     """Daily usage tracking per user."""
 
     __tablename__ = "usage_records"
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
 
     user_id: Mapped[str] = mapped_column(
         String(36), nullable=False, index=True

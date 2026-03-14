@@ -1,8 +1,9 @@
 # backend/app/models/conversation.py
 
 from datetime import datetime, timezone
+from uuid import uuid4
 
-from sqlalchemy import String, DateTime, ForeignKey, Text, Integer
+from sqlalchemy import String, DateTime, ForeignKey, Text, Integer, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -12,6 +13,12 @@ class Conversation(Base):
     """Conversation model tracking user chat sessions."""
 
     __tablename__ = "conversations"
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
 
     user_id: Mapped[str] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -53,6 +60,12 @@ class ConversationMessage(Base):
     """Individual message within a conversation."""
 
     __tablename__ = "conversation_messages"
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
 
     conversation_id: Mapped[str] = mapped_column(
         ForeignKey("conversations.id", ondelete="CASCADE"),

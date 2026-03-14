@@ -1,8 +1,9 @@
 # backend/app/models/team.py
 
 from datetime import datetime, timezone
+from uuid import uuid4
 
-from sqlalchemy import String, DateTime, Boolean, Integer, Text
+from sqlalchemy import String, DateTime, Boolean, Integer, Text, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -12,6 +13,12 @@ class Team(Base):
     """Team model for shared context across members."""
 
     __tablename__ = "teams"
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(
@@ -52,6 +59,12 @@ class TeamInvitation(Base):
     """Invitation to join a team."""
 
     __tablename__ = "team_invitations"
+
+    id: Mapped[str] = mapped_column(
+        UUID(as_uuid=False),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
 
     team_id: Mapped[str] = mapped_column(
         String(36), nullable=False, index=True
