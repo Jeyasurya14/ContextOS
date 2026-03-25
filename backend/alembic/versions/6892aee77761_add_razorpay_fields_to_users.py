@@ -19,8 +19,19 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('users', sa.Column('razorpay_customer_id', sa.String(length=255), nullable=True))
-    op.add_column('users', sa.Column('razorpay_subscription_id', sa.String(length=255), nullable=True))
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [col['name'] for col in inspector.get_columns('users')]
+    indexes = [idx['name'] for idx in inspector.get_indexes('users')]
+
+    if 'razorpay_customer_id' not in columns:
+        op.add_column('users', sa.Column('razorpay_customer_id', sa.String(length=255), nullable=True))
+    if 'razorpay_subscription_id' not in columns:
+        op.add_column('users', sa.Column('razorpay_subscription_id', sa.String(length=255), nullable=True))
+
+    # Ensure index for razorpay_customer_id exists
+    if 'ix_users_razorpay_customer_id' not in indexes:
+        op.create_index('ix_users_razorpay_customer_id', 'users', ['razorpay_customer_id'], unique=False)
 
 
 def downgrade() -> None:
