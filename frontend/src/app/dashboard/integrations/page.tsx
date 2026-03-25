@@ -1,24 +1,51 @@
 // frontend/src/app/dashboard/integrations/page.tsx
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { Github, FileText, MessageSquare, Loader2, RefreshCw, Code2, Unlink } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Loader2, RefreshCw, Unlink } from 'lucide-react'
 import { integrationsApi } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 import { IntegrationCardSkeleton } from '@/components/ui/Skeleton'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
+// Real integration logos with fallbacks
+const githubLogo = 'https://github.com/github.png?size=32'
+const notionLogo = 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png'
+const slackLogo = 'https://cdn.icon-icons.com/icons2/2415/PNG/512/slack_original_logo_icon_146308.png'
+const vscodeLogo = 'https://upload.wikimedia.org/wikipedia/commons/9/9a/Visual_Studio_Code_1.35.1_icon.svg'
+
+// Fallback component for failed image loads
+const LogoImage = ({ src, alt, className }: { src: string; alt: string; className?: string }) => {
+  const [imgError, setImgError] = useState(false)
+  
+  if (imgError) {
+    // Fallback to first letter of brand name
+    return (
+      <div className={`flex items-center justify-center text-xs font-bold text-white bg-dark-700 rounded ${className}`}>
+        {alt.charAt(0).toUpperCase()}
+      </div>
+    )
+  }
+  
+  return (
+    <img 
+      src={src} 
+      alt={alt}
+      className={className}
+      onError={() => setImgError(true)}
+    />
+  )
+}
+
 const providers = [
-  { key: 'github', label: 'GitHub', icon: Github, color: 'text-white', desc: 'Commits, PRs, issues, code' },
-  { key: 'notion', label: 'Notion', icon: FileText, color: 'text-white', desc: 'Pages, databases, docs' },
-  { key: 'slack', label: 'Slack', icon: MessageSquare, color: 'text-purple-400', desc: 'Channels, messages, threads' },
-  { key: 'vscode', label: 'VS Code', icon: Code2, color: 'text-blue-400', desc: 'Workspace files (via extension)' },
+  { key: 'github', label: 'GitHub', logo: githubLogo, desc: 'Commits, PRs, issues, code' },
+  { key: 'notion', label: 'Notion', logo: notionLogo, desc: 'Pages, databases, docs' },
+  { key: 'slack', label: 'Slack', logo: slackLogo, desc: 'Channels, messages, threads' },
+  { key: 'vscode', label: 'VS Code', logo: vscodeLogo, desc: 'Workspace files (via extension)' },
 ]
 
-function IntegrationsPageContent() {
+export default function IntegrationsPage() {
   const { toast } = useToast()
-  const searchParams = useSearchParams()
   const [integrations, setIntegrations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [connecting, setConnecting] = useState<string | null>(null)
@@ -27,11 +54,14 @@ function IntegrationsPageContent() {
 
   useEffect(() => {
     fetchIntegrations()
-    const success = searchParams.get('success')
-    const error = searchParams.get('error')
-    const username = searchParams.get('username')
-    const workspace = searchParams.get('workspace')
-    const team = searchParams.get('team')
+    
+    // Handle URL params for OAuth callbacks
+    const urlParams = new URLSearchParams(window.location.search)
+    const success = urlParams.get('success')
+    const error = urlParams.get('error')
+    const username = urlParams.get('username')
+    const workspace = urlParams.get('workspace')
+    const team = urlParams.get('team')
     
     if (success) {
       const name = username || workspace || team || success
@@ -41,7 +71,7 @@ function IntegrationsPageContent() {
       toast.error(`Failed to connect ${error.toUpperCase()}. Please try again.`)
       window.history.replaceState({}, '', '/dashboard/integrations')
     }
-  }, [searchParams, toast])
+  }, [toast])
 
   const fetchIntegrations = async () => {
     setLoading(true)
@@ -58,15 +88,13 @@ function IntegrationsPageContent() {
   const handleConnect = async (tool: 'github' | 'notion' | 'slack') => {
     setConnecting(tool)
     try {
-      let response
-      if (tool === 'github') response = await integrationsApi.getGithubUrl()
-      if (tool === 'notion') response = await integrationsApi.getNotionUrl()
-      if (tool === 'slack') response = await integrationsApi.getSlackUrl()
-      if (response?.data?.oauth_url) {
-        window.location.href = response.data.oauth_url
+      const res = await integrationsApi.connect(tool)
+      if (res.data?.url) {
+        window.location.href = res.data.url
       }
     } catch (err: any) {
-      toast.error(`Failed to connect ${tool}. Check your .env credentials.`)
+      toast.error(err?.response?.data?.detail || `Failed to connect ${tool}`)
+    } finally {
       setConnecting(null)
     }
   }
@@ -74,16 +102,11 @@ function IntegrationsPageContent() {
   const handleSync = async (tool: string) => {
     setSyncing(tool)
     try {
-      if (tool === 'github') {
-        const response = await integrationsApi.syncGithub()
-        toast.success(`Synced ${response.data.repos_synced} repos with ${response.data.total_chunks} chunks!`)
-      } else {
-        toast.info(`${tool} sync not yet implemented`)
-      }
-      setTimeout(() => fetchIntegrations(), 2000)
+      await integrationsApi.syncGithub()
+      toast.success('Sync completed successfully!')
+      fetchIntegrations()
     } catch (err: any) {
-      const errorMsg = err?.response?.data?.detail || 'Sync failed. Try again.'
-      toast.error(errorMsg)
+      toast.error('Sync failed. Please try again.')
     } finally {
       setSyncing(null)
     }
@@ -93,106 +116,124 @@ function IntegrationsPageContent() {
     if (!disconnecting) return
     try {
       await integrationsApi.disconnect(disconnecting.provider)
-      setIntegrations((prev) => prev.filter((i) => i.provider !== disconnecting.provider))
-      setDisconnecting(null)
       toast.success('Integration disconnected')
+      fetchIntegrations()
     } catch (err: any) {
       toast.error('Failed to disconnect')
+    } finally {
+      setDisconnecting(null)
     }
   }
 
-  const getIntegration = (key: string) => {
-    return integrations.find((i) => i.provider?.toLowerCase() === key)
+  const getIntegration = (key: string) => integrations.find(i => i.provider === key)
+
+  if (loading) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold text-white mb-1">Integrations</h1>
+        <p className="text-dark-400 text-sm mb-8">Connect your tools to build context.</p>
+        <div className="grid md:grid-cols-2 gap-4">
+          <IntegrationCardSkeleton />
+          <IntegrationCardSkeleton />
+          <IntegrationCardSkeleton />
+          <IntegrationCardSkeleton />
+        </div>
+      </div>
+    )
   }
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-white mb-1">Integrations</h1>
-      <p className="text-gray-400 text-sm mb-8">Connect your tools to build context.</p>
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold text-white mb-2">Integrations</h1>
+        <p className="text-dark-400 text-sm">Connect your tools to build context</p>
+      </div>
 
-      {loading ? (
-        <div className="grid md:grid-cols-2 gap-4">
-          <IntegrationCardSkeleton />
-          <IntegrationCardSkeleton />
-          <IntegrationCardSkeleton />
-          <IntegrationCardSkeleton />
-        </div>
-      ) : (
-        <div className="grid md:grid-cols-2 gap-4">
-          {providers.map((p) => {
-            const integration = getIntegration(p.key)
-            const connected = integration?.is_active || false
-            const syncStatus = integration?.sync_status
-            return (
-              <div key={p.key} className="bg-gray-900 border border-gray-800 rounded-xl p-6">
-                <div className="flex items-start gap-4 mb-4">
-                  <div className="p-3 bg-gray-800 rounded-lg">
-                    <p.icon className={`w-6 h-6 ${p.color}`} />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-white">{p.label}</h3>
-                    <p className="text-sm text-gray-400 mt-0.5">{p.desc}</p>
-                    {connected && integration?.provider_username && (
-                      <p className="text-xs text-gray-500 mt-1">@{integration.provider_username}</p>
-                    )}
-                    {connected && syncStatus && (
-                      <p className={`text-xs mt-1 ${
-                        syncStatus === 'synced' ? 'text-green-400' : 
-                        syncStatus === 'syncing' ? 'text-yellow-400' : 
-                        syncStatus === 'error' ? 'text-red-400' : 'text-gray-400'
-                      }`}>
-                        {syncStatus === 'synced' && integration?.total_chunks > 0 
-                          ? `${integration.total_chunks.toLocaleString()} chunks synced`
-                          : syncStatus}
-                      </p>
-                    )}
-                  </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        {providers.map((p) => {
+          const integration = getIntegration(p.key)
+          const connected = integration?.is_active || false
+          const syncStatus = integration?.sync_status
+          return (
+            <div
+              key={p.key}
+              className="card animate-slide-up"
+            >
+              <div className="flex items-start gap-4 mb-4">
+                <div className={`p-3 rounded-lg border ${
+                  connected
+                    ? 'bg-success/10 border-success/20'
+                    : 'bg-dark-800 border-dark-700'
+                }`}>
+                  <LogoImage 
+                    src={p.logo} 
+                    alt={p.label}
+                    className={`w-6 h-6 ${connected ? '' : 'opacity-50'}`}
+                  />
                 </div>
-                <div className="flex gap-2">
-                  {connected ? (
-                    <>
-                      {(p.key === 'notion' || p.key === 'slack' || p.key === 'github') && (
-                        <button
-                          onClick={() => handleSync(p.key)}
-                          disabled={syncing === p.key}
-                          className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50"
-                        >
-                          {syncing === p.key ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <RefreshCw className="w-4 h-4" />
-                          )}
-                          {syncing === p.key ? 'Syncing...' : 'Sync'}
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setDisconnecting(integration)}
-                        className="flex items-center justify-center gap-2 bg-gray-800 text-gray-300 px-4 py-2 rounded-lg text-sm hover:bg-gray-700 transition"
-                      >
-                        <Unlink className="w-4 h-4" />
-                        Disconnect
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => p.key !== 'vscode' && handleConnect(p.key as any)}
-                      disabled={p.key === 'vscode' || connecting === p.key}
-                      className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50"
-                    >
-                      {connecting === p.key ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <p.icon className="w-4 h-4" />
-                      )}
-                      {p.key === 'vscode' ? 'Install Extension' : connecting === p.key ? 'Connecting...' : 'Connect'}
-                    </button>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold text-white">{p.label}</h3>
+                    {connected && (
+                      <span className="badge badge-success">
+                        Connected
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-dark-400">{p.desc}</p>
+                  {connected && integration?.provider_username && (
+                    <p className="text-xs text-dark-400 mt-2 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                      @{integration.provider_username}
+                    </p>
                   )}
                 </div>
               </div>
-            )
-          })}
-        </div>
-      )}
+
+              <div className="flex gap-3">
+                {connected ? (
+                  <>
+                    {(p.key === 'notion' || p.key === 'slack' || p.key === 'github') && (
+                      <button
+                        onClick={() => handleSync(p.key)}
+                        disabled={syncing === p.key}
+                        className="btn btn-secondary text-brand disabled:opacity-50"
+                      >
+                        {syncing === p.key ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-4 h-4" />
+                        )}
+                        {syncing === p.key ? 'Syncing...' : 'Sync'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setDisconnecting(integration)}
+                      className="btn btn-secondary text-danger hover:text-danger"
+                    >
+                      <Unlink className="w-4 h-4" />
+                      Disconnect
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => p.key !== 'vscode' && handleConnect(p.key as any)}
+                    disabled={p.key === 'vscode' || connecting === p.key}
+                    className="btn btn-primary disabled:opacity-50"
+                  >
+                    {connecting === p.key ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <LogoImage src={p.logo} alt={p.label} className="w-4 h-4" />
+                    )}
+                    {p.key === 'vscode' ? 'Install Extension' : connecting === p.key ? 'Connecting...' : 'Connect'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
 
       <ConfirmModal
         isOpen={!!disconnecting}
@@ -204,26 +245,5 @@ function IntegrationsPageContent() {
         isDangerous
       />
     </div>
-  )
-}
-
-export default function IntegrationsPage() {
-  return (
-    <Suspense
-      fallback={
-        <div>
-          <h1 className="text-2xl font-bold text-white mb-1">Integrations</h1>
-          <p className="text-gray-400 text-sm mb-8">Connect your tools to build context.</p>
-          <div className="grid md:grid-cols-2 gap-4">
-            <IntegrationCardSkeleton />
-            <IntegrationCardSkeleton />
-            <IntegrationCardSkeleton />
-            <IntegrationCardSkeleton />
-          </div>
-        </div>
-      }
-    >
-      <IntegrationsPageContent />
-    </Suspense>
   )
 }

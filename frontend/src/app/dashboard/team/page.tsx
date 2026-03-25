@@ -99,21 +99,21 @@ export default function TeamPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
+        <Loader2 className="w-8 h-8 animate-spin text-dark-500" />
       </div>
     )
   }
 
   if (!team) {
     return (
-      <div>
-        <h1 className="text-2xl font-bold text-white mb-1">Team</h1>
-        <p className="text-gray-400 text-sm mb-8">Create a team to share context with collaborators.</p>
+      <div className="animate-fade-in">
+        <h1 className="text-2xl font-semibold text-white mb-2">Team</h1>
+        <p className="text-dark-400 text-sm mb-8">Create a team to share context with collaborators</p>
 
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 max-w-lg">
-          <Users className="w-10 h-10 text-gray-600 mb-4" />
+        <div className="card max-w-lg animate-slide-up">
+          <Users className="w-10 h-10 text-dark-500 mb-4" />
           <h2 className="text-lg font-semibold text-white mb-2">Create a Team</h2>
-          <p className="text-sm text-gray-400 mb-6">
+          <p className="text-sm text-dark-400 mb-6">
             Teams let you share context across members. Everyone gets smarter answers based on shared knowledge.
           </p>
           <div className="space-y-3">
@@ -121,12 +121,12 @@ export default function TeamPage() {
               value={teamName}
               onChange={(e) => setTeamName(e.target.value)}
               placeholder="Team name"
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 transition"
+              className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand/50 transition"
             />
             <button
               onClick={handleCreateTeam}
               disabled={submitting || !teamName.trim()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
+              className="btn btn-primary disabled:opacity-50"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
               {submitting ? 'Creating...' : 'Create Team'}
@@ -138,16 +138,18 @@ export default function TeamPage() {
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-white mb-1">Team</h1>
-      <p className="text-gray-400 text-sm mb-8">Manage your team members and invitations.</p>
+    <div className="animate-fade-in">
+      <h1 className="text-2xl font-semibold text-white mb-2">Team</h1>
+      <p className="text-dark-400 text-sm mb-8">Manage your team members and invitations</p>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-6">
+      <div className="card mb-6 animate-slide-up">
         <div className="flex items-center gap-3 mb-4">
-          <Users className="w-6 h-6 text-blue-400" />
+          <div className="w-10 h-10 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center">
+            <Users className="w-5 h-5 text-brand" />
+          </div>
           <div>
-            <h2 className="text-lg font-semibold text-white">{team.name}</h2>
-            <p className="text-sm text-gray-400">{members.length} member{members.length !== 1 ? 's' : ''}</p>
+            <h2 className="font-semibold text-white">{team.name}</h2>
+            <p className="text-sm text-dark-400">{members.length} member{members.length !== 1 ? 's' : ''}</p>
           </div>
         </div>
 
@@ -159,12 +161,12 @@ export default function TeamPage() {
               onChange={(e) => setInviteEmail(e.target.value)}
               placeholder="Email address"
               type="email"
-              className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 transition"
+              className="flex-1 bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand/50 transition"
             />
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value)}
-              className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 transition"
+              className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand/50 transition"
             >
               <option value="member">Member</option>
               <option value="admin">Admin</option>
@@ -172,24 +174,24 @@ export default function TeamPage() {
             <button
               onClick={handleInvite}
               disabled={inviting || !inviteEmail.trim()}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
+              className="btn btn-primary disabled:opacity-50"
             >
               {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
               Invite
             </button>
           </div>
           {inviteLink && (
-            <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-3">
-              <p className="text-xs text-yellow-200 mb-2">Invitation link created:</p>
+            <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+              <p className="text-xs text-warning mb-2">Invitation link created:</p>
               <div className="flex gap-2">
                 <input
                   value={inviteLink}
                   readOnly
-                  className="flex-1 bg-gray-800 border border-gray-700 rounded px-2 py-1 text-xs text-gray-300 font-mono"
+                  className="flex-1 bg-dark-800 border border-dark-700 rounded px-2 py-1 text-xs text-dark-200 font-mono"
                 />
                 <button
                   onClick={handleCopyInviteLink}
-                  className="text-blue-400 hover:text-blue-300 transition p-1"
+                  className="text-brand hover:text-brand/80 transition p-1"
                 >
                   <Copy className="w-4 h-4" />
                 </button>
@@ -199,21 +201,21 @@ export default function TeamPage() {
         </div>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl p-6">
+      <div className="card">
         <h3 className="text-sm font-medium text-white mb-4">Members</h3>
         <div className="space-y-2">
           {members.map((member) => (
-            <div key={member.id} className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+            <div key={member.id} className="flex items-center justify-between p-3 bg-dark-800 rounded-lg">
               <div>
                 <p className="text-sm font-medium text-white">{member.full_name}</p>
-                <p className="text-xs text-gray-400">{member.email}</p>
+                <p className="text-xs text-dark-400">{member.email}</p>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-xs text-gray-500 capitalize">{member.team_role}</span>
+                <span className="text-xs px-2 py-1 bg-dark-700 text-dark-300 rounded-full capitalize">{member.team_role}</span>
                 {member.id !== user?.id && (
                   <button
                     onClick={() => setRemovingMember(member)}
-                    className="text-gray-400 hover:text-red-400 transition p-1"
+                    className="text-dark-400 hover:text-danger transition p-1"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

@@ -67,25 +67,25 @@ export function ConfirmModal({
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-gray-900 border border-gray-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+      <div className="relative bg-dark-900 border border-dark-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition"
+          className="absolute top-4 right-4 text-dark-400 hover:text-white transition"
         >
           <X className="w-5 h-5" />
         </button>
         <h2 className="text-xl font-semibold text-white mb-2">{title}</h2>
-        <p className="text-gray-400 text-sm mb-4">{message}</p>
+        <p className="text-dark-400 text-sm mb-4">{message}</p>
         {confirmText && (
           <div className="mb-4">
-            <label className="block text-sm text-gray-400 mb-2">
+            <label className="block text-sm text-dark-400 mb-2">
               Type <span className="font-mono text-white">{confirmText}</span> to confirm
             </label>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 transition"
+              className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand/50 transition"
               placeholder={confirmText}
             />
           </div>
@@ -94,17 +94,17 @@ export function ConfirmModal({
           <button
             onClick={onClose}
             disabled={isConfirming}
-            className="flex-1 px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition disabled:opacity-50"
+            className="btn btn-secondary disabled:opacity-50"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={!canConfirm || isConfirming}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium transition disabled:opacity-50 flex items-center justify-center gap-2 ${
+            className={`btn disabled:opacity-50 flex items-center justify-center gap-2 ${
               isDangerous
-                ? 'bg-red-600 hover:bg-red-700 text-white'
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
+                ? 'bg-danger hover:bg-danger/80 text-white border-danger'
+                : 'bg-brand hover:bg-brand/80 text-white border-brand'
             }`}
           >
             {isConfirming && <Loader2 className="w-4 h-4 animate-spin" />}
