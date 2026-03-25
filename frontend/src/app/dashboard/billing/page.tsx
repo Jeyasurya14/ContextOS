@@ -67,49 +67,7 @@ export default function BillingPage() {
   }
 
   const handleUpgrade = async (plan: string) => {
-    setUpgrading(plan)
-    try {
-      const res = await billingApi.createOrder(plan)
-      const options = {
-        key: res.data.razorpay_key_id,
-        amount: res.data.amount,
-        currency: res.data.currency,
-        name: 'ContextOS',
-        description: `ContextOS ${plan.charAt(0).toUpperCase() + plan.slice(1)} Plan`,
-        order_id: res.data.order_id,
-        handler: async (response: any) => {
-          try {
-            await billingApi.verifyPayment({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              plan,
-            })
-            await refreshUser()
-            toast.success(`Successfully upgraded to ${plan}!`)
-          } catch (err: any) {
-            toast.error('Payment verification failed. Contact support if amount was deducted.')
-          } finally {
-            setUpgrading(null)
-          }
-        },
-        prefill: {
-          name: user?.name || '',
-          email: user?.email || '',
-        },
-        theme: { color: '#3b82f6' },
-        modal: {
-          ondismiss: () => {
-            setUpgrading(null)
-          },
-        },
-      }
-      const rzp = new window.Razorpay(options)
-      rzp.open()
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to create order')
-      setUpgrading(null)
-    }
+    toast.info('Payments are coming soon! Stay tuned for updates.')
   }
 
   const currentPlan = user?.plan || 'free'
@@ -119,7 +77,15 @@ export default function BillingPage() {
 
   return (
     <div>
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      {/* Razorpay script is not needed until payments are live */}
+      {/* <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" /> */}
+
+      <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-xl p-4 mb-6">
+        <p className="text-yellow-200 text-sm">
+          <strong>Coming Soon:</strong> Payment processing is currently under development.
+          All upgrade buttons are disabled. Stay tuned for the launch!
+        </p>
+      </div>
 
       <h1 className="text-2xl font-bold text-white mb-1">Billing</h1>
       <p className="text-gray-400 text-sm mb-8">Manage your plan and usage.</p>
@@ -188,18 +154,11 @@ export default function BillingPage() {
                 ))}
               </ul>
               <button
-                disabled={isCurrent || isUpgrading || plan.key === 'free'}
+                disabled={true}
                 onClick={() => handleUpgrade(plan.key)}
-                className={`w-full py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 ${
-                  isCurrent || plan.key === 'free'
-                    ? 'bg-gray-800 text-gray-500 cursor-default'
-                    : plan.highlight
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-800 border border-gray-700 text-gray-200 hover:bg-gray-700'
-                }`}
+                className="w-full py-2 rounded-lg text-sm font-medium transition flex items-center justify-center gap-2 bg-gray-700 text-gray-400 cursor-not-allowed"
               >
-                {isUpgrading && <Loader2 className="w-4 h-4 animate-spin" />}
-                {isCurrent ? 'Current Plan' : isUpgrading ? 'Processing...' : plan.cta}
+                Coming Soon
               </button>
             </div>
           )

@@ -135,8 +135,13 @@ class Settings(BaseSettings):
             return parsed.netloc or raw_host
         return raw_host
 
+    CORS_ORIGINS: str = ""
+
     @property
     def cors_origins(self) -> list[str]:
+        """Get CORS origins. If CORS_ORIGINS env var is set, use it; otherwise use defaults."""
+        if self.CORS_ORIGINS:
+            return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
         return [
             self.FRONTEND_URL,
             "http://localhost:3000",

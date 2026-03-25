@@ -23,12 +23,12 @@ export default function UpgradeBanner() {
           </p>
         </div>
       </div>
-      <Link
-        href="/dashboard/billing"
-        className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition whitespace-nowrap"
+      <div
+        className="bg-gray-600 text-gray-300 px-4 py-2 rounded-lg text-sm font-medium cursor-not-allowed whitespace-nowrap"
+        title="Payments coming soon"
       >
-        Upgrade Now
-      </Link>
+        Coming Soon
+      </div>
     </div>
   );
 }
