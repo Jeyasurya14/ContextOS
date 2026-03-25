@@ -37,7 +37,7 @@ class GitHubIntegration:
         """
         params = {
             "client_id": self.client_id,
-            "redirect_uri": f"{settings.BACKEND_URL}/api/v1/integrations/github/callback",
+            "redirect_uri": settings.GITHUB_REDIRECT_URI,
             "scope": self.SCOPES,
             "state": state,
         }
