@@ -88,8 +88,15 @@ export default function IntegrationsPage() {
   const handleConnect = async (tool: 'github' | 'notion' | 'slack') => {
     setConnecting(tool)
     try {
-      const res = await integrationsApi.connect(tool)
-      if (res.data?.url) {
+      let res
+      if (tool === 'github') {
+        res = await integrationsApi.getGithubUrl()
+      } else if (tool === 'notion') {
+        res = await integrationsApi.getNotionUrl()
+      } else if (tool === 'slack') {
+        res = await integrationsApi.getSlackUrl()
+      }
+      if (res?.data?.url) {
         window.location.href = res.data.url
       }
     } catch (err: any) {
