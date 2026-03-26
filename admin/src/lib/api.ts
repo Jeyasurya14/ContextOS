@@ -1,35 +1,91 @@
 // admin/src/lib/api.ts
 
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
+import { config } from './config'
+
+const API_URL = config.apiUrl
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
   timeout: 30000,
-  headers: { 'Content-Type': 'application/json' },
 })
 
-// Add auth token to requests
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
+let isRefreshing = false
+let failedQueue: any[] = []
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error)
+    } else {
+      prom.resolve(token)
+    }
+  })
+  failedQueue = []
+}
+
+api.interceptors.request.use(
+  (requestConfig) => {
     const token = localStorage.getItem('admin_token')
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+      requestConfig.headers.Authorization = `Bearer ${token}`
     }
-  }
-  return config
-})
-
-// Handle auth errors
-api.interceptors.response.use(
-  (response) => response,
+    
+    if (!config.isProduction) {
+      console.log(`[API] ${requestConfig.method?.toUpperCase()} ${requestConfig.url}`)
+    }
+    
+    return requestConfig
+  },
   (error) => {
-    if (error?.response?.status === 401 || error?.response?.status === 403) {
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('admin_token')
-        window.location.href = '/'
-      }
-    }
+    console.error('[API] Request error:', error)
     return Promise.reject(error)
+  }
+)
+
+api.interceptors.response.use(
+  (response) => {
+    if (!config.isProduction) {
+      console.log(`[API] Response ${response.status}:`, response.config.url)
+    }
+    return response
+  },
+  async (error: AxiosError<{ detail?: string }>) => {
+    const originalRequest: any = error.config
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject })
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`
+            return api(originalRequest)
+          })
+          .catch((err) => Promise.reject(err))
+      }
+
+      originalRequest._retry = true
+      isRefreshing = true
+
+      localStorage.removeItem('admin_token')
+      window.location.href = '/?session_expired=true'
+      isRefreshing = false
+      processQueue(error, null)
+      return Promise.reject(error)
+    }
+
+    const errorMessage = error.response?.data?.detail || error.message || 'An error occurred'
+    console.error('[API] Error:', errorMessage)
+
+    return Promise.reject({
+      message: errorMessage,
+      status: error.response?.status,
+      data: error.response?.data,
+    })
   }
 )
 
@@ -49,7 +105,7 @@ export const adminApi = {
     api.get(`/api/v1/admin/users/${userId}`),
   
   updateUser: (userId: string, data: { full_name?: string; plan?: string; is_active?: boolean; is_admin?: boolean }) =>
-    api.patch(`/api/v1/admin/users/${userId}`, data),
+    api.put(`/api/v1/admin/users/${userId}`, data),
   
   deleteUser: (userId: string) =>
     api.delete(`/api/v1/admin/users/${userId}`),
