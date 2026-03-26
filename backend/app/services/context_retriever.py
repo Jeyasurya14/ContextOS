@@ -6,8 +6,7 @@ from sqlalchemy import select
 
 from app.models.context_chunk import ContextChunk
 from app.services.embedding_service import embedding_service
-from app.services.qdrant_service import qdrant_service
-from app.services.intent_classifier import intent_classifier
+from app.services.qdrant_service import search_vectors
 
 
 class ContextRetriever:
@@ -49,7 +48,7 @@ class ContextRetriever:
 
         query_embedding = embedding_service.embed_text(query)
 
-        qdrant_results = qdrant_service.search(
+        qdrant_results = await search_vectors(
             query_vector=query_embedding,
             user_id=user_id,
             source_types=source_types,

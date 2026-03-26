@@ -93,6 +93,7 @@ async def search_vectors(
     limit: int = 10,
     score_threshold: float = 0.3,
     filters: dict | None = None,
+    source_types: list[str] | None = None,
 ) -> list[dict]:
     """Search for similar vectors."""
     try:
@@ -102,6 +103,13 @@ async def search_vectors(
                 match=MatchValue(value=user_id),
             )
         ]
+        if source_types:
+            must_conditions.append(
+                FieldCondition(
+                    key="source_type",
+                    match=MatchAny(any=source_types),
+                )
+            )
         if filters:
             for key, value in filters.items():
                 must_conditions.append(
