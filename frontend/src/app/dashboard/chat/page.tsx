@@ -211,11 +211,11 @@ export default function ChatPage() {
 
   // Slash commands
   const commands = [
-    { name: '/clear', description: 'Clear chat history', icon: '🗑️' },
-    { name: '/new', description: 'Start a new conversation', icon: '➕' },
-    { name: '/search', description: 'Search messages', icon: '🔍' },
-    { name: '/export', description: 'Export chat as markdown', icon: '📥' },
-    { name: '/help', description: 'Show available commands', icon: '❓' },
+    { name: '/clear', description: 'Clear chat history' },
+    { name: '/new', description: 'Start a new conversation' },
+    { name: '/search', description: 'Search messages' },
+    { name: '/export', description: 'Export chat as markdown' },
+    { name: '/help', description: 'Show available commands' },
   ]
 
   const handleCommand = (command: string) => {
@@ -862,7 +862,6 @@ export default function ChatPage() {
                         onClick={() => handleCommand(cmd.name)}
                         className="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700/50 transition-colors text-left"
                       >
-                        <span className="text-xl">{cmd.icon}</span>
                         <div className="flex-1">
                           <p className="text-sm font-medium text-white">{cmd.name}</p>
                           <p className="text-xs text-dark-400">{cmd.description}</p>
