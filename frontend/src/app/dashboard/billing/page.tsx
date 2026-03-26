@@ -22,7 +22,7 @@ const plans = [
     name: 'Free',
     price: '₹0',
     period: '/month',
-    features: ['50 queries/day', '3 integrations', '10K context chunks', 'Community support'],
+    features: ['25 queries/day', '3 integrations', '10K context chunks', 'Community support'],
     cta: 'Current Plan',
   },
   {
@@ -154,7 +154,7 @@ export default function BillingPage() {
             <div className="flex justify-between text-sm">
               <span className="text-dark-400">Queries this month</span>
               <span className="text-dark-200">
-                {currentPlan === 'free' ? `${usage.queries_count || 0} / ${usage.queries_limit || 50}` : 'Unlimited'}
+                {currentPlan === 'free' ? `${usage.queries_count || 0} / ${usage.queries_limit || 25}` : 'Unlimited'}
               </span>
             </div>
             {currentPlan === 'free' && (

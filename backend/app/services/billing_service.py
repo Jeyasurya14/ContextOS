@@ -47,7 +47,7 @@ else:
 
 PLAN_LIMITS = {
     "free": {
-        "queries_per_day": 50,
+        "queries_per_day": 25,
         "max_chunks": 10000,
         "max_integrations": 3,
         "max_team_members": 5,
@@ -67,8 +67,8 @@ PLAN_LIMITS = {
 }
 
 PLAN_PRICES_PAISE = {
-    "pro": 166700,
-    "team": 828200,
+    "pro": 99900,
+    "team": 299900,
 }
 
 
@@ -283,7 +283,7 @@ class BillingService:
         """Get the upgrade message for a rate-limited user."""
         if user.plan == "free":
             return (
-                "You've reached the free plan limit of 50 queries/day. "
+                "You've reached the free plan limit of 25 queries/day. "
                 "Upgrade to Pro (₹1,667/month) for unlimited queries."
             )
         return "Rate limit reached. Please try again later."

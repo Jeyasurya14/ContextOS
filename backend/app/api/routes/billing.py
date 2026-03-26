@@ -31,39 +31,43 @@ async def get_plans() -> dict:
                 "price_inr": 0,
                 "price_display": "₹0/mo",
                 "features": [
-                    "50 queries per day",
-                    "1 GitHub repo",
+                    "25 queries per day",
+                    "3 integrations",
+                    "10K context chunks",
+                    "VS Code extension",
                     "Community support"
                 ],
-                "limits": {"queries_per_day": 50, "repos": 1, "team_members": 0}
+                "limits": {"queries_per_day": 25, "repos": 3, "team_members": 5}
             },
             {
                 "id": "pro",
                 "name": "Pro",
-                "price_inr": 166700,
-                "price_display": "₹1,667/mo",
+                "price_inr": 99900,
+                "price_display": "₹999/mo",
                 "features": [
-                    "500 queries per day",
-                    "Unlimited repos",
-                    "GitHub + Notion + Slack",
-                    "VS Code extension",
+                    "Unlimited queries",
+                    "Unlimited integrations",
+                    "100K context chunks",
+                    "Real-time webhook sync",
+                    "Team shared context",
                     "Priority support"
                 ],
-                "limits": {"queries_per_day": 500, "repos": -1, "team_members": 0}
+                "limits": {"queries_per_day": -1, "repos": -1, "team_members": 50}
             },
             {
                 "id": "team",
                 "name": "Team",
-                "price_inr": 828200,
-                "price_display": "₹8,282/mo",
+                "price_inr": 299900,
+                "price_display": "₹2,999/mo",
                 "features": [
-                    "2000 queries per day",
-                    "Unlimited everything",
-                    "Team shared context",
-                    "Up to 20 members",
-                    "Dedicated support"
+                    "Everything in Pro",
+                    "Unlimited team members",
+                    "Unlimited context chunks",
+                    "SSO & SAML",
+                    "Dedicated support",
+                    "Custom SLA"
                 ],
-                "limits": {"queries_per_day": 2000, "repos": -1, "team_members": 20}
+                "limits": {"queries_per_day": -1, "repos": -1, "team_members": -1}
             }
         ]
     }
@@ -88,9 +92,9 @@ async def get_usage(
 ) -> dict:
     """Get current usage for the user."""
     limits = {
-        "free": {"queries_per_day": 50},
-        "pro": {"queries_per_day": 500},
-        "team": {"queries_per_day": 2000},
+        "free": {"queries_per_day": 25},
+        "pro": {"queries_per_day": -1},
+        "team": {"queries_per_day": -1},
     }
     
     limit = limits.get(user.plan, limits["free"])["queries_per_day"]
