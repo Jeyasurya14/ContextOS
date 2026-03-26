@@ -25,12 +25,12 @@ async def github_connect(
     """Generate GitHub OAuth URL for the user to authorize.
 
     Returns:
-        Dict with oauth_url to redirect the user to.
+        Dict with url to redirect the user to.
     """
     state = create_oauth_state_token(current_user.id)
     oauth_url = github_integration.get_oauth_url(current_user.id, state)
     logger.info("GitHub connect initiated for user_id={}", current_user.id)
-    return {"oauth_url": oauth_url, "state": state}
+    return {"url": oauth_url, "state": state}
 
 
 @router.get("/callback")
