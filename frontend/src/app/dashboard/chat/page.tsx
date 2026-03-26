@@ -967,9 +967,7 @@ export default function ChatPage() {
             {/* Footer */}
             <div className="flex items-center justify-between mt-3 text-[10px] text-dark-500">
               <div className="flex items-center gap-4">
-                <span>AI can make mistakes</span>
-                <span className="hidden sm:flex items-center gap-1">
-                  <span className="w-1 h-1 bg-dark-600 rounded-full" />
+                <span className="flex items-center gap-1">
                   <span>Ctrl+Enter to send</span>
                 </span>
               </div>
