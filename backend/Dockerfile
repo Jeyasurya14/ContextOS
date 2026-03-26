@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
-RUN python3.11 -m pip install --upgrade pip && \
+RUN python3.11 -m pip install --upgrade pip setuptools && \
     python3.11 -m pip install --no-cache-dir -r requirements.txt
 
 COPY . .
