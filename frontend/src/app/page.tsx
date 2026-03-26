@@ -137,10 +137,10 @@ export default function LandingPage() {
             </div>
             <div className="bg-dark-900 border-2 border-brand rounded-xl p-8 relative">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand text-white text-xs font-medium px-3 py-1 rounded-full">
-                Popular
+                Recommended
               </div>
               <h3 className="text-lg font-semibold text-dark-50 mb-2">Pro</h3>
-              <p className="text-3xl font-bold text-dark-50 mb-1">₹1,667<span className="text-sm text-dark-400 font-normal">/month</span></p>
+              <p className="text-3xl font-bold text-dark-50 mb-1">₹999<span className="text-sm text-dark-400 font-normal">/month</span></p>
               <p className="text-dark-400 text-sm mb-6">For developers and small teams</p>
               <ul className="text-sm text-dark-300 space-y-2 text-left">
                 <li>- Unlimited queries/day</li>
@@ -153,12 +153,12 @@ export default function LandingPage() {
                 href="/register"
                 className="mt-6 block w-full text-center bg-brand text-white py-2 rounded-lg hover:bg-brand-dark transition"
               >
-                Start Pro Trial
+                Upgrade to Pro
               </Link>
             </div>
             <div className="bg-dark-900 border border-dark-700 rounded-xl p-8">
               <h3 className="text-lg font-semibold text-dark-50 mb-2">Team</h3>
-              <p className="text-3xl font-bold text-dark-50 mb-1">₹8,282<span className="text-sm text-dark-400 font-normal">/month</span></p>
+              <p className="text-3xl font-bold text-dark-50 mb-1">₹2,999<span className="text-sm text-dark-400 font-normal">/month</span></p>
               <p className="text-dark-400 text-sm mb-6">For growing teams and orgs</p>
               <ul className="text-sm text-dark-300 space-y-2 text-left">
                 <li>- Unlimited queries/day</li>
@@ -167,12 +167,13 @@ export default function LandingPage() {
                 <li>- Unlimited team members</li>
                 <li>- SSO & SAML</li>
                 <li>- Dedicated support</li>
+                <li>- Custom SLA</li>
               </ul>
               <Link
                 href="/register"
                 className="mt-6 block w-full text-center border border-dark-600 text-dark-200 py-2 rounded-lg hover:bg-dark-800 transition"
               >
-                Contact Sales
+                Upgrade to Team
               </Link>
             </div>
           </div>

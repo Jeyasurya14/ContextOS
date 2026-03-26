@@ -28,7 +28,7 @@ const plans = [
   {
     key: 'pro',
     name: 'Pro',
-    price: '₹1,667',
+    price: '₹999',
     period: '/month',
     features: ['Unlimited queries/day', 'Unlimited integrations', '100K context chunks', 'Team shared context', 'Priority support'],
     cta: 'Upgrade to Pro',
@@ -37,7 +37,7 @@ const plans = [
   {
     key: 'team',
     name: 'Team',
-    price: '₹8,282',
+    price: '₹2,999',
     period: '/month',
     features: ['Unlimited queries/day', 'Unlimited integrations', 'Unlimited context chunks', 'Unlimited team members', 'SSO & SAML', 'Dedicated support', 'Custom SLA'],
     cta: 'Upgrade to Team',
@@ -66,8 +66,62 @@ export default function BillingPage() {
     }
   }
 
-  const handleUpgrade = async (plan: string) => {
-    toast.info('Payments are coming soon! Stay tuned for updates.')
+  const handleUpgrade = async (planKey: string) => {
+    if (planKey === 'free' || planKey === currentPlan) return
+    
+    setUpgrading(planKey)
+    try {
+      const response = await billingApi.createOrder(planKey)
+      const { order_id, amount, currency, key } = response.data
+
+      if (!window.Razorpay) {
+        toast.error('Payment gateway not loaded. Please refresh the page.')
+        setUpgrading(null)
+        return
+      }
+
+      const options = {
+        key,
+        amount,
+        currency,
+        name: 'ContextOS',
+        description: `Upgrade to ${planKey.charAt(0).toUpperCase() + planKey.slice(1)} Plan`,
+        order_id,
+        handler: async (response: any) => {
+          try {
+            await billingApi.verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              plan: planKey,
+            })
+            toast.success('Payment successful! Your plan has been upgraded.')
+            await refreshUser()
+            await loadUsage()
+          } catch (err: any) {
+            toast.error('Payment verification failed. Please contact support.')
+          }
+        },
+        prefill: {
+          email: user?.email || '',
+          name: user?.name || '',
+        },
+        theme: {
+          color: '#8B5CF6',
+        },
+        modal: {
+          ondismiss: () => {
+            setUpgrading(null)
+          },
+        },
+      }
+
+      const razorpay = new window.Razorpay(options)
+      razorpay.open()
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Failed to initiate payment')
+      setUpgrading(null)
+    }
   }
 
   const currentPlan = user?.plan || 'free'
@@ -77,15 +131,7 @@ export default function BillingPage() {
 
   return (
     <div>
-      {/* Razorpay script is not needed until payments are live */}
-      {/* <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" /> */}
-
-      <div className="bg-warning/10 border border-warning/20 rounded-lg p-4 mb-6 animate-slide-up">
-        <p className="text-warning text-sm">
-          <strong>Coming Soon:</strong> Payment processing is currently under development.
-          All upgrade buttons are disabled. Stay tuned for the launch!
-        </p>
-      </div>
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
       <h1 className="text-2xl font-semibold text-white mb-2">Billing</h1>
       <p className="text-dark-400 text-sm mb-8">Manage your plan and usage</p>
@@ -154,11 +200,26 @@ export default function BillingPage() {
                 ))}
               </ul>
               <button
-                disabled={true}
+                disabled={isCurrent || upgrading !== null}
                 onClick={() => handleUpgrade(plan.key)}
-                className="btn btn-secondary disabled:opacity-50 cursor-not-allowed w-full mt-auto"
+                className={`w-full mt-auto py-2 rounded-lg font-medium transition ${
+                  isCurrent
+                    ? 'bg-dark-700 text-dark-400 cursor-not-allowed'
+                    : plan.highlight
+                    ? 'bg-brand text-white hover:bg-brand-dark'
+                    : 'border border-dark-600 text-dark-200 hover:bg-dark-800'
+                } disabled:opacity-50`}
               >
-                Coming Soon
+                {upgrading === plan.key ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing...
+                  </span>
+                ) : isCurrent ? (
+                  'Current Plan'
+                ) : (
+                  plan.cta
+                )}
               </button>
             </div>
           )
