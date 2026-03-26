@@ -347,7 +347,7 @@ export default function LandingPage() {
               <p className="text-xs font-semibold text-dark-500 uppercase tracking-widest mb-5">Free</p>
               <div className="space-y-4">
                 {[
-                  { icon: Zap, title: 'AI Chat', desc: '50 queries/day with streaming responses and cited sources.' },
+                  { icon: Zap, title: 'AI Chat', desc: '25 queries/day with streaming responses and cited sources.' },
                   { icon: Search, title: 'Smart Retrieval', desc: 'Semantic search across up to 10K context chunks.' },
                   { icon: Shield, title: 'Encrypted Storage', desc: 'AES-256-GCM encryption for all tokens and data at rest.' },
                   { icon: Code2, title: 'VS Code Extension', desc: 'Ask questions in your editor with workspace context.' },
@@ -429,7 +429,7 @@ export default function LandingPage() {
               <p className="text-3xl font-bold text-white mb-0.5">₹0<span className="text-sm text-dark-500 font-normal">/mo</span></p>
               <p className="text-dark-500 text-xs mb-6">For individual developers</p>
               <ul className="text-sm text-dark-400 space-y-2.5 flex-1">
-                {['50 AI queries/day', '3 integrations', '10K context chunks', 'VS Code extension', 'AES-256 encryption', 'Community support'].map((item) => (
+                {['25 AI queries/day', '3 integrations', '10K context chunks', 'VS Code extension', 'AES-256 encryption', 'Community support'].map((item) => (
                   <li key={item} className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-dark-600 flex-shrink-0" />
                     {item}
