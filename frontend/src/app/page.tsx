@@ -334,30 +334,84 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features */}
+      {/* Features by Tier */}
       <section id="features" className="py-24 border-t border-dark-800/50">
         <div className="max-w-5xl mx-auto px-6">
           <div className="text-center mb-16">
             <p className="text-brand text-sm font-medium tracking-wide uppercase mb-3">Features</p>
-            <h2 className="text-4xl font-bold text-white tracking-tight">Built for developers who ship</h2>
+            <h2 className="text-4xl font-bold text-white tracking-tight">Everything you need, at every scale</h2>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
-            {[
-              { icon: Zap, title: 'Streaming AI Chat', desc: 'Real-time answers with cited sources from your actual project data.' },
-              { icon: Shield, title: 'Encrypted & Secure', desc: 'OAuth tokens encrypted with AES-256-GCM. Your data stays yours.' },
-              { icon: Users, title: 'Team Context', desc: 'Share context across your team. Everyone gets smarter answers.' },
-              { icon: Code2, title: 'VS Code Extension', desc: 'Ask questions right in your editor with full workspace context.' },
-              { icon: Github, title: 'Real-time Sync', desc: 'Webhooks keep your context fresh. Push a commit, context updates.' },
-              { icon: Search, title: 'Smart Retrieval', desc: 'Semantic search across all sources. Finds what matters most.' },
-            ].map((f) => (
-              <div key={f.title} className="p-5 rounded-xl border border-transparent hover:border-dark-800 hover:bg-dark-900/30 transition-all group">
-                <div className="w-10 h-10 bg-dark-800 rounded-lg flex items-center justify-center mb-4 group-hover:bg-brand/10 transition-colors">
-                  <f.icon className="w-5 h-5 text-dark-400 group-hover:text-brand transition-colors" />
-                </div>
-                <h3 className="font-semibold text-white mb-1.5">{f.title}</h3>
-                <p className="text-sm text-dark-500 leading-relaxed">{f.desc}</p>
+            {/* Free features */}
+            <div className="rounded-xl border border-dark-800 p-6">
+              <p className="text-xs font-semibold text-dark-500 uppercase tracking-widest mb-5">Free</p>
+              <div className="space-y-4">
+                {[
+                  { icon: Zap, title: 'AI Chat', desc: '50 queries/day with streaming responses and cited sources.' },
+                  { icon: Search, title: 'Smart Retrieval', desc: 'Semantic search across up to 10K context chunks.' },
+                  { icon: Shield, title: 'Encrypted Storage', desc: 'AES-256-GCM encryption for all tokens and data at rest.' },
+                  { icon: Code2, title: 'VS Code Extension', desc: 'Ask questions in your editor with workspace context.' },
+                ].map((f) => (
+                  <div key={f.title} className="flex gap-3 group">
+                    <div className="w-8 h-8 bg-dark-800 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-brand/10 transition-colors">
+                      <f.icon className="w-4 h-4 text-dark-500 group-hover:text-brand transition-colors" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">{f.title}</h3>
+                      <p className="text-xs text-dark-500 leading-relaxed mt-0.5">{f.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+
+            {/* Pro features */}
+            <div className="rounded-xl border-2 border-brand/30 bg-brand/[0.02] p-6">
+              <p className="text-xs font-semibold text-brand uppercase tracking-widest mb-5">Pro</p>
+              <div className="space-y-4">
+                {[
+                  { icon: Zap, title: 'Unlimited AI Chat', desc: 'No daily limits. Faster responses with priority queue.' },
+                  { icon: Globe, title: 'Unlimited Integrations', desc: 'Connect all your GitHub, Notion, Slack & VS Code accounts.' },
+                  { icon: Database, title: '100K Context Chunks', desc: 'Index larger codebases and longer project histories.' },
+                  { icon: Users, title: 'Team Shared Context', desc: 'Share context across team members for smarter answers.' },
+                  { icon: Github, title: 'Real-time Webhooks', desc: 'Push a commit, context updates instantly via webhooks.' },
+                ].map((f) => (
+                  <div key={f.title} className="flex gap-3 group">
+                    <div className="w-8 h-8 bg-brand/10 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-brand/20 transition-colors">
+                      <f.icon className="w-4 h-4 text-brand transition-colors" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">{f.title}</h3>
+                      <p className="text-xs text-dark-500 leading-relaxed mt-0.5">{f.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Team features */}
+            <div className="rounded-xl border border-dark-800 p-6">
+              <p className="text-xs font-semibold text-dark-500 uppercase tracking-widest mb-5">Team</p>
+              <div className="space-y-4">
+                {[
+                  { icon: Users, title: 'Unlimited Members', desc: 'Add your entire engineering team with no seat limits.' },
+                  { icon: Database, title: 'Unlimited Chunks', desc: 'No cap on context storage — index everything.' },
+                  { icon: Shield, title: 'SSO & SAML', desc: 'Enterprise single sign-on for secure team access.' },
+                  { icon: Zap, title: 'Dedicated Support', desc: 'Direct Slack channel with our engineering team.' },
+                  { icon: FileText, title: 'Custom SLA', desc: 'Guaranteed uptime and priority incident response.' },
+                ].map((f) => (
+                  <div key={f.title} className="flex gap-3 group">
+                    <div className="w-8 h-8 bg-dark-800 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-brand/10 transition-colors">
+                      <f.icon className="w-4 h-4 text-dark-500 group-hover:text-brand transition-colors" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">{f.title}</h3>
+                      <p className="text-xs text-dark-500 leading-relaxed mt-0.5">{f.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -368,14 +422,14 @@ export default function LandingPage() {
           <p className="text-brand text-sm font-medium tracking-wide uppercase mb-3">Pricing</p>
           <h2 className="text-4xl font-bold text-white mb-4 tracking-tight">Simple, transparent pricing</h2>
           <p className="text-dark-400 mb-16">Start free. Upgrade when you need more.</p>
-          <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto items-start">
+          <div className="grid md:grid-cols-3 gap-5 max-w-4xl mx-auto items-stretch">
             {/* Free */}
-            <div className="bg-dark-900/30 border border-dark-800 rounded-xl p-7 text-left">
+            <div className="bg-dark-900/30 border border-dark-800 rounded-xl p-7 text-left flex flex-col">
               <h3 className="text-base font-semibold text-white mb-1">Free</h3>
               <p className="text-3xl font-bold text-white mb-0.5">₹0<span className="text-sm text-dark-500 font-normal">/mo</span></p>
               <p className="text-dark-500 text-xs mb-6">For individual developers</p>
-              <ul className="text-sm text-dark-400 space-y-2.5 mb-6">
-                {['50 queries/day', '3 integrations', '10K context chunks', 'Community support'].map((item) => (
+              <ul className="text-sm text-dark-400 space-y-2.5 flex-1">
+                {['50 AI queries/day', '3 integrations', '10K context chunks', 'VS Code extension', 'AES-256 encryption', 'Community support'].map((item) => (
                   <li key={item} className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-dark-600 flex-shrink-0" />
                     {item}
@@ -384,22 +438,22 @@ export default function LandingPage() {
               </ul>
               <Link
                 href="/register"
-                className="block w-full text-center border border-dark-700 text-white py-2.5 rounded-lg hover:bg-dark-800 transition text-sm font-medium"
+                className="block w-full text-center border border-dark-700 text-white py-2.5 rounded-lg hover:bg-dark-800 transition text-sm font-medium mt-8"
               >
                 Get Started
               </Link>
             </div>
 
             {/* Pro */}
-            <div className="bg-dark-900/30 border-2 border-brand/50 rounded-xl p-7 text-left relative">
+            <div className="bg-dark-900/30 border-2 border-brand/50 rounded-xl p-7 text-left relative flex flex-col">
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand text-white text-[10px] font-semibold px-3 py-1 rounded-full uppercase tracking-wide">
                 Popular
               </div>
               <h3 className="text-base font-semibold text-white mb-1">Pro</h3>
               <p className="text-3xl font-bold text-white mb-0.5">₹999<span className="text-sm text-dark-500 font-normal">/mo</span></p>
               <p className="text-dark-500 text-xs mb-6">For developers & small teams</p>
-              <ul className="text-sm text-dark-400 space-y-2.5 mb-6">
-                {['Unlimited queries', 'Unlimited integrations', '100K context chunks', 'Team shared context', 'Priority support'].map((item) => (
+              <ul className="text-sm text-dark-400 space-y-2.5 flex-1">
+                {['Unlimited AI queries', 'Unlimited integrations', '100K context chunks', 'Real-time webhook sync', 'Team shared context', 'Priority support'].map((item) => (
                   <li key={item} className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-brand flex-shrink-0" />
                     {item}
@@ -408,19 +462,19 @@ export default function LandingPage() {
               </ul>
               <Link
                 href="/register"
-                className="block w-full text-center bg-brand text-white py-2.5 rounded-lg hover:bg-brand-dark transition text-sm font-medium"
+                className="block w-full text-center bg-brand text-white py-2.5 rounded-lg hover:bg-brand-dark transition text-sm font-medium mt-8"
               >
                 Upgrade to Pro
               </Link>
             </div>
 
             {/* Team */}
-            <div className="bg-dark-900/30 border border-dark-800 rounded-xl p-7 text-left">
+            <div className="bg-dark-900/30 border border-dark-800 rounded-xl p-7 text-left flex flex-col">
               <h3 className="text-base font-semibold text-white mb-1">Team</h3>
               <p className="text-3xl font-bold text-white mb-0.5">₹2,999<span className="text-sm text-dark-500 font-normal">/mo</span></p>
               <p className="text-dark-500 text-xs mb-6">For growing teams & orgs</p>
-              <ul className="text-sm text-dark-400 space-y-2.5 mb-6">
-                {['Everything in Pro', 'Unlimited members', 'Unlimited chunks', 'SSO & SAML', 'Dedicated support', 'Custom SLA'].map((item) => (
+              <ul className="text-sm text-dark-400 space-y-2.5 flex-1">
+                {['Everything in Pro', 'Unlimited team members', 'Unlimited context chunks', 'SSO & SAML', 'Dedicated support channel', 'Custom SLA & uptime'].map((item) => (
                   <li key={item} className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-dark-600 flex-shrink-0" />
                     {item}
@@ -429,7 +483,7 @@ export default function LandingPage() {
               </ul>
               <Link
                 href="/register"
-                className="block w-full text-center border border-dark-700 text-white py-2.5 rounded-lg hover:bg-dark-800 transition text-sm font-medium"
+                className="block w-full text-center border border-dark-700 text-white py-2.5 rounded-lg hover:bg-dark-800 transition text-sm font-medium mt-8"
               >
                 Upgrade to Team
               </Link>
