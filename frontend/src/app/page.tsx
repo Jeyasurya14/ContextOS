@@ -25,129 +25,209 @@ function useInView(threshold = 0.2) {
 
 function WorkflowAnimation() {
   const [activeStep, setActiveStep] = useState(0);
-  const { ref, isInView } = useInView(0.3);
+  const { ref, isInView } = useInView(0.15);
 
   useEffect(() => {
     if (!isInView) return;
     const interval = setInterval(() => {
       setActiveStep((s) => (s + 1) % 4);
-    }, 2500);
+    }, 3000);
     return () => clearInterval(interval);
   }, [isInView]);
 
+  const sources = [
+    { icon: Github, label: 'GitHub' },
+    { icon: FileText, label: 'Notion' },
+    { icon: MessageSquare, label: 'Slack' },
+    { icon: Code2, label: 'VS Code' },
+  ];
+
   const steps = [
-    {
-      icon: Globe,
-      title: 'Connect',
-      desc: 'Link your GitHub, Notion, Slack, and VS Code in seconds with OAuth.',
-      visual: (
-        <div className="flex items-center justify-center gap-3">
-          {[Github, FileText, MessageSquare, Code2].map((Icon, i) => (
-            <div
-              key={i}
-              className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-500 ${
-                activeStep === 0
-                  ? 'bg-brand/20 border border-brand/40 scale-110'
-                  : 'bg-dark-800 border border-dark-700'
-              }`}
-              style={{ transitionDelay: `${i * 100}ms` }}
-            >
-              <Icon className={`w-6 h-6 transition-colors duration-500 ${activeStep === 0 ? 'text-brand' : 'text-dark-500'}`} />
-            </div>
-          ))}
-        </div>
-      ),
-    },
-    {
-      icon: Database,
-      title: 'Sync',
-      desc: 'We pull commits, pages, messages, and files into a unified context store.',
-      visual: (
-        <div className="flex items-center justify-center gap-2">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className={`h-8 rounded transition-all duration-700 ${
-                activeStep === 1 ? 'bg-brand/30 w-8' : 'bg-dark-800 w-4'
-              }`}
-              style={{ transitionDelay: `${i * 120}ms`, height: activeStep === 1 ? `${20 + i * 8}px` : '16px' }}
-            />
-          ))}
-        </div>
-      ),
-    },
-    {
-      icon: Brain,
-      title: 'Index',
-      desc: 'Semantic embeddings are generated so the AI understands meaning, not just keywords.',
-      visual: (
-        <div className="flex items-center justify-center">
-          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-700 ${
-            activeStep === 2 ? 'bg-brand/20 border border-brand/40 shadow-lg shadow-brand/20 rotate-0 scale-110' : 'bg-dark-800 border border-dark-700 -rotate-6 scale-100'
-          }`}>
-            <Brain className={`w-8 h-8 transition-colors duration-500 ${activeStep === 2 ? 'text-brand' : 'text-dark-500'}`} />
-          </div>
-        </div>
-      ),
-    },
-    {
-      icon: Search,
-      title: 'Ask',
-      desc: 'Ask anything. Get grounded answers with cited sources from your real project data.',
-      visual: (
-        <div className="flex flex-col items-center gap-2">
-          <div className={`px-4 py-2 rounded-lg text-sm transition-all duration-500 ${
-            activeStep === 3 ? 'bg-dark-800 text-white border border-dark-600' : 'bg-dark-900 text-dark-600 border border-dark-800'
-          }`}>
-            {activeStep === 3 ? '"Why did auth break last week?"' : '"Type a question..."'}
-          </div>
-          <div className={`text-xs transition-all duration-500 ${activeStep === 3 ? 'text-brand opacity-100' : 'text-dark-600 opacity-0'}`}>
-            Searching 3 sources...
-          </div>
-        </div>
-      ),
-    },
+    { icon: Globe, title: 'Connect', desc: 'OAuth into your tools in one click. We handle the rest.' },
+    { icon: Database, title: 'Sync', desc: 'Data flows from all sources into a unified context store.' },
+    { icon: Brain, title: 'Index', desc: 'Semantic embeddings let the AI understand meaning, not just keywords.' },
+    { icon: Search, title: 'Ask', desc: 'Ask anything and get cited, grounded answers from real data.' },
   ];
 
   return (
     <div ref={ref}>
-      {/* Step indicators */}
-      <div className="flex items-center justify-center gap-2 mb-12">
-        {steps.map((step, i) => (
-          <button
-            key={i}
-            onClick={() => setActiveStep(i)}
-            className="flex items-center gap-2 group"
-          >
-            <div className={`flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
-              activeStep === i
-                ? 'bg-brand/10 text-brand border border-brand/30'
-                : 'text-dark-500 hover:text-dark-300'
-            }`}>
-              <step.icon className="w-4 h-4" />
-              <span className="hidden sm:inline">{step.title}</span>
+      {/* Wireframe diagram */}
+      <div className="relative border border-dark-800 rounded-2xl bg-dark-900/30 p-6 md:p-10 overflow-hidden">
+        {/* Dot grid background */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+
+        {/* Main flow: Sources → Context Engine → AI Output */}
+        <div className="relative flex flex-col md:flex-row items-center gap-6 md:gap-0 justify-between">
+
+          {/* Column 1: Sources */}
+          <div className="flex flex-col gap-3 md:w-[160px] shrink-0">
+            <div className="text-[10px] font-semibold text-dark-500 uppercase tracking-widest mb-1 text-center">Sources</div>
+            {sources.map((s, i) => (
+              <div
+                key={s.label}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border transition-all duration-500 ${
+                  activeStep >= 0
+                    ? 'border-dark-700 bg-dark-800/50'
+                    : 'border-dark-800 bg-transparent'
+                } ${activeStep === 0 ? 'border-brand/40 bg-brand/5' : ''}`}
+                style={{ transitionDelay: `${i * 80}ms` }}
+              >
+                <s.icon className={`w-4 h-4 transition-colors duration-500 ${activeStep === 0 ? 'text-brand' : 'text-dark-400'}`} />
+                <span className={`text-xs font-medium transition-colors duration-500 ${activeStep === 0 ? 'text-white' : 'text-dark-400'}`}>{s.label}</span>
+                <div className={`ml-auto w-1.5 h-1.5 rounded-full transition-all duration-500 ${activeStep === 0 ? 'bg-brand shadow-sm shadow-brand/50' : 'bg-dark-600'}`} />
+              </div>
+            ))}
+          </div>
+
+          {/* Connector 1 */}
+          <div className="hidden md:flex items-center flex-1 max-w-[100px] relative">
+            <div className="w-full h-px bg-dark-700 relative">
+              <div
+                className={`absolute inset-y-0 left-0 h-px bg-brand transition-all duration-700 ease-out ${activeStep >= 1 ? 'w-full' : 'w-0'}`}
+              />
+              {/* Animated dots */}
+              {activeStep === 1 && (
+                <>
+                  <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-brand shadow-md shadow-brand/50 animate-[flowRight_1.5s_ease-in-out_infinite]" />
+                  <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-brand/50 shadow-md shadow-brand/30 animate-[flowRight_1.5s_ease-in-out_infinite_0.4s]" />
+                </>
+              )}
             </div>
-            {i < steps.length - 1 && (
-              <ChevronRight className="w-4 h-4 text-dark-700 hidden sm:block" />
-            )}
-          </button>
-        ))}
+            <ArrowRight className={`w-3.5 h-3.5 -ml-1 transition-colors duration-500 ${activeStep >= 1 ? 'text-brand' : 'text-dark-700'}`} />
+          </div>
+          {/* Mobile connector */}
+          <div className="md:hidden flex flex-col items-center">
+            <div className={`w-px h-8 transition-colors duration-500 ${activeStep >= 1 ? 'bg-brand' : 'bg-dark-700'}`} />
+            <ArrowRight className={`w-3.5 h-3.5 rotate-90 transition-colors duration-500 ${activeStep >= 1 ? 'text-brand' : 'text-dark-700'}`} />
+          </div>
+
+          {/* Column 2: Context Engine */}
+          <div className="md:w-[200px] shrink-0">
+            <div className="text-[10px] font-semibold text-dark-500 uppercase tracking-widest mb-2 text-center">Context Engine</div>
+            <div className={`relative rounded-xl border-2 border-dashed p-5 transition-all duration-700 ${
+              activeStep === 1 ? 'border-brand/50 bg-brand/5' : activeStep === 2 ? 'border-brand/40 bg-brand/5' : 'border-dark-700 bg-dark-900/50'
+            }`}>
+              {/* Pulse ring */}
+              <div className={`absolute inset-0 rounded-xl transition-opacity duration-700 ${activeStep === 2 ? 'opacity-100' : 'opacity-0'}`}>
+                <div className="absolute inset-0 rounded-xl border border-brand/20 animate-ping" style={{ animationDuration: '2s' }} />
+              </div>
+
+              <div className="relative flex flex-col items-center gap-3">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-500 ${
+                  activeStep === 2 ? 'bg-brand/20 shadow-lg shadow-brand/20' : activeStep === 1 ? 'bg-brand/10' : 'bg-dark-800'
+                }`}>
+                  <Brain className={`w-6 h-6 transition-all duration-500 ${activeStep === 2 ? 'text-brand scale-110' : activeStep === 1 ? 'text-brand/60' : 'text-dark-500'}`} />
+                </div>
+                <div className="text-center">
+                  <p className={`text-xs font-semibold transition-colors duration-500 ${activeStep >= 1 && activeStep <= 2 ? 'text-white' : 'text-dark-400'}`}>
+                    Unified Store
+                  </p>
+                  <p className="text-[10px] text-dark-500 mt-0.5">Semantic Indexing</p>
+                </div>
+
+                {/* Mini data indicators */}
+                <div className="flex gap-1.5">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className={`w-6 h-1 rounded-full transition-all duration-500 ${
+                        activeStep >= 1 ? 'bg-brand/30' : 'bg-dark-700'
+                      } ${activeStep === 2 && i <= activeStep ? 'bg-brand/60' : ''}`}
+                      style={{ transitionDelay: `${i * 100}ms` }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Connector 2 */}
+          <div className="hidden md:flex items-center flex-1 max-w-[100px] relative">
+            <div className="w-full h-px bg-dark-700 relative">
+              <div
+                className={`absolute inset-y-0 left-0 h-px bg-brand transition-all duration-700 ease-out ${activeStep >= 3 ? 'w-full' : 'w-0'}`}
+              />
+              {activeStep === 3 && (
+                <>
+                  <div className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-brand shadow-md shadow-brand/50 animate-[flowRight_1.5s_ease-in-out_infinite]" />
+                </>
+              )}
+            </div>
+            <ArrowRight className={`w-3.5 h-3.5 -ml-1 transition-colors duration-500 ${activeStep >= 3 ? 'text-brand' : 'text-dark-700'}`} />
+          </div>
+          {/* Mobile connector */}
+          <div className="md:hidden flex flex-col items-center">
+            <div className={`w-px h-8 transition-colors duration-500 ${activeStep >= 3 ? 'bg-brand' : 'bg-dark-700'}`} />
+            <ArrowRight className={`w-3.5 h-3.5 rotate-90 transition-colors duration-500 ${activeStep >= 3 ? 'text-brand' : 'text-dark-700'}`} />
+          </div>
+
+          {/* Column 3: AI Output */}
+          <div className="md:w-[220px] shrink-0">
+            <div className="text-[10px] font-semibold text-dark-500 uppercase tracking-widest mb-2 text-center">AI Output</div>
+            <div className={`rounded-xl border p-4 transition-all duration-700 ${
+              activeStep === 3 ? 'border-brand/40 bg-dark-800/80 shadow-lg shadow-brand/5' : 'border-dark-800 bg-dark-900/50'
+            }`}>
+              {/* Mock chat UI */}
+              <div className="space-y-2.5">
+                <div className={`flex items-start gap-2 transition-opacity duration-500 ${activeStep === 3 ? 'opacity-100' : 'opacity-40'}`}>
+                  <div className="w-5 h-5 rounded-full bg-dark-700 flex items-center justify-center shrink-0 mt-0.5">
+                    <Users className="w-3 h-3 text-dark-400" />
+                  </div>
+                  <div className={`text-[11px] rounded-lg px-2.5 py-1.5 transition-colors duration-500 ${
+                    activeStep === 3 ? 'bg-dark-700 text-white' : 'bg-dark-800 text-dark-500'
+                  }`}>
+                    Why did auth break?
+                  </div>
+                </div>
+                <div className={`flex items-start gap-2 transition-all duration-700 ${activeStep === 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
+                  <div className="w-5 h-5 rounded-full bg-brand/20 flex items-center justify-center shrink-0 mt-0.5">
+                    <Sparkles className="w-3 h-3 text-brand" />
+                  </div>
+                  <div className="text-[11px] rounded-lg px-2.5 py-1.5 bg-brand/10 text-dark-200 border border-brand/20">
+                    Based on <span className="text-brand font-medium">commit #a3f2</span> and <span className="text-brand font-medium">Slack thread</span>, the JWT secret was rotated without updating the env...
+                  </div>
+                </div>
+                {/* Source chips */}
+                <div className={`flex gap-1.5 ml-7 transition-all duration-700 delay-200 ${activeStep === 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}`}>
+                  {['GitHub', 'Slack'].map((src) => (
+                    <span key={src} className="text-[9px] px-1.5 py-0.5 rounded bg-dark-800 text-dark-400 border border-dark-700">
+                      {src}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom step labels */}
+        <div className="flex justify-center gap-2 mt-8 pt-6 border-t border-dark-800/50">
+          {steps.map((step, i) => (
+            <button
+              key={i}
+              onClick={() => setActiveStep(i)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all duration-300 ${
+                activeStep === i
+                  ? 'bg-brand/10 text-brand border border-brand/20'
+                  : 'text-dark-500 hover:text-dark-300 hover:bg-dark-800/50'
+              }`}
+            >
+              <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold transition-all duration-300 ${
+                activeStep === i ? 'bg-brand text-white' : activeStep > i ? 'bg-dark-700 text-dark-300' : 'bg-dark-800 text-dark-500'
+              }`}>
+                {activeStep > i ? <Check className="w-3 h-3" /> : i + 1}
+              </div>
+              <span className="hidden sm:inline">{step.title}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Active step content */}
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-dark-900/50 border border-dark-800 rounded-2xl p-10 backdrop-blur-sm min-h-[220px] flex flex-col items-center justify-center text-center">
-          <div className="mb-6">
-            {steps[activeStep].visual}
-          </div>
-          <h3 className="text-2xl font-bold text-white mb-3">
-            <span className="text-brand mr-2">{activeStep + 1}.</span>
-            {steps[activeStep].title}
-          </h3>
-          <p className="text-dark-400 leading-relaxed max-w-md">
-            {steps[activeStep].desc}
-          </p>
-        </div>
+      {/* Description below */}
+      <div className="text-center mt-8">
+        <p className="text-dark-400 text-sm leading-relaxed max-w-lg mx-auto">
+          {steps[activeStep].desc}
+        </p>
       </div>
     </div>
   );

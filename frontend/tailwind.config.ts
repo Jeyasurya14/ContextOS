@@ -67,6 +67,12 @@ const config: Config = {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.7' },
         },
+        flowRight: {
+          '0%': { left: '0%', opacity: '0' },
+          '15%': { opacity: '1' },
+          '85%': { opacity: '1' },
+          '100%': { left: '100%', opacity: '0' },
+        },
       },
     },
   },
