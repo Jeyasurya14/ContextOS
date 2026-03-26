@@ -1,8 +1,17 @@
 # .gitignore
 
-# Environment
+# Environment & Secrets
 .env
+.env.local
+.env.*.local
+.env.production
+.env.development
+*.env
 !.env.example
+*.pem
+*.key
+secrets/
+credentials/
 __pycache__/
 *.py[cod]
 *$py.class
