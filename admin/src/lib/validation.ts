@@ -1,7 +1,12 @@
-import DOMPurify from 'isomorphic-dompurify'
-
 export const sanitizeInput = (input: string): string => {
-  return DOMPurify.sanitize(input, { ALLOWED_TAGS: [] })
+  // Basic HTML entity encoding for XSS protection
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;')
 }
 
 export const validateEmail = (email: string): boolean => {
