@@ -17,17 +17,37 @@ export default function AdminLogin() {
     setLoading(true)
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/admin/login`, {
+      // Login using regular auth endpoint
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
 
       if (!response.ok) {
-        throw new Error('Invalid credentials')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || 'Invalid credentials')
       }
 
       const data = await response.json()
+      
+      // Verify user is admin by checking their profile
+      const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/users/me`, {
+        headers: { 
+          'Authorization': `Bearer ${data.access_token}`,
+        },
+      })
+
+      if (!profileResponse.ok) {
+        throw new Error('Failed to verify admin status')
+      }
+
+      const profile = await profileResponse.json()
+      
+      if (!profile.is_admin) {
+        throw new Error('Access denied. Admin privileges required.')
+      }
+
       localStorage.setItem('admin_token', data.access_token)
       router.push('/dashboard')
     } catch (err: any) {
