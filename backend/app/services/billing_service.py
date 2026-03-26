@@ -28,6 +28,15 @@ from app.models.team import Team
 from app.models.billing import BillingEvent, UsageRecord
 
 try:
+    import pkg_resources  # noqa: F401 — required by razorpay SDK
+except ImportError:
+    import subprocess
+    import sys
+    logger.warning("pkg_resources missing — installing setuptools at runtime")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "setuptools"])
+    import pkg_resources  # noqa: F401
+
+try:
     import razorpay
 except ModuleNotFoundError as exc:
     razorpay = None
