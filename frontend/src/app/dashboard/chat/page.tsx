@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { Send, Loader2, AlertCircle, Plus, MessageSquare, Trash2, Edit3, Check, Copy, CheckCheck, Bot, User, Menu, X, Search, ThumbsUp, ThumbsDown, Share2, Bookmark, MoreVertical, Reply, RefreshCw, Paperclip, Smile, Mic } from 'lucide-react'
+import { Send, Loader2, AlertCircle, Plus, MessageSquare, Trash2, Edit3, Check, Copy, CheckCheck, Bot, User, Menu, X, Search, Share2, Bookmark, MoreVertical, Reply, RefreshCw, Paperclip, Smile } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { queryApi, integrationsApi } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
@@ -15,10 +15,6 @@ interface Message {
   isStreaming?: boolean
   isError?: boolean
   timestamp?: Date
-  reactions?: {
-    thumbsUp?: number
-    thumbsDown?: number
-  }
   isBookmarked?: boolean
   replyTo?: number
   attachments?: {
@@ -72,9 +68,7 @@ export default function ChatPage() {
   const [typingUsers, setTypingUsers] = useState<string[]>([])
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showAttachMenu, setShowAttachMenu] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
   const [bookmarkedMessages, setBookmarkedMessages] = useState<number[]>([])
-  const [messageReactions, setMessageReactions] = useState<Record<number, { thumbsUp: number; thumbsDown: number }>>({})
   const [showMessageActions, setShowMessageActions] = useState<number | null>(null)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -176,29 +170,6 @@ export default function ChatPage() {
   }, [])
 
   // Advanced functions
-  const handleReaction = (messageId: number, type: 'thumbsUp' | 'thumbsDown') => {
-    setMessageReactions(prev => {
-      const current = prev[messageId] || { thumbsUp: 0, thumbsDown: 0 }
-      const newReactions = { ...prev }
-      
-      if (type === 'thumbsUp') {
-        newReactions[messageId] = {
-          ...current,
-          thumbsUp: current.thumbsUp + 1
-        }
-      } else {
-        newReactions[messageId] = {
-          ...current,
-          thumbsDown: current.thumbsDown + 1
-        }
-      }
-      
-      return newReactions
-    })
-    
-    toast.success(type === 'thumbsUp' ? '👍 Liked!' : '👎 Feedback noted')
-  }
-
   const toggleBookmark = (messageId: number) => {
     setBookmarkedMessages(prev => {
       if (prev.includes(messageId)) {
@@ -235,17 +206,6 @@ export default function ChatPage() {
   const cancelReply = () => {
     setReplyingTo(null)
     setReplyText('')
-  }
-
-  const startVoiceRecording = () => {
-    setIsRecording(true)
-    toast.info('🎤 Voice recording started')
-    // Simulate recording
-    setTimeout(() => {
-      setIsRecording(false)
-      setInput('Voice message transcribed here...')
-      toast.success('🎤 Voice message transcribed')
-    }, 3000)
   }
 
   // Emoji picker functionality
@@ -831,32 +791,6 @@ export default function ChatPage() {
                           )}
                         </button>
 
-                        {msg.role === 'assistant' && !msg.isError && (
-                          <>
-                            <button
-                              onClick={() => handleReaction(msg.id, 'thumbsUp')}
-                              className={`p-1 rounded-full transition-all ${
-                                messageReactions[msg.id]?.thumbsUp > 0
-                                  ? 'text-success bg-success/10'
-                                  : 'text-dark-400 hover:text-success hover:bg-success/10'
-                              }`}
-                              title="Good response"
-                            >
-                              <ThumbsUp className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => handleReaction(msg.id, 'thumbsDown')}
-                              className={`p-1 rounded-full transition-all ${
-                                messageReactions[msg.id]?.thumbsDown > 0
-                                  ? 'text-warning bg-warning/10'
-                                  : 'text-dark-400 hover:text-warning hover:bg-warning/10'
-                              }`}
-                              title="Bad response"
-                            >
-                              <ThumbsDown className="w-3 h-3" />
-                            </button>
-                          </>
-                        )}
                       </div>
                     )}
                   </div>
@@ -904,18 +838,6 @@ export default function ChatPage() {
                   <Smile className="w-5 h-5" />
                 </button>
                 
-                <button
-                  onClick={startVoiceRecording}
-                  disabled={isRecording}
-                  className={`p-2.5 rounded-xl transition-all ${
-                    isRecording
-                      ? 'text-danger bg-danger/10 animate-pulse'
-                      : 'text-dark-400 hover:text-white hover:bg-dark-800/50'
-                  }`}
-                  title={isRecording ? 'Recording...' : 'Voice message'}
-                >
-                  <Mic className="w-5 h-5" />
-                </button>
               </div>
 
               {/* Main Input */}
@@ -938,12 +860,6 @@ export default function ChatPage() {
                 
                 {/* Input Status */}
                 <div className="absolute bottom-2 right-2 flex items-center gap-2 pointer-events-none">
-                  {isRecording && (
-                    <div className="flex items-center gap-1 text-danger text-xs">
-                      <div className="w-2 h-2 bg-danger rounded-full animate-pulse" />
-                      REC
-                    </div>
-                  )}
                   {input.length > 0 && (
                     <span className="text-xs text-dark-500">{input.length}</span>
                   )}
