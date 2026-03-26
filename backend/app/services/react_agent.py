@@ -221,12 +221,12 @@ PROJECT CONTEXT:
 
         except OpenAIError as e:
             logger.error("OpenAI API error: {}", str(e))
-            yield {"event": "error", "message": "AI service temporarily unavailable. Please try again."}
+            yield {"event": "error", "message": f"AI service error: {str(e)[:200]}"}
         except Exception as e:
             logger.error("ReAct agent error: {} - {}", type(e).__name__, str(e))
             import traceback
             logger.error("Traceback: {}", traceback.format_exc())
-            yield {"event": "error", "message": "Something went wrong. Please try again."}
+            yield {"event": "error", "message": f"Error ({type(e).__name__}): {str(e)[:300]}"}
 
     def _build_messages(
         self,

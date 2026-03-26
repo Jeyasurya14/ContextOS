@@ -42,7 +42,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         }
 
         const config = vscode.workspace.getConfiguration('contextos');
-        const apiUrl = config.get<string>('apiUrl') || 'https://contextos-api-jxdr.onrender.com';
+        // Default to localhost - set contextos.apiUrl in VS Code settings for production
+        const apiUrl = config.get<string>('apiUrl') || 'http://localhost:8000';
 
         try {
             const res = await fetch(`${apiUrl}/api/v1/query`, {
