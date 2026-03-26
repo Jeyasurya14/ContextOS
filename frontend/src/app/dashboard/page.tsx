@@ -37,9 +37,9 @@ export default function DashboardPage() {
           integrationsApi.getAll(),
         ])
 
-        if (statsRes.status === 'fulfilled') setStats(statsRes.value.data)
-        if (usageRes.status === 'fulfilled') setUsage(usageRes.value.data)
-        if (intRes.status === 'fulfilled') setIntegrations(intRes.value.data)
+        if (statsRes.status === 'fulfilled') setStats(statsRes.value.data || null)
+        if (usageRes.status === 'fulfilled') setUsage(usageRes.value.data || null)
+        if (intRes.status === 'fulfilled') setIntegrations(intRes.value.data || [])
       } catch (err) {
         setError('Failed to load dashboard data')
       } finally {
