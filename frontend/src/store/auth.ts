@@ -27,7 +27,18 @@ interface AuthState {
 
 const getInitialToken = (): string | null => {
   if (typeof window === 'undefined') return null
-  return sessionStorage.getItem('ctx_token')
+  
+  const token = sessionStorage.getItem('ctx_token')
+  if (token) return token
+  
+  // Try cookie if sessionStorage is empty (e.g. new tab)
+  const match = document.cookie.match(new RegExp('(^| )ctx_token=([^;]+)'))
+  if (match) {
+    sessionStorage.setItem('ctx_token', match[2])
+    return match[2]
+  }
+  
+  return null
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({

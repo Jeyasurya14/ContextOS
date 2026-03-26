@@ -50,9 +50,9 @@ export default function RootLayout({
     console.log('Auth redirect check - isDashboard:', isDashboard, 'isInitialized:', isInitialized, 'hasToken:', !!token)
     if (isDashboard && isInitialized && !token) {
       console.log('Redirecting to login - no token')
-      router.replace('/login')
+      window.location.href = '/login'
     }
-  }, [isDashboard, isInitialized, token, router])
+  }, [isDashboard, isInitialized, token])
 
   // Only block dashboard routes while initializing
   if (isDashboard && !isInitialized) {
