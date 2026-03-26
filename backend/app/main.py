@@ -21,6 +21,7 @@ from app.api.routes.github import router as github_router
 from app.api.routes.notion import router as notion_router
 from app.api.routes.slack import router as slack_router
 from app.api.routes.linear import router as linear_router
+from app.api.routes.google_drive import router as google_drive_router
 from app.api.routes.context import router as context_router
 from app.api.routes.query import router as query_router
 from app.api.routes.integrations import router as integrations_router
