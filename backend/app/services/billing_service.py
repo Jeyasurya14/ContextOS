@@ -48,8 +48,12 @@ if "pkg_resources" not in sys.modules:
         def _get_distribution(name: str):  # type: ignore[override]
             raise _DistributionNotFound(name)
 
+        def _require(name: str):
+            return [types.SimpleNamespace(version="1.4.1")]
+
         _shim.DistributionNotFound = _DistributionNotFound  # type: ignore[attr-defined]
         _shim.get_distribution = _get_distribution  # type: ignore[attr-defined]
+        _shim.require = _require  # type: ignore[attr-defined]
         sys.modules["pkg_resources"] = _shim
 
 try:
