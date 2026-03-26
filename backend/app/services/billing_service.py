@@ -133,10 +133,14 @@ class BillingService:
         if amount is None:
             raise ValueError(f"Invalid plan: {plan}")
 
+        receipt = f"order_{user_id}_{plan}"
+        if len(receipt) > 40:
+            receipt = receipt[:40]
+
         order_data = {
             "amount": amount,
             "currency": "INR",
-            "receipt": f"order_{user_id}_{plan}",
+            "receipt": receipt,
             "notes": {"user_id": str(user_id), "plan": plan},
         }
         order = self.client.order.create(data=order_data)
