@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Github, FileText, MessageSquare, Code2, Zap, Shield, Users, Sparkles, Brain, Database, Search, Check, ChevronRight, Globe } from 'lucide-react';
+import { ArrowRight, Github, FileText, MessageSquare, Code2, Zap, Shield, Users, Sparkles, Brain, Database, Search, Check, ChevronRight, Globe, Layers } from 'lucide-react';
 
 function useInView(threshold = 0.2) {
   const ref = useRef<HTMLDivElement>(null);
@@ -241,7 +241,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 bg-gradient-to-br from-brand to-brand-dark rounded-lg flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
+              <Layers className="w-4 h-4 text-white" />
             </div>
             <span className="text-lg font-bold text-white tracking-tight">ContextOS</span>
           </div>
@@ -262,7 +262,7 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-6 pt-28 pb-24 text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/5 border border-brand/10 text-brand text-xs font-medium mb-8 tracking-wide uppercase">
-          <Sparkles className="w-3.5 h-3.5" />
+          <Layers className="w-3.5 h-3.5" />
           AI-powered project intelligence
         </div>
         <h1 className="text-5xl md:text-[4.5rem] font-bold text-white leading-[1.1] mb-6 tracking-tight">
@@ -512,7 +512,7 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 bg-gradient-to-br from-brand to-brand-dark rounded-md flex items-center justify-center">
-                <Sparkles className="w-3.5 h-3.5 text-white" />
+                <Layers className="w-3.5 h-3.5 text-white" />
               </div>
               <span className="text-dark-500 text-xs">&copy; 2026 ContextOS</span>
             </div>

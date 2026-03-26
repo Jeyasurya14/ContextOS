@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
-import { LogIn, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Sparkles } from 'lucide-react'
+import { LogIn, Mail, Lock, Eye, EyeOff, AlertCircle, Loader2, Layers } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -74,7 +74,7 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-brand to-brand-dark rounded-2xl mb-4 shadow-lg shadow-brand/20">
-            <Sparkles className="w-8 h-8 text-white" />
+            <Layers className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
             Welcome back
