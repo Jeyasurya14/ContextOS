@@ -7,7 +7,7 @@ import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import engine
 from app.models.user import User
-from app.core.security import get_password_hash
+from app.core.security import hash_password
 
 
 async def create_admin_user(full_name: str, email: str, password: str):
@@ -25,7 +25,7 @@ async def create_admin_user(full_name: str, email: str, password: str):
             return False
         
         # Create new admin user
-        hashed_password = get_password_hash(password)
+        hashed_password = hash_password(password)
         new_user = User(
             email=email,
             full_name=full_name,
