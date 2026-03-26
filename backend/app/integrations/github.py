@@ -234,6 +234,59 @@ class GitHubIntegration:
             logger.info("Fetched {} issues ({}) for {}", len(issues), state, repo_full_name)
             return issues
 
+    async def get_pr_diff(self, access_token: str, repo_full_name: str, pull_number: int) -> str:
+        """Fetch the raw diff of a Pull Request.
+
+        Args:
+            access_token: A valid GitHub access token.
+            repo_full_name: Full repository name (owner/repo).
+            pull_number: The pull request number.
+
+        Returns:
+            The raw diff text patch.
+        """
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    f"{self.API_BASE}/repos/{repo_full_name}/pulls/{pull_number}",
+                    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "Accept": "application/vnd.github.v3.diff",
+                    },
+                    timeout=30.0,
+                )
+                response.raise_for_status()
+                return response.text
+            except Exception as e:
+                logger.error("Failed to fetch PR diff for {}#{}: {}", repo_full_name, pull_number, str(e))
+                return ""
+
+    async def post_pr_comment(self, access_token: str, repo_full_name: str, issue_number: int, body: str) -> dict:
+        """Post a comment to a Pull Request or Issue thread.
+
+        Args:
+            access_token: A valid GitHub access token.
+            repo_full_name: Full repository name (owner/repo).
+            issue_number: The issue or pull request number.
+            body: The text of the comment to post.
+
+        Returns:
+            Dict containing the created comment data.
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.API_BASE}/repos/{repo_full_name}/issues/{issue_number}/comments",
+                json={"body": body},
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/vnd.github+json",
+                },
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            logger.info("Posted comment to {}#{}", repo_full_name, issue_number)
+            return response.json()
+
     @staticmethod
     def verify_webhook_signature(
         body_bytes: bytes, signature_header: str, secret: str

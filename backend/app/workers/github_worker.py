@@ -3,6 +3,7 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
+import openai
 from loguru import logger
 
 from app.workers.celery_app import celery_app
@@ -251,13 +252,19 @@ async def _run_process_pr_event(
         Number of chunks stored.
     """
     from app.services.context_processor import context_processor
+    from app.services.context_retriever import context_retriever
+    from app.core.config import settings
+    from app.models.integration import Integration
+    from sqlalchemy import select
+    from app.core.encryption import decrypt_token
 
     pr = payload.get("pull_request", {})
     repo_name = payload.get("repository", {}).get("full_name", "")
     action = payload.get("action", "")
+    pr_number = pr.get("number")
 
     pr_text = (
-        f"[{repo_name}] PR #{pr.get('number')} {action}: {pr.get('title', '')}\n"
+        f"[{repo_name}] PR #{pr_number} {action}: {pr.get('title', '')}\n"
         f"Author: {pr.get('user', {}).get('login', 'Unknown')}\n"
         f"State: {pr.get('state', '')}\n"
         f"Merged: {pr.get('merged', False)}\n"
@@ -265,19 +272,71 @@ async def _run_process_pr_event(
         f"URL: {pr.get('html_url', '')}"
     )
 
+    chunks = 0
     async with async_session_factory() as db:
+        # 1. Store the PR itself as context
         chunks = await context_processor.process_and_store(
             content=pr_text,
             source_type="github_pr",
             source_url=pr.get("html_url", ""),
             user_id=user_id,
             integration_id=integration_id,
-            metadata={"repo": repo_name, "pr_number": pr.get("number"), "action": action},
+            metadata={"repo": repo_name, "pr_number": pr_number, "action": action},
             db=db,
         )
+        
+        # 2. Automated AI Code Review
+        if action in ["opened", "synchronize"]:
+            logger.info("Executing AI PR Review for {}#{}", repo_name, pr_number)
+            try:
+                result = await db.execute(select(Integration).where(Integration.id == integration_id))
+                integration = result.scalar_one_or_none()
+                if integration and integration.encrypted_access_token:
+                    access_token = decrypt_token(integration.encrypted_access_token)
+                    
+                    diff_text = await github_integration.get_pr_diff(access_token, repo_name, pr_number)
+                    if diff_text:
+                        diff_snippet = diff_text[:12000] # Limit tokens
+                        
+                        # Retrieve internal organization context
+                        query = f"Context and design decisions for PR: {pr.get('title', '')}\n{pr.get('body', '')}"
+                        context_results = await context_retriever.retrieve(query=query, user_id=user_id, db=db, limit=5)
+                        context_str = "\n\n".join([f"[{c['source_type']}] {c['content']}" for c in context_results])
+                        
+                        # Generate Review
+                        client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                        prompt = (
+                            "You are ContextOS AI, an expert staff developer and automated PR reviewer.\n"
+                            "Your job is to review the following Pull Request diff.\n\n"
+                            "Use the provided workspace context (e.g., Notion docs, Slack conversations, past commits) "
+                            "to spot architectural inconsistencies, edge cases, or point out historical decisions.\n\n"
+                            f"## Pull Request Title: {pr.get('title', '')}\n"
+                            f"## Description: {pr.get('body', '')}\n\n"
+                            "## Workspace Context:\n"
+                            f"{context_str if context_str else 'No specific organizational context found.'}\n\n"
+                            "## Git Diff:\n"
+                            f"{diff_snippet}\n\n"
+                            "Write a professional, constructive, and concise code review comment formatted in Markdown. "
+                            "Focus strictly on high-level architecture, bugs, and context adherence rather than minor syntax. "
+                            "Include a bold heading: **ContextOS AI Review**."
+                        )
+                        
+                        response = await client.chat.completions.create(
+                            model=settings.OPENAI_MODEL,
+                            messages=[{"role": "user", "content": prompt}],
+                            temperature=0.3,
+                        )
+                        review_comment = response.choices[0].message.content
+                        
+                        if review_comment:
+                            await github_integration.post_pr_comment(access_token, repo_name, pr_number, review_comment)
+                            logger.info("Successfully posted AI review to {}#{}", repo_name, pr_number)
+            except Exception as e:
+                logger.error("Failed executing AI PR Review for {}#{}: {}", repo_name, pr_number, str(e))
+
         await db.commit()
 
-    logger.info("Processed PR event: repo={}, pr=#{}, chunks={}", repo_name, pr.get("number"), chunks)
+    logger.info("Processed PR event: repo={}, pr=#{}, chunks={}", repo_name, pr_number, chunks)
     return chunks
 
 

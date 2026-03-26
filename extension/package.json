@@ -1,0 +1,69 @@
+{
+  "name": "contextos-copilot",
+  "displayName": "ContextOS Copilot",
+  "description": "The AI Copilot that knows everything about your workspace.",
+  "version": "1.0.0",
+  "publisher": "ContextOS",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "contextos.setApiKey",
+        "title": "ContextOS: Set API Key"
+      },
+      {
+        "command": "contextos.ask",
+        "title": "ContextOS: Send Code to Chat"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "contextos-explorer",
+          "title": "ContextOS",
+          "icon": "$(hubot)"
+        }
+      ]
+    },
+    "views": {
+      "contextos-explorer": [
+        {
+          "type": "webview",
+          "id": "contextos.chatView",
+          "name": "Assistant"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "ContextOS",
+      "properties": {
+        "contextos.apiUrl": {
+          "type": "string",
+          "default": "https://contextos-api-jxdr.onrender.com",
+          "description": "The base URL for the ContextOS API (e.g., https://api.contextos.com)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "esbuild-watch": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.19.0",
+    "typescript": "^5.3.0"
+  }
+}

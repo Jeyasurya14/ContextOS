@@ -20,6 +20,7 @@ from app.api.routes.projects import router as projects_router
 from app.api.routes.github import router as github_router
 from app.api.routes.notion import router as notion_router
 from app.api.routes.slack import router as slack_router
+from app.api.routes.linear import router as linear_router
 from app.api.routes.context import router as context_router
 from app.api.routes.query import router as query_router
 from app.api.routes.integrations import router as integrations_router
@@ -98,6 +99,8 @@ app.include_router(query_router, prefix="/api/v1/query", tags=["query"])
 app.include_router(github_router, prefix="/api/v1/integrations/github", tags=["github"])
 app.include_router(notion_router, prefix="/api/v1/integrations/notion", tags=["notion"])
 app.include_router(slack_router, prefix="/api/v1/integrations/slack", tags=["slack"])
+app.include_router(linear_router, prefix="/api/v1/integrations/linear", tags=["linear"])
+app.include_router(google_drive_router, prefix="/api/v1/integrations/google", tags=["google_drive"])
 app.include_router(integrations_router, prefix="/api/v1/integrations", tags=["integrations"])
 app.include_router(teams_router, prefix="/api/v1/teams", tags=["teams"])
 app.include_router(billing_router, prefix="/api/v1/billing", tags=["billing"])

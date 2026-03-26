@@ -59,6 +59,15 @@ class Settings(BaseSettings):
     SLACK_SIGNING_SECRET: str = ""
     SLACK_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/slack/callback"
 
+    LINEAR_CLIENT_ID: str = ""
+    LINEAR_CLIENT_SECRET: str = ""
+    LINEAR_WEBHOOK_SECRET: str = ""
+    LINEAR_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/linear/callback"
+
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/google/callback"
+
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""
     RAZORPAY_WEBHOOK_SECRET: str = ""

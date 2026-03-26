@@ -13,6 +13,8 @@ const githubLogo = 'https://github.com/github.png?size=32'
 const notionLogo = 'https://upload.wikimedia.org/wikipedia/commons/4/45/Notion_app_logo.png'
 const slackLogo = 'https://cdn.icon-icons.com/icons2/2415/PNG/512/slack_original_logo_icon_146308.png'
 const vscodeLogo = 'https://upload.wikimedia.org/wikipedia/commons/9/9a/Visual_Studio_Code_1.35.1_icon.svg'
+const linearLogo = 'https://upload.wikimedia.org/wikipedia/commons/c/c8/Linear_logo_%282023%29.svg'
+const googleDriveLogo = 'https://upload.wikimedia.org/wikipedia/commons/1/12/Google_Drive_icon_%282020%29.svg'
 
 // Fallback component for failed image loads
 const LogoImage = ({ src, alt, className }: { src: string; alt: string; className?: string }) => {
@@ -41,6 +43,8 @@ const providers = [
   { key: 'github', label: 'GitHub', logo: githubLogo, desc: 'Commits, PRs, issues, code' },
   { key: 'notion', label: 'Notion', logo: notionLogo, desc: 'Pages, databases, docs' },
   { key: 'slack', label: 'Slack', logo: slackLogo, desc: 'Channels, messages, threads' },
+  { key: 'linear', label: 'Linear', logo: linearLogo, desc: 'Issues, projects, teams' },
+  { key: 'google', label: 'Google Drive', logo: googleDriveLogo, desc: 'Docs, Sheets, Slides' },
   { key: 'vscode', label: 'VS Code', logo: vscodeLogo, desc: 'Workspace files (via extension)' },
 ]
 
@@ -95,6 +99,10 @@ export default function IntegrationsPage() {
         res = await integrationsApi.getNotionUrl()
       } else if (tool === 'slack') {
         res = await integrationsApi.getSlackUrl()
+      } else if (tool === 'linear') {
+        res = await integrationsApi.getLinearUrl()
+      } else if (tool === 'google') {
+        res = await integrationsApi.getGoogleUrl()
       }
       if (res?.data?.url) {
         window.location.href = res.data.url
@@ -109,7 +117,17 @@ export default function IntegrationsPage() {
   const handleSync = async (tool: string) => {
     setSyncing(tool)
     try {
-      await integrationsApi.syncGithub()
+      if (tool === 'github') {
+        await integrationsApi.syncGithub()
+      } else if (tool === 'linear') {
+        await integrationsApi.syncLinear()
+      } else if (tool === 'google') {
+        await integrationsApi.syncGoogle()
+      } else {
+        // generic fallback although Notion and Slack have their own routes in backend too
+        const { default: api } = await import('@/lib/api')
+        await api.post(`/api/v1/integrations/${tool}/sync`)
+      }
       toast.success('Sync completed successfully!')
       fetchIntegrations()
     } catch (err: any) {
@@ -200,7 +218,7 @@ export default function IntegrationsPage() {
               <div className="flex gap-3">
                 {connected ? (
                   <>
-                    {(p.key === 'notion' || p.key === 'slack' || p.key === 'github') && (
+                    {(p.key === 'notion' || p.key === 'slack' || p.key === 'github' || p.key === 'linear' || p.key === 'google') && (
                       <button
                         onClick={() => handleSync(p.key)}
                         disabled={syncing === p.key}

@@ -8,16 +8,21 @@ const PUBLIC_PATHS = ['/', '/login', '/register', '/privacy', '/terms', '/refund
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  const token =
+    request.cookies.get('ctx_token')?.value ||
+    request.headers.get('x-auth-token')
+
+  // Redirect authenticated users away from landing/auth pages
+  if (token && (pathname === '/' || pathname === '/login' || pathname === '/register')) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
   const isPublic =
     PUBLIC_PATHS.includes(pathname) || pathname.startsWith('/invite/')
 
   if (isPublic) return NextResponse.next()
 
   if (!pathname.startsWith('/dashboard')) return NextResponse.next()
-
-  const token =
-    request.cookies.get('ctx_token')?.value ||
-    request.headers.get('x-auth-token')
 
   if (!token) {
     const loginUrl = new URL('/login', request.url)
@@ -29,5 +34,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 }

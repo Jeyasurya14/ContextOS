@@ -11,6 +11,8 @@ celery_app = Celery(
         "app.workers.github_worker",
         "app.workers.notion_worker",
         "app.workers.slack_worker",
+        "app.workers.linear_worker",
+        "app.workers.google_worker",
     ],
 )
 
@@ -37,6 +39,14 @@ celery_app.conf.update(
         },
         "sync-slack-every-hour": {
             "task": "app.workers.slack_worker.sync_slack_changes",
+            "schedule": 3600.0,
+        },
+        "sync-linear-every-hour": {
+            "task": "app.workers.linear_worker.sync_linear_changes",
+            "schedule": 3600.0,
+        },
+        "sync-google-every-hour": {
+            "task": "app.workers.google_worker.sync_google_changes",
             "schedule": 3600.0,
         },
     },

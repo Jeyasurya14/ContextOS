@@ -79,9 +79,15 @@ export const integrationsApi = {
     api.get('/api/v1/integrations/notion/connect'),
   getSlackUrl: () =>
     api.get('/api/v1/integrations/slack/connect'),
+  getLinearUrl: () =>
+    api.get('/api/v1/integrations/linear/connect'),
+  getGoogleUrl: () =>
+    api.get('/api/v1/integrations/google/connect'),
   disconnect: (tool: string) =>
     api.delete(`/api/v1/integrations/${tool}/disconnect`),
   syncGithub: () => api.post('/api/v1/integrations/github/sync'),
+  syncLinear: () => api.post('/api/v1/integrations/linear/sync'),
+  syncGoogle: () => api.post('/api/v1/integrations/google/sync'),
   getStats: () => api.get('/api/v1/integrations/stats'),
   clearAll: () => api.delete('/api/v1/context/all'),
 }
