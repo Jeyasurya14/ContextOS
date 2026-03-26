@@ -130,7 +130,7 @@ export default function BillingPage() {
           return (
             <div
               key={plan.key}
-              className={`card relative animate-slide-up ${
+              className={`card relative animate-slide-up flex flex-col ${
                 plan.highlight ? 'border-brand/50' : ''
               }`}
               style={{ animationDelay: `${index * 0.1}s` }}
@@ -145,7 +145,7 @@ export default function BillingPage() {
                 {plan.price}
                 <span className="text-sm text-dark-400 font-normal">{plan.period}</span>
               </p>
-              <ul className="space-y-2 mb-6">
+              <ul className="space-y-2 mb-6 flex-grow">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-center gap-2 text-sm text-dark-300">
                     <Check className="w-4 h-4 text-success flex-shrink-0" />
@@ -156,7 +156,7 @@ export default function BillingPage() {
               <button
                 disabled={true}
                 onClick={() => handleUpgrade(plan.key)}
-                className="btn btn-secondary disabled:opacity-50 cursor-not-allowed w-full flex"
+                className="btn btn-secondary disabled:opacity-50 cursor-not-allowed w-full mt-auto"
               >
                 Coming Soon
               </button>
