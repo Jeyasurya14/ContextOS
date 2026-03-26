@@ -1,7 +1,7 @@
 """add is_admin to users
 
 Revision ID: add_is_admin_001
-Revises: 
+Revises: b7c8d9e0f1a2
 Create Date: 2026-03-26 10:50:00.000000
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'add_is_admin_001'
-down_revision = None
+down_revision = 'b7c8d9e0f1a2'
 branch_labels = None
 depends_on = None
 
