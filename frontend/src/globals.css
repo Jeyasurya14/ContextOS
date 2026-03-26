@@ -4,7 +4,7 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 html {
   color-scheme: dark;
@@ -12,86 +12,196 @@ html {
 
 body {
   @apply bg-dark-950 text-dark-100 antialiased;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 * {
   @apply scroll-smooth;
 }
 
-/* Clean card component */
+/* ============================================
+   PREMIUM CARD SYSTEM
+   ============================================ */
+
+/* Base card — frosted glass */
 .card {
-  @apply bg-dark-900 border border-dark-800 rounded-xl p-6 transition-all duration-200;
+  @apply bg-dark-900/70 border border-dark-800/60 rounded-2xl p-6 transition-all duration-300;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .card:hover {
-  @apply border-dark-600 shadow-md;
+  @apply border-dark-700/80 shadow-lg;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.03);
 }
 
-/* Clean button base */
+/* Glassmorphic card — premium frosted glass */
+.glass-card {
+  @apply rounded-2xl p-6 transition-all duration-300;
+  background: linear-gradient(135deg, rgba(15,15,17,0.7) 0%, rgba(24,24,27,0.5) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* Gradient border card */
+.gradient-border-card {
+  @apply rounded-2xl p-6 relative overflow-hidden transition-all duration-300;
+  background: rgba(15, 15, 17, 0.8);
+}
+
+.gradient-border-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(217,119,6,0.3), rgba(217,119,6,0.05), rgba(217,119,6,0.15));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Stat card with glow */
+.stat-card {
+  @apply relative rounded-2xl p-6 overflow-hidden transition-all duration-300;
+  background: linear-gradient(145deg, rgba(15,15,17,0.9) 0%, rgba(24,24,27,0.6) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 120px;
+  height: 120px;
+  background: radial-gradient(circle at 100% 0%, rgba(217,119,6,0.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.stat-card:hover {
+  border-color: rgba(217, 119, 6, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3), 0 0 20px rgba(217, 119, 6, 0.05);
+}
+
+/* ============================================
+   BUTTONS — PREMIUM
+   ============================================ */
+
 .btn {
-  @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 border;
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 border;
 }
 
 .btn-primary {
   @apply bg-brand text-white border-brand hover:bg-brand-dark;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.25);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 4px 16px rgba(217, 119, 6, 0.35);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
-  @apply bg-dark-800 text-dark-100 border-dark-700 hover:bg-dark-700 hover:border-dark-600;
+  @apply bg-dark-800/80 text-dark-100 border-dark-700/60 hover:bg-dark-700 hover:border-dark-600;
 }
 
-/* Badge */
+.btn-secondary:hover {
+  transform: translateY(-1px);
+}
+
+/* ============================================
+   BADGES
+   ============================================ */
+
 .badge {
   @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
 }
 
 .badge-success {
-  @apply bg-dark-800 text-success border border-success/20;
+  background: rgba(22, 163, 74, 0.1);
+  color: #22c55e;
+  border: 1px solid rgba(22, 163, 74, 0.2);
 }
 
 .badge-warning {
-  @apply bg-dark-800 text-warning border border-warning/20;
+  background: rgba(202, 138, 4, 0.1);
+  color: #eab308;
+  border: 1px solid rgba(202, 138, 4, 0.2);
 }
 
 .badge-neutral {
-  @apply bg-dark-800 text-dark-300 border border-dark-700;
+  @apply bg-dark-800/80 text-dark-300 border border-dark-700/60;
 }
 
-/* Stat card */
-.stat-card {
-  @apply bg-dark-900 border border-dark-800 rounded-xl p-6;
+.badge-brand {
+  background: rgba(217, 119, 6, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(217, 119, 6, 0.2);
 }
 
-/* Pulse indicator */
+/* ============================================
+   PULSE INDICATOR
+   ============================================ */
+
 .pulse-dot {
-  @apply w-2 h-2 rounded-full bg-current;
+  @apply w-2 h-2 rounded-full bg-current relative;
 }
 
-/* Subtle separator */
+.pulse-dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0.3;
+  animation: pulse-ring 2s ease-in-out infinite;
+}
+
+/* ============================================
+   DIVIDER
+   ============================================ */
+
 .divider {
   @apply border-t border-dark-800/50;
 }
 
-/* Scrollbar styling - Claude style thin */
+/* ============================================
+   SCROLLBAR — PREMIUM THIN
+   ============================================ */
+
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-dark-950;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-dark-700/50 rounded-full;
+  background: rgba(113, 113, 122, 0.3);
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-dark-600/70;
+  background: rgba(113, 113, 122, 0.5);
 }
 
-/* Claude-style utilities */
+/* ============================================
+   PROSE & CHAT
+   ============================================ */
+
 .prose-content {
   @apply leading-relaxed text-dark-200;
 }
@@ -112,25 +222,56 @@ body {
   @apply bg-dark-800 text-dark-200;
 }
 
-/* Animations */
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
 @keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(1); opacity: 0.3; }
+  50% { transform: scale(1.4); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  33% { transform: translateY(-4px) rotate(0.5deg); }
+  66% { transform: translateY(2px) rotate(-0.5deg); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes counter-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes draw-line {
+  from { stroke-dashoffset: 1000; }
+  to { stroke-dashoffset: 0; }
 }
 
 .animate-fade-in {
@@ -138,5 +279,133 @@ body {
 }
 
 .animate-slide-up {
-  animation: slide-up 0.6s ease-out;
+  animation: slide-up 0.6s ease-out both;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 0%, rgba(217,119,6,0.08) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 3s ease-in-out infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-counter-up {
+  animation: counter-up 0.6s ease-out both;
+}
+
+/* ============================================
+   AMBIENT BACKGROUND EFFECTS
+   ============================================ */
+
+.ambient-dots {
+  background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.ambient-glow {
+  position: relative;
+}
+
+.ambient-glow::before {
+  content: '';
+  position: absolute;
+  top: -100px;
+  right: -100px;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(217, 119, 6, 0.04) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ============================================
+   NAVIGATION
+   ============================================ */
+
+.nav-item {
+  @apply w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl transition-all duration-200;
+}
+
+.nav-item-active {
+  background: rgba(217, 119, 6, 0.08);
+  color: #f59e0b;
+  border: 1px solid rgba(217, 119, 6, 0.15);
+  box-shadow: 0 0 12px rgba(217, 119, 6, 0.05);
+}
+
+.nav-item-inactive {
+  @apply text-dark-400 border border-transparent;
+}
+
+.nav-item-inactive:hover {
+  @apply text-white;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ============================================
+   FORM INPUTS — PREMIUM
+   ============================================ */
+
+.input-premium {
+  @apply w-full bg-dark-800/60 border border-dark-700/60 rounded-xl px-4 py-2.5 text-white text-sm transition-all duration-200;
+  backdrop-filter: blur(8px);
+}
+
+.input-premium:focus {
+  @apply outline-none border-brand/40;
+  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.08), 0 0 16px rgba(217, 119, 6, 0.05);
+}
+
+.input-premium::placeholder {
+  @apply text-dark-500;
+}
+
+/* ============================================
+   PROGRESS BAR — PREMIUM
+   ============================================ */
+
+.progress-premium {
+  @apply w-full h-2 rounded-full overflow-hidden;
+  background: rgba(24, 24, 27, 0.8);
+}
+
+.progress-premium-fill {
+  @apply h-full rounded-full transition-all duration-700 ease-out;
+  background: linear-gradient(90deg, #d97706, #f59e0b);
+  box-shadow: 0 0 8px rgba(217, 119, 6, 0.4);
+}
+
+/* ============================================
+   INTEGRATION PROVIDER ACCENTS
+   ============================================ */
+
+.provider-github {
+  --provider-color: 110, 84, 148;
+}
+
+.provider-notion {
+  --provider-color: 255, 255, 255;
+}
+
+.provider-slack {
+  --provider-color: 74, 21, 75;
+}
+
+.provider-linear {
+  --provider-color: 86, 100, 210;
+}
+
+.provider-google {
+  --provider-color: 66, 133, 244;
+}
+
+.provider-vscode {
+  --provider-color: 0, 122, 204;
 }

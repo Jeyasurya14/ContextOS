@@ -1,9 +1,9 @@
 // frontend/src/app/dashboard/page.tsx
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
-import { Database, Plug, MessageSquare, TrendingUp, Users, Github, FileText, MessageCircle } from 'lucide-react'
+import { Database, Plug, MessageSquare, TrendingUp, Users, Github, FileText, MessageCircle, ArrowUpRight, Sparkles, Activity, ChevronRight, Zap, Clock } from 'lucide-react'
 import { integrationsApi, billingApi } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 import { StatCardSkeleton } from '@/components/ui/Skeleton'
@@ -53,18 +53,16 @@ export default function DashboardPage() {
   // Simulate live query data
   useEffect(() => {
     if (!loading && usage) {
-      // Initialize with some data
-      const initialData = Array.from({ length: 10 }, (_, i) => 
+      const initialData = Array.from({ length: 20 }, (_, i) =>
         Math.floor(Math.random() * 20) + (usage?.queries_count || 0) - 10
       )
       setQueryHistory(initialData)
 
-      // Update every 3 seconds
       const interval = setInterval(() => {
         setQueryHistory(prev => {
           const newData = [...prev.slice(1)]
           const lastValue = prev[prev.length - 1] || 0
-          const change = Math.floor(Math.random() * 5) - 2 // Random change between -2 and +2
+          const change = Math.floor(Math.random() * 5) - 2
           newData.push(Math.max(0, lastValue + change))
           return newData
         })
@@ -76,20 +74,34 @@ export default function DashboardPage() {
 
   const connectedCount = integrations.filter((i: any) => i.is_active).length
 
+  // Get current hour greeting
+  const greeting = useMemo(() => {
+    const h = new Date().getHours()
+    if (h < 12) return 'Good morning'
+    if (h < 17) return 'Good afternoon'
+    return 'Good evening'
+  }, [])
+
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in max-w-6xl">
       {/* Header */}
       <div className="mb-10">
-        <h1 className="text-2xl font-semibold text-white mb-2">
-          Welcome back{user?.name ? `, ${user.name}` : ''}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/5 border border-brand/10">
+            <Sparkles className="w-3.5 h-3.5 text-brand" />
+            <span className="text-[11px] font-semibold text-brand uppercase tracking-widest">Dashboard</span>
+          </div>
+        </div>
+        <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">
+          {greeting}{user?.name ? `, ${user.name}` : ''} 👋
         </h1>
-        <p className="text-dark-400">
-          Here's what's happening in your project
+        <p className="text-dark-400 text-[15px]">
+          Here's what's happening across your project today.
         </p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
         {loading ? (
           <>
             <StatCardSkeleton />
@@ -98,10 +110,10 @@ export default function DashboardPage() {
             <StatCardSkeleton />
           </>
         ) : error ? (
-          <div className="col-span-4 bg-dark-900 border border-dark-700 rounded-xl p-5 text-danger">
+          <div className="col-span-4 glass-card border-danger/20 text-danger">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center">
-                <span className="text-danger">!</span>
+              <div className="w-10 h-10 rounded-xl bg-danger/10 flex items-center justify-center">
+                <span className="text-danger font-bold">!</span>
               </div>
               <div>
                 <p className="font-medium">{error}</p>
@@ -120,187 +132,191 @@ export default function DashboardPage() {
               label="Context Chunks"
               value={stats?.total_chunks ?? 0}
               icon={Database}
+              color="brand"
               delay={0}
             />
             <StatCard
               label="Integrations"
               value={connectedCount}
               icon={Plug}
+              color="success"
               delay={0.05}
             />
             <StatCard
               label="Queries Today"
               value={usage?.queries_count ?? 0}
-              icon={MessageSquare}
+              icon={Activity}
+              color="warning"
               delay={0.1}
             />
             <StatCard
               label="Plan"
               value={(user?.plan ?? 'free').charAt(0).toUpperCase() + (user?.plan ?? 'free').slice(1)}
+              icon={Zap}
+              color="brand"
               delay={0.15}
             />
           </>
         )}
       </div>
 
-      {/* Live Query Graph */}
-      <div className="mb-10 animate-slide-up" style={{ animationDelay: '0.15s' }}>
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="w-5 h-5 text-brand" />
-              <div>
-                <h2 className="font-semibold text-white">Query Activity</h2>
-                <p className="text-sm text-dark-400">Real-time query volume</p>
+      {/* Two Column Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
+        {/* Live Query Graph — 2 columns */}
+        <div className="lg:col-span-2 animate-slide-up" style={{ animationDelay: '0.15s' }}>
+          <div className="glass-card">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-brand" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-white">Query Activity</h2>
+                  <p className="text-xs text-dark-500">Real-time query volume</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-success/10 border border-success/20">
+                <div className="w-1.5 h-1.5 bg-success rounded-full animate-pulse" />
+                <span className="text-[11px] font-medium text-success">Live</span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-brand rounded-full animate-pulse" />
-              <span className="text-xs text-brand">Live</span>
+
+            {/* SVG Sparkline Chart */}
+            <SparklineChart data={queryHistory} />
+
+            <div className="flex items-center justify-between mt-5 pt-4 border-t border-dark-800/40">
+              <div className="flex items-center gap-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 bg-brand rounded-full" />
+                  <span className="text-xs text-dark-400">Current: {queryHistory[queryHistory.length - 1] || 0}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 bg-brand/40 rounded-full" />
+                  <span className="text-xs text-dark-400">Avg: {Math.round(queryHistory.reduce((a, b) => a + b, 0) / (queryHistory.length || 1))}</span>
+                </div>
+              </div>
+              <span className="text-[10px] text-dark-500 flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Updates every 3s
+              </span>
             </div>
           </div>
-          
-          <div className="h-48 flex items-end justify-between gap-1">
-            {queryHistory.map((value, index) => {
-              const maxValue = Math.max(...queryHistory, 1)
-              const height = (value / maxValue) * 100
-              const isLatest = index === queryHistory.length - 1
-              
+        </div>
+
+        {/* Quick Actions — 1 column */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          <div className="glass-card !p-5">
+            <h2 className="font-semibold text-white mb-4 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-brand" />
+              Quick Actions
+            </h2>
+            <div className="space-y-2.5">
+              <QuickAction
+                href="/dashboard/chat"
+                label="Ask a Question"
+                description="Chat with your context"
+                icon={MessageSquare}
+              />
+              <QuickAction
+                href="/dashboard/integrations"
+                label="Connect Tools"
+                description="Add integrations"
+                icon={Plug}
+              />
+              <QuickAction
+                href="/dashboard/team"
+                label="Invite Team"
+                description="Share with colleagues"
+                icon={Users}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Integrations + Activity Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Integrations Section */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.25s' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Integrations</h2>
+              <p className="text-xs text-dark-500 mt-0.5">Connected services</p>
+            </div>
+            <Link
+              href="/dashboard/integrations"
+              className="text-xs font-medium text-brand hover:text-brand-light transition-colors flex items-center gap-1"
+            >
+              Manage <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+
+          <div className="space-y-3">
+            {['github', 'notion', 'slack'].map((tool, idx) => {
+              const integration = integrations.find(i => i.provider === tool)
+              const isConnected = integration?.is_active
               return (
                 <div
-                  key={index}
-                  className="flex-1 flex flex-col items-center gap-1"
+                  key={tool}
+                  className="glass-card !p-4 animate-slide-up group flex items-center justify-between"
+                  style={{ animationDelay: `${0.3 + idx * 0.05}s` }}
                 >
-                  <div className="w-full flex-1 flex items-end">
-                    <div
-                      className={`w-full transition-all duration-500 rounded-t-sm ${
-                        isLatest ? 'bg-brand' : 'bg-brand/60'
-                      }`}
-                      style={{ height: `${height}%` }}
-                    />
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                      isConnected
+                        ? 'bg-success/10 border border-success/20 shadow-glow-success'
+                        : 'bg-dark-800/80 border border-dark-700/60'
+                    }`}>
+                      {getIntegrationIcon(tool, isConnected)}
+                    </div>
+                    <div>
+                      <p className="font-medium text-white capitalize text-sm">{tool}</p>
+                      <p className="text-[11px] text-dark-500">
+                        {isConnected ? 'Connected & syncing' : 'Not connected'}
+                      </p>
+                    </div>
                   </div>
-                  {index % 3 === 0 && (
-                    <span className="text-xs text-dark-500">
-                      {new Date(Date.now() - (queryHistory.length - index - 1) * 3000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {isConnected && (
+                      <span className="text-[10px] font-medium text-success bg-success/10 px-2 py-0.5 rounded-full border border-success/20">Active</span>
+                    )}
+                    <div className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      isConnected ? 'bg-success shadow-sm shadow-success/50' : 'bg-dark-600'
+                    }`} />
+                  </div>
                 </div>
               )
             })}
           </div>
-          
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-dark-800">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-brand rounded-sm" />
-                <span className="text-xs text-dark-400">Current: {queryHistory[queryHistory.length - 1] || 0}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 bg-brand/60 rounded-sm" />
-                <span className="text-xs text-dark-400">Average: {Math.round(queryHistory.reduce((a, b) => a + b, 0) / queryHistory.length) || 0}</span>
-              </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="animate-slide-up" style={{ animationDelay: '0.35s' }}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Recent Activity</h2>
+              <p className="text-xs text-dark-500 mt-0.5">Latest events</p>
             </div>
-            <span className="text-xs text-dark-500">Updates every 3s</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Integrations Section */}
-      <div className="mb-10 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-white">Integrations</h2>
-            <p className="text-sm text-dark-400">Connected services</p>
-          </div>
-          <Link
-            href="/dashboard/integrations"
-            className="btn btn-secondary text-sm"
-          >
-            Manage
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          {['github', 'notion', 'slack'].map((tool, idx) => {
-            const integration = integrations.find(i => i.provider === tool)
-            const isConnected = integration?.is_active
-            return (
-              <div
-                key={tool}
-                className="card animate-slide-up flex items-center justify-between"
-                style={{ animationDelay: `${0.25 + idx * 0.05}s` }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                    isConnected
-                      ? 'bg-success/10 border border-success/20'
-                      : 'bg-dark-800 border border-dark-700'
-                  }`}>
-                    {getIntegrationIcon(tool, isConnected)}
-                  </div>
-                  <div>
-                    <p className="font-medium text-white capitalize">{tool}</p>
-                    <p className="text-xs text-dark-400">
-                      {isConnected ? 'Connected' : 'Not connected'}
-                    </p>
-                  </div>
-                </div>
-                <div className={`w-2 h-2 rounded-full ${
-                  isConnected ? 'bg-success' : 'bg-dark-500'
-                }`} />
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mb-10 animate-slide-up" style={{ animationDelay: '0.35s' }}>
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold text-white">Quick Actions</h2>
-          <p className="text-sm text-dark-400">Common tasks</p>
-        </div>
-
-        <div className="grid grid-cols-3 gap-4">
-          <QuickAction
-            href="/dashboard/chat"
-            label="Ask a Question"
-            description="Chat with your context"
-            icon={MessageSquare}
-          />
-          <QuickAction
-            href="/dashboard/integrations"
-            label="Connect Tools"
-            description="Add integrations"
-            icon={Plug}
-          />
-          <QuickAction
-            href="/dashboard/team"
-            label="Invite Team"
-            description="Share with colleagues"
-            icon={Users}
-          />
-        </div>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="animate-slide-up" style={{ animationDelay: '0.45s' }}>
-        <div className="card">
-          <div className="flex items-center gap-3 mb-4">
-            <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
-            <div className="w-2 h-2 rounded-full bg-brand pulse-dot" />
+            <div className="pulse-dot text-brand" />
           </div>
 
-          <div className="space-y-3">
+          <div className="glass-card !p-5 space-y-3">
             <ActivityItem
               icon={Database}
               label="System initialized"
               time="Just now"
+              color="brand"
             />
             <ActivityItem
               icon={Database}
               label="Context vectors indexed"
               time="A few minutes ago"
+              color="success"
+            />
+            <ActivityItem
+              icon={Activity}
+              label="Dashboard loaded"
+              time="Now"
+              color="warning"
             />
           </div>
         </div>
@@ -309,38 +325,159 @@ export default function DashboardPage() {
   )
 }
 
+/* ============================================
+   SVG SPARKLINE CHART
+   ============================================ */
+
+function SparklineChart({ data }: { data: number[] }) {
+  if (data.length === 0) return <div className="h-44 flex items-center justify-center text-dark-500 text-sm">No data yet</div>
+
+  const width = 600
+  const height = 160
+  const padding = { top: 10, right: 10, bottom: 10, left: 10 }
+  const chartWidth = width - padding.left - padding.right
+  const chartHeight = height - padding.top - padding.bottom
+
+  const maxVal = Math.max(...data, 1)
+  const minVal = Math.min(...data, 0)
+  const range = maxVal - minVal || 1
+
+  const points = data.map((val, i) => ({
+    x: padding.left + (i / (data.length - 1)) * chartWidth,
+    y: padding.top + chartHeight - ((val - minVal) / range) * chartHeight,
+  }))
+
+  // Create smooth curve path
+  const linePath = points.reduce((path, point, i) => {
+    if (i === 0) return `M ${point.x} ${point.y}`
+    const prev = points[i - 1]
+    const cpx1 = prev.x + (point.x - prev.x) / 3
+    const cpx2 = point.x - (point.x - prev.x) / 3
+    return path + ` C ${cpx1} ${prev.y}, ${cpx2} ${point.y}, ${point.x} ${point.y}`
+  }, '')
+
+  // Gradient fill path
+  const fillPath = linePath + ` L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`
+
+  return (
+    <div className="relative">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-44" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="sparklineGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgb(217, 119, 6)" stopOpacity="0.2" />
+            <stop offset="100%" stopColor="rgb(217, 119, 6)" stopOpacity="0" />
+          </linearGradient>
+          <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="rgb(217, 119, 6)" stopOpacity="0.6" />
+            <stop offset="50%" stopColor="rgb(245, 158, 11)" stopOpacity="1" />
+            <stop offset="100%" stopColor="rgb(217, 119, 6)" stopOpacity="0.8" />
+          </linearGradient>
+        </defs>
+
+        {/* Grid lines */}
+        {[0.25, 0.5, 0.75].map((y) => (
+          <line
+            key={y}
+            x1={padding.left}
+            y1={padding.top + chartHeight * y}
+            x2={width - padding.right}
+            y2={padding.top + chartHeight * y}
+            stroke="rgba(255,255,255,0.03)"
+            strokeDasharray="4 4"
+          />
+        ))}
+
+        {/* Fill area */}
+        <path d={fillPath} fill="url(#sparklineGradient)" />
+
+        {/* Line */}
+        <path
+          d={linePath}
+          fill="none"
+          stroke="url(#lineGradient)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Latest data point glow */}
+        {points.length > 0 && (
+          <>
+            <circle
+              cx={points[points.length - 1].x}
+              cy={points[points.length - 1].y}
+              r="6"
+              fill="rgba(217, 119, 6, 0.2)"
+              className="animate-pulse"
+            />
+            <circle
+              cx={points[points.length - 1].x}
+              cy={points[points.length - 1].y}
+              r="3"
+              fill="#d97706"
+              stroke="#0f0f11"
+              strokeWidth="1.5"
+            />
+          </>
+        )}
+      </svg>
+    </div>
+  )
+}
+
+/* ============================================
+   STAT CARD
+   ============================================ */
+
 function StatCard({
   label,
   value,
   icon: Icon,
+  color = 'brand',
   delay = 0,
 }: {
   label: string
   value: string | number | null
   icon?: any
+  color?: 'brand' | 'success' | 'warning'
   delay?: number
 }) {
+  const colorClasses = {
+    brand: { bg: 'bg-brand/10', text: 'text-brand', glow: 'shadow-brand/5' },
+    success: { bg: 'bg-success/10', text: 'text-success-light', glow: 'shadow-success/5' },
+    warning: { bg: 'bg-warning/10', text: 'text-warning-light', glow: 'shadow-warning/5' },
+  }
+
+  const c = colorClasses[color]
+
   return (
     <div
-      className="stat-card animate-slide-up"
+      className="stat-card animate-slide-up group cursor-default"
       style={{ animationDelay: `${delay}s` }}
     >
-      <div className="flex items-center justify-between mb-3">
-        <div className="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center">
-          {Icon && <Icon className="w-5 h-5 text-dark-300" />}
+      <div className="flex items-center justify-between mb-4 relative z-10">
+        <div className={`w-11 h-11 rounded-xl ${c.bg} flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
+          {Icon && <Icon className={`w-5 h-5 ${c.text}`} />}
         </div>
+        <ArrowUpRight className="w-4 h-4 text-dark-600 group-hover:text-dark-400 transition-colors duration-300" />
       </div>
-      <div className="text-3xl font-bold text-white mb-1 tracking-tight">
-        {value === null ? (
-          <div className="h-8 w-16 bg-dark-800 rounded animate-pulse" />
-        ) : (
-          value
-        )}
+      <div className="relative z-10">
+        <div className="text-3xl font-bold text-white mb-1.5 tracking-tight animate-counter-up" style={{ animationDelay: `${delay + 0.2}s` }}>
+          {value === null ? (
+            <div className="h-8 w-16 bg-dark-800 rounded-lg animate-pulse" />
+          ) : (
+            value
+          )}
+        </div>
+        <p className="text-sm text-dark-500 font-medium">{label}</p>
       </div>
-      <p className="text-sm text-dark-400">{label}</p>
     </div>
   )
 }
+
+/* ============================================
+   QUICK ACTION
+   ============================================ */
 
 function QuickAction({
   href,
@@ -356,43 +493,62 @@ function QuickAction({
   return (
     <Link
       href={href}
-      className="card group animate-slide-up hover:border-dark-600"
+      className="group flex items-center gap-3 p-3 rounded-xl border border-transparent hover:border-dark-700/60 hover:bg-dark-800/30 transition-all duration-200"
     >
-      <div className="w-10 h-10 rounded-lg bg-dark-800 flex items-center justify-center mb-3 group-hover:bg-dark-700 transition-colors">
-        {Icon && <Icon className="w-5 h-5 text-dark-300 group-hover:text-white transition-colors" />}
+      <div className="w-10 h-10 rounded-xl bg-dark-800/60 border border-dark-700/40 flex items-center justify-center group-hover:bg-brand/10 group-hover:border-brand/20 transition-all duration-200">
+        {Icon && <Icon className="w-5 h-5 text-dark-400 group-hover:text-brand transition-colors duration-200" />}
       </div>
-      <p className="font-semibold text-white mb-1 group-hover:text-brand transition-colors">
-        {label}
-      </p>
-      <p className="text-sm text-dark-400">{description}</p>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-white group-hover:text-brand transition-colors duration-200">
+          {label}
+        </p>
+        <p className="text-[11px] text-dark-500">{description}</p>
+      </div>
+      <ChevronRight className="w-4 h-4 text-dark-600 group-hover:text-dark-400 group-hover:translate-x-0.5 transition-all duration-200" />
     </Link>
   )
 }
+
+/* ============================================
+   ACTIVITY ITEM
+   ============================================ */
 
 function ActivityItem({
   icon: Icon,
   label,
   time,
+  color = 'brand',
 }: {
   icon: any
   label: string
   time: string
+  color?: 'brand' | 'success' | 'warning'
 }) {
+  const colors = {
+    brand: 'bg-brand/10 text-brand border-brand/20',
+    success: 'bg-success/10 text-success border-success/20',
+    warning: 'bg-warning/10 text-warning border-warning/20',
+  }
+
   return (
-    <div className="flex items-start gap-3 p-3 rounded-lg bg-dark-800/50 border border-dark-800/50">
-      <div className="w-8 h-8 rounded-lg bg-dark-800 flex items-center justify-center flex-shrink-0">
-        <Icon className="w-4 h-4 text-dark-300" />
+    <div className="flex items-start gap-3 p-3 rounded-xl bg-dark-800/20 border border-dark-800/30 hover:border-dark-700/40 transition-all duration-200 group">
+      <div className={`w-8 h-8 rounded-lg ${colors[color]} border flex items-center justify-center flex-shrink-0`}>
+        <Icon className="w-4 h-4" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-white">{label}</p>
-        <p className="text-xs text-dark-400 mt-0.5">{time}</p>
+        <p className="text-sm text-dark-200 group-hover:text-white transition-colors">{label}</p>
+        <p className="text-[11px] text-dark-500 mt-0.5">{time}</p>
       </div>
     </div>
   )
 }
 
+/* ============================================
+   INTEGRATION ICON HELPER
+   ============================================ */
+
 function getIntegrationIcon(provider: string, isConnected: boolean) {
-  const iconClass = `w-6 h-6 ${isConnected ? '' : 'opacity-50'}`
+  const iconClass = `w-6 h-6 ${isConnected ? '' : 'opacity-40'} transition-opacity duration-300`
 
   switch (provider.toLowerCase()) {
     case 'github':

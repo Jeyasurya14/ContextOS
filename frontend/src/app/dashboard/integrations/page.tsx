@@ -2,7 +2,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Loader2, RefreshCw, Unlink } from 'lucide-react'
+import { Loader2, RefreshCw, Unlink, Sparkles, CheckCircle2, Circle } from 'lucide-react'
 import { integrationsApi } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 import { IntegrationCardSkeleton } from '@/components/ui/Skeleton'
@@ -19,19 +19,18 @@ const googleDriveLogo = 'https://upload.wikimedia.org/wikipedia/commons/1/12/Goo
 // Fallback component for failed image loads
 const LogoImage = ({ src, alt, className }: { src: string; alt: string; className?: string }) => {
   const [imgError, setImgError] = useState(false)
-  
+
   if (imgError) {
-    // Fallback to first letter of brand name
     return (
       <div className={`flex items-center justify-center text-xs font-bold text-white bg-dark-700 rounded ${className}`}>
         {alt.charAt(0).toUpperCase()}
       </div>
     )
   }
-  
+
   return (
-    <img 
-      src={src} 
+    <img
+      src={src}
       alt={alt}
       className={className}
       onError={() => setImgError(true)}
@@ -40,12 +39,12 @@ const LogoImage = ({ src, alt, className }: { src: string; alt: string; classNam
 }
 
 const providers = [
-  { key: 'github', label: 'GitHub', logo: githubLogo, desc: 'Commits, PRs, issues, code' },
-  { key: 'notion', label: 'Notion', logo: notionLogo, desc: 'Pages, databases, docs' },
-  { key: 'slack', label: 'Slack', logo: slackLogo, desc: 'Channels, messages, threads' },
-  { key: 'linear', label: 'Linear', logo: linearLogo, desc: 'Issues, projects, teams' },
-  { key: 'google', label: 'Google Drive', logo: googleDriveLogo, desc: 'Docs, Sheets, Slides' },
-  { key: 'vscode', label: 'VS Code', logo: vscodeLogo, desc: 'Workspace files (via extension)' },
+  { key: 'github', label: 'GitHub', logo: githubLogo, desc: 'Commits, PRs, issues, code', gradient: 'from-purple-500/10 to-purple-900/5' },
+  { key: 'notion', label: 'Notion', logo: notionLogo, desc: 'Pages, databases, docs', gradient: 'from-white/5 to-gray-900/5' },
+  { key: 'slack', label: 'Slack', logo: slackLogo, desc: 'Channels, messages, threads', gradient: 'from-pink-500/10 to-purple-900/5' },
+  { key: 'linear', label: 'Linear', logo: linearLogo, desc: 'Issues, projects, teams', gradient: 'from-indigo-500/10 to-indigo-900/5' },
+  { key: 'google', label: 'Google Drive', logo: googleDriveLogo, desc: 'Docs, Sheets, Slides', gradient: 'from-blue-500/10 to-blue-900/5' },
+  { key: 'vscode', label: 'VS Code', logo: vscodeLogo, desc: 'Workspace files (via extension)', gradient: 'from-sky-500/10 to-sky-900/5' },
 ]
 
 export default function IntegrationsPage() {
@@ -58,15 +57,14 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     fetchIntegrations()
-    
-    // Handle URL params for OAuth callbacks
+
     const urlParams = new URLSearchParams(window.location.search)
     const success = urlParams.get('success')
     const error = urlParams.get('error')
     const username = urlParams.get('username')
     const workspace = urlParams.get('workspace')
     const team = urlParams.get('team')
-    
+
     if (success) {
       const name = username || workspace || team || success
       toast.success(`Successfully connected ${success.toUpperCase()}${name !== success ? `: ${name}` : ''}!`)
@@ -124,7 +122,6 @@ export default function IntegrationsPage() {
       } else if (tool === 'google') {
         await integrationsApi.syncGoogle()
       } else {
-        // generic fallback although Notion and Slack have their own routes in backend too
         const { default: api } = await import('@/lib/api')
         await api.post(`/api/v1/integrations/${tool}/sync`)
       }
@@ -151,12 +148,21 @@ export default function IntegrationsPage() {
   }
 
   const getIntegration = (key: string) => integrations.find(i => i.provider === key)
+  const connectedCount = integrations.filter(i => i.is_active).length
 
   if (loading) {
     return (
-      <div>
-        <h1 className="text-2xl font-bold text-white mb-1">Integrations</h1>
-        <p className="text-dark-400 text-sm mb-8">Connect your tools to build context.</p>
+      <div className="max-w-5xl animate-fade-in">
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/5 border border-brand/10">
+              <Sparkles className="w-3.5 h-3.5 text-brand" />
+              <span className="text-[11px] font-semibold text-brand uppercase tracking-widest">Integrations</span>
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Integrations</h1>
+          <p className="text-dark-400 text-[15px]">Connect your tools to build context.</p>
+        </div>
         <div className="grid md:grid-cols-2 gap-4">
           <IntegrationCardSkeleton />
           <IntegrationCardSkeleton />
@@ -168,92 +174,113 @@ export default function IntegrationsPage() {
   }
 
   return (
-    <div>
+    <div className="max-w-5xl animate-fade-in">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-white mb-2">Integrations</h1>
-        <p className="text-dark-400 text-sm">Connect your tools to build context</p>
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/5 border border-brand/10">
+            <Sparkles className="w-3.5 h-3.5 text-brand" />
+            <span className="text-[11px] font-semibold text-brand uppercase tracking-widest">Integrations</span>
+          </div>
+        </div>
+        <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Integrations</h1>
+        <p className="text-dark-400 text-[15px]">
+          Connect your tools to build context · <span className="text-brand font-medium">{connectedCount} connected</span>
+        </p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        {providers.map((p) => {
+        {providers.map((p, idx) => {
           const integration = getIntegration(p.key)
           const connected = integration?.is_active || false
-          const syncStatus = integration?.sync_status
           return (
             <div
               key={p.key}
-              className="card animate-slide-up"
+              className={`glass-card animate-slide-up group relative overflow-hidden ${
+                connected ? 'border-success/20' : ''
+              }`}
+              style={{ animationDelay: `${idx * 0.05}s` }}
             >
-              <div className="flex items-start gap-4 mb-4">
-                <div className={`p-3 rounded-lg border ${
-                  connected
-                    ? 'bg-success/10 border-success/20'
-                    : 'bg-dark-800 border-dark-700'
-                }`}>
-                  <LogoImage 
-                    src={p.logo} 
-                    alt={p.label}
-                    className={`w-6 h-6 ${connected ? '' : 'opacity-50'}`}
-                  />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold text-white">{p.label}</h3>
-                    {connected && (
-                      <span className="badge badge-success">
-                        Connected
-                      </span>
+              {/* Subtle gradient background per provider */}
+              <div className={`absolute inset-0 bg-gradient-to-br ${p.gradient} opacity-30 pointer-events-none`} />
+
+              <div className="relative">
+                <div className="flex items-start gap-4 mb-5">
+                  <div className={`p-3 rounded-xl border transition-all duration-300 ${
+                    connected
+                      ? 'bg-success/10 border-success/20 shadow-glow-success'
+                      : 'bg-dark-800/60 border-dark-700/40 group-hover:border-dark-600/60'
+                  }`}>
+                    <LogoImage
+                      src={p.logo}
+                      alt={p.label}
+                      className={`w-6 h-6 transition-all duration-300 ${connected ? '' : 'opacity-50 group-hover:opacity-80'}`}
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-white">{p.label}</h3>
+                      {connected && (
+                        <span className="badge badge-success text-[10px]">
+                          <CheckCircle2 className="w-3 h-3" /> Connected
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-dark-400">{p.desc}</p>
+                    {connected && integration?.provider_username && (
+                      <p className="text-xs text-dark-500 mt-2 flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                        @{integration.provider_username}
+                      </p>
                     )}
                   </div>
-                  <p className="text-sm text-dark-400">{p.desc}</p>
-                  {connected && integration?.provider_username && (
-                    <p className="text-xs text-dark-400 mt-2 flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                      @{integration.provider_username}
-                    </p>
+                </div>
+
+                <div className="flex gap-2.5">
+                  {connected ? (
+                    <>
+                      {(p.key === 'notion' || p.key === 'slack' || p.key === 'github' || p.key === 'linear' || p.key === 'google') && (
+                        <button
+                          onClick={() => handleSync(p.key)}
+                          disabled={syncing === p.key}
+                          className="btn btn-secondary text-brand disabled:opacity-50 text-sm"
+                        >
+                          {syncing === p.key ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-4 h-4" />
+                          )}
+                          {syncing === p.key ? 'Syncing...' : 'Sync'}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setDisconnecting(integration)}
+                        className="btn btn-secondary text-danger hover:text-danger hover:border-danger/30 text-sm"
+                      >
+                        <Unlink className="w-4 h-4" />
+                        Disconnect
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (p.key === 'vscode') {
+                          window.open('https://marketplace.visualstudio.com/items?itemName=JeyaSuryaM.contextos-copilot', '_blank')
+                        } else {
+                          handleConnect(p.key as any)
+                        }
+                      }}
+                      disabled={connecting === p.key}
+                      className="btn btn-primary disabled:opacity-50 text-sm"
+                    >
+                      {connecting === p.key ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <LogoImage src={p.logo} alt={p.label} className="w-4 h-4" />
+                      )}
+                      {p.key === 'vscode' ? 'Install Extension' : connecting === p.key ? 'Connecting...' : 'Connect'}
+                    </button>
                   )}
                 </div>
-              </div>
-
-              <div className="flex gap-3">
-                {connected ? (
-                  <>
-                    {(p.key === 'notion' || p.key === 'slack' || p.key === 'github' || p.key === 'linear' || p.key === 'google') && (
-                      <button
-                        onClick={() => handleSync(p.key)}
-                        disabled={syncing === p.key}
-                        className="btn btn-secondary text-brand disabled:opacity-50"
-                      >
-                        {syncing === p.key ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <RefreshCw className="w-4 h-4" />
-                        )}
-                        {syncing === p.key ? 'Syncing...' : 'Sync'}
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setDisconnecting(integration)}
-                      className="btn btn-secondary text-danger hover:text-danger"
-                    >
-                      <Unlink className="w-4 h-4" />
-                      Disconnect
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={() => p.key !== 'vscode' && handleConnect(p.key as any)}
-                    disabled={p.key === 'vscode' || connecting === p.key}
-                    className="btn btn-primary disabled:opacity-50"
-                  >
-                    {connecting === p.key ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <LogoImage src={p.logo} alt={p.label} className="w-4 h-4" />
-                    )}
-                    {p.key === 'vscode' ? 'Install Extension' : connecting === p.key ? 'Connecting...' : 'Connect'}
-                  </button>
-                )}
               </div>
             </div>
           )

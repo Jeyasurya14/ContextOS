@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import Script from 'next/script'
-import { CreditCard, Check, Loader2 } from 'lucide-react'
+import { CreditCard, Check, Loader2, Sparkles, Zap, Crown, Shield, ChevronRight } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { billingApi } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
@@ -22,6 +22,7 @@ const plans = [
     name: 'Free',
     price: '₹0',
     period: '/month',
+    icon: Zap,
     features: ['25 queries/day', '3 integrations', '10K context chunks', 'Community support'],
     cta: 'Current Plan',
   },
@@ -30,6 +31,7 @@ const plans = [
     name: 'Pro',
     price: '₹999',
     period: '/month',
+    icon: Crown,
     features: ['Unlimited queries/day', 'Unlimited integrations', '100K context chunks', 'Team shared context', 'Priority support'],
     cta: 'Upgrade to Pro',
     highlight: true,
@@ -39,6 +41,7 @@ const plans = [
     name: 'Team',
     price: '₹2,999',
     period: '/month',
+    icon: Shield,
     features: ['Unlimited queries/day', 'Unlimited integrations', 'Unlimited context chunks', 'Unlimited team members', 'SSO & SAML', 'Dedicated support', 'Custom SLA'],
     cta: 'Upgrade to Team',
   },
@@ -68,7 +71,7 @@ export default function BillingPage() {
 
   const handleUpgrade = async (planKey: string) => {
     if (planKey === 'free' || planKey === currentPlan) return
-    
+
     setUpgrading(planKey)
     try {
       const response = await billingApi.createOrder(planKey)
@@ -107,7 +110,7 @@ export default function BillingPage() {
           name: user?.name || '',
         },
         theme: {
-          color: '#8B5CF6',
+          color: '#d97706',
         },
         modal: {
           ondismiss: () => {
@@ -130,37 +133,49 @@ export default function BillingPage() {
     : 0
 
   return (
-    <div>
+    <div className="max-w-5xl animate-fade-in">
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
 
-      <h1 className="text-2xl font-semibold text-white mb-2">Billing</h1>
-      <p className="text-dark-400 text-sm mb-8">Manage your plan and usage</p>
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/5 border border-brand/10">
+            <Sparkles className="w-3.5 h-3.5 text-brand" />
+            <span className="text-[11px] font-semibold text-brand uppercase tracking-widest">Billing</span>
+          </div>
+        </div>
+        <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Billing</h1>
+        <p className="text-dark-400 text-[15px]">Manage your plan and usage</p>
+      </div>
 
-      <div className="card mb-6 animate-slide-up">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <CreditCard className="w-5 h-5 text-dark-300" />
+      {/* Current Plan Card */}
+      <div className="glass-card mb-8 animate-slide-up">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-brand/10 flex items-center justify-center border border-brand/20">
+              <CreditCard className="w-6 h-6 text-brand" />
+            </div>
             <div>
-              <h2 className="font-medium text-white">Current Plan</h2>
-              <p className="text-sm text-dark-400 capitalize">{currentPlan}</p>
+              <h2 className="font-semibold text-white text-lg">Current Plan</h2>
+              <p className="text-sm text-dark-400 capitalize">{currentPlan} Plan</p>
             </div>
           </div>
-          <span className="badge badge-neutral capitalize">
+          <span className="badge badge-brand capitalize text-sm px-3 py-1.5">
             {currentPlan}
           </span>
         </div>
         {!loading && usage && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-dark-400">Queries this month</span>
-              <span className="text-dark-200">
+              <span className="text-white font-medium">
                 {currentPlan === 'free' ? `${usage.queries_count || 0} / ${usage.queries_limit || 25}` : 'Unlimited'}
               </span>
             </div>
             {currentPlan === 'free' && (
-              <div className="w-full bg-dark-800 rounded-full h-2">
+              <div className="progress-premium">
                 <div
-                  className={`h-2 rounded-full transition-all ${usagePercent > 80 ? 'bg-danger' : 'bg-brand'}`}
+                  className={`progress-premium-fill ${usagePercent > 80 ? '!bg-gradient-to-r !from-danger !to-danger-light' : ''}`}
                   style={{ width: `${usagePercent}%` }}
                 />
               </div>
@@ -169,45 +184,72 @@ export default function BillingPage() {
         )}
       </div>
 
-      <h2 className="text-lg font-semibold text-white mb-4">Plans</h2>
-      <div className="grid md:grid-cols-3 gap-4">
+      {/* Plans Grid */}
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-white mb-1">Plans</h2>
+        <p className="text-sm text-dark-500">Choose the plan that fits your needs</p>
+      </div>
+      <div className="grid md:grid-cols-3 gap-5">
         {plans.map((plan, index) => {
           const isCurrent = plan.key === currentPlan
+          const PlanIcon = plan.icon
           return (
             <div
               key={plan.key}
-              className={`card relative animate-slide-up flex flex-col ${
-                plan.highlight ? 'border-brand/50' : ''
-              }`}
+              className={`relative animate-slide-up flex flex-col overflow-hidden transition-all duration-300 ${
+                plan.highlight
+                  ? 'gradient-border-card'
+                  : 'glass-card'
+              } ${plan.highlight ? 'scale-[1.02] z-10' : 'hover:scale-[1.01]'}`}
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               {plan.highlight && (
-                <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-brand text-white text-xs font-medium px-3 py-1 rounded-full">
-                  Recommended
+                <div className="absolute -top-px left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-brand to-transparent" />
+              )}
+
+              {plan.highlight && (
+                <div className="absolute top-4 right-4">
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-brand text-white px-2.5 py-1 rounded-full">
+                    Popular
+                  </span>
                 </div>
               )}
-              <h3 className="text-lg font-semibold text-white mb-1">{plan.name}</h3>
-              <p className="text-2xl font-bold text-white mb-4">
-                {plan.price}
-                <span className="text-sm text-dark-400 font-normal">{plan.period}</span>
-              </p>
-              <ul className="space-y-2 mb-6 flex-grow">
-                {plan.features.map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-sm text-dark-300">
-                    <Check className="w-4 h-4 text-success flex-shrink-0" />
+
+              <div className="mb-5 relative z-10">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${
+                  plan.highlight ? 'bg-brand/15 border border-brand/25' : 'bg-dark-800/60 border border-dark-700/40'
+                }`}>
+                  <PlanIcon className={`w-5 h-5 ${plan.highlight ? 'text-brand' : 'text-dark-400'}`} />
+                </div>
+                <h3 className="text-lg font-bold text-white mb-1">{plan.name}</h3>
+                <p className="text-3xl font-bold text-white">
+                  {plan.price}
+                  <span className="text-sm text-dark-500 font-normal">{plan.period}</span>
+                </p>
+              </div>
+
+              <ul className="space-y-2.5 mb-7 flex-grow relative z-10">
+                {plan.features.map((f, i) => (
+                  <li
+                    key={f}
+                    className="flex items-center gap-2.5 text-sm text-dark-300 animate-slide-up"
+                    style={{ animationDelay: `${index * 0.1 + (i + 1) * 0.05}s` }}
+                  >
+                    <Check className={`w-4 h-4 flex-shrink-0 ${plan.highlight ? 'text-brand' : 'text-dark-600'}`} />
                     {f}
                   </li>
                 ))}
               </ul>
+
               <button
                 disabled={isCurrent || upgrading !== null}
                 onClick={() => handleUpgrade(plan.key)}
-                className={`w-full mt-auto py-2 rounded-lg font-medium transition ${
+                className={`w-full mt-auto py-3 rounded-xl font-medium transition-all duration-200 relative z-10 ${
                   isCurrent
-                    ? 'bg-dark-700 text-dark-400 cursor-not-allowed'
+                    ? 'bg-dark-800/60 text-dark-500 cursor-not-allowed'
                     : plan.highlight
-                    ? 'bg-brand text-white hover:bg-brand-dark'
-                    : 'border border-dark-600 text-dark-200 hover:bg-dark-800'
+                    ? 'bg-brand text-white hover:bg-brand-dark shadow-glow-brand'
+                    : 'border border-dark-700/60 text-dark-200 hover:bg-dark-800/60 hover:border-dark-600'
                 } disabled:opacity-50`}
               >
                 {upgrading === plan.key ? (
@@ -218,7 +260,9 @@ export default function BillingPage() {
                 ) : isCurrent ? (
                   'Current Plan'
                 ) : (
-                  plan.cta
+                  <span className="flex items-center justify-center gap-1.5">
+                    {plan.cta} <ChevronRight className="w-4 h-4" />
+                  </span>
                 )}
               </button>
             </div>

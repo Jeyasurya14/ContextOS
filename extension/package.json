@@ -2,8 +2,13 @@
   "name": "contextos-copilot",
   "displayName": "ContextOS Copilot",
   "description": "The AI Copilot that knows everything about your workspace.",
-  "version": "1.0.0",
-  "publisher": "ContextOS",
+  "version": "1.0.1",
+  "publisher": "JeyaSuryaM",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jeyasurya14/ContextOS.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -11,6 +16,7 @@
     "Machine Learning",
     "Other"
   ],
+  "license": "MIT",
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
@@ -38,7 +44,8 @@
         {
           "type": "webview",
           "id": "contextos.chatView",
-          "name": "Assistant"
+          "name": "Assistant",
+          "icon": "images/icon.png"
         }
       ]
     },
@@ -65,5 +72,8 @@
     "@types/vscode": "^1.85.0",
     "esbuild": "^0.19.0",
     "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "vsce": "^2.15.0"
   }
 }

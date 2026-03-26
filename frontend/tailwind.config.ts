@@ -48,11 +48,16 @@ const config: Config = {
         'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.3)',
         'sm': '0 2px 4px -1px rgba(0, 0, 0, 0.2)',
         'md': '0 4px 6px -1px rgba(0, 0, 0, 0.2)',
+        'glow-brand': '0 0 20px rgba(217, 119, 6, 0.15), 0 0 40px rgba(217, 119, 6, 0.05)',
+        'glow-success': '0 0 20px rgba(22, 163, 74, 0.15)',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-out',
         'slide-up': 'slideUp 0.4s ease-out',
         'pulse-subtle': 'pulseSubtle 2s ease-in-out infinite',
+        'shimmer': 'shimmer 3s ease-in-out infinite',
+        'glow-pulse': 'glowPulse 3s ease-in-out infinite',
+        'float': 'float 6s ease-in-out infinite',
       },
       keyframes: {
         fadeIn: {
@@ -67,12 +72,27 @@ const config: Config = {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.7' },
         },
+        shimmer: {
+          '0%': { backgroundPosition: '-200% center' },
+          '100%': { backgroundPosition: '200% center' },
+        },
+        glowPulse: {
+          '0%, 100%': { opacity: '0.4' },
+          '50%': { opacity: '0.8' },
+        },
+        float: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%': { transform: 'translateY(-4px)' },
+        },
         flowRight: {
           '0%': { left: '0%', opacity: '0' },
           '15%': { opacity: '1' },
           '85%': { opacity: '1' },
           '100%': { left: '100%', opacity: '0' },
         },
+      },
+      backdropBlur: {
+        'xs': '2px',
       },
     },
   },
