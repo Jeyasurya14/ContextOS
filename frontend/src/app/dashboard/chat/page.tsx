@@ -66,10 +66,11 @@ export default function ChatPage() {
   const [replyText, setReplyText] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [typingUsers, setTypingUsers] = useState<string[]>([])
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [showAttachMenu, setShowAttachMenu] = useState(false)
   const [bookmarkedMessages, setBookmarkedMessages] = useState<number[]>([])
   const [showMessageActions, setShowMessageActions] = useState<number | null>(null)
+  const [showCommands, setShowCommands] = useState(false)
+  const [commandFilter, setCommandFilter] = useState('')
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -208,15 +209,45 @@ export default function ChatPage() {
     setReplyText('')
   }
 
-  // Emoji picker functionality
-  const addEmoji = (emoji: string) => {
-    setInput(prev => prev + emoji)
-    setShowEmojiPicker(false)
-    textareaRef.current?.focus()
+  // Slash commands
+  const commands = [
+    { name: '/clear', description: 'Clear chat history', icon: '🗑️' },
+    { name: '/new', description: 'Start a new conversation', icon: '➕' },
+    { name: '/search', description: 'Search messages', icon: '🔍' },
+    { name: '/export', description: 'Export chat as markdown', icon: '📥' },
+    { name: '/help', description: 'Show available commands', icon: '❓' },
+  ]
+
+  const handleCommand = (command: string) => {
+    setShowCommands(false)
+    setInput('')
+    
+    switch(command) {
+      case '/clear':
+        setMessages([])
+        toast.success('Chat cleared')
+        break
+      case '/new':
+        createNewChat()
+        toast.success('New conversation started')
+        break
+      case '/search':
+        setShowSearch(true)
+        toast.info('Search activated')
+        break
+      case '/export':
+        exportChat()
+        break
+      case '/help':
+        toast.info('Available commands: /clear, /new, /search, /export, /help')
+        break
+    }
   }
 
-  // Common emojis
-  const commonEmojis = ['😊', '👍', '❤️', '🎉', '🔥', '💯', '🚀', '✨', '💡', '🎯', '📝', '💬']
+  const filteredCommands = commands.filter(cmd => 
+    cmd.name.toLowerCase().includes(commandFilter.toLowerCase()) ||
+    cmd.description.toLowerCase().includes(commandFilter.toLowerCase())
+  )
 
   // Attachment handlers
   const handleImageUpload = () => {
@@ -426,33 +457,14 @@ export default function ChatPage() {
     toast.success('📥 Chat exported successfully')
   }
 
-  // Command handler
-  const handleCommand = (command: string) => {
-    const cmd = command.toLowerCase()
-    
-    switch(cmd) {
-      case '/clear':
-        setMessages([])
-        toast.success('🧹 Chat cleared')
-        break
-      case '/export':
-        exportChat()
-        break
-      case '/help':
-        toast.info('Commands: /clear, /export, /help, /bookmarks')
-        break
-      case '/bookmarks':
-        const bookmarkedMsgs = messages.filter(m => bookmarkedMessages.includes(m.id))
-        if (bookmarkedMsgs.length > 0) {
-          toast.info(`📌 ${bookmarkedMsgs.length} bookmarked messages`)
-        } else {
-          toast.info('No bookmarked messages')
-        }
-        break
-      default:
-        if (cmd.startsWith('/')) {
-          toast.info(`Unknown command: ${cmd}. Type /help for available commands.`)
-        }
+  // Legacy command handler removed - using new slash command system
+  // Bookmarks helper
+  const showBookmarks = () => {
+    const bookmarkedMsgs = messages.filter(m => bookmarkedMessages.includes(m.id))
+    if (bookmarkedMsgs.length > 0) {
+      toast.info(`📌 ${bookmarkedMsgs.length} bookmarked messages`)
+    } else {
+      toast.info('No bookmarked messages')
     }
   }
 
@@ -474,6 +486,15 @@ export default function ChatPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value
     setInput(value)
+    
+    // Check for slash commands
+    if (value.startsWith('/')) {
+      setShowCommands(true)
+      setCommandFilter(value)
+    } else {
+      setShowCommands(false)
+      setCommandFilter('')
+    }
     
     // Check for commands
     if (value.startsWith('/') && value.includes(' ')) {
@@ -828,17 +849,29 @@ export default function ChatPage() {
         <div className="flex-shrink-0 border-t border-dark-800/30 bg-gradient-to-t from-dark-950/90 to-dark-900/50 backdrop-blur-xl">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex gap-3 items-end">
-              {/* Input Controls */}
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="p-2.5 text-dark-400 hover:text-white hover:bg-dark-800/50 rounded-xl transition-all"
-                  title="Add emoji"
-                >
-                  <Smile className="w-5 h-5" />
-                </button>
-                
-              </div>
+              {/* Slash Commands Dropdown */}
+              {showCommands && filteredCommands.length > 0 && (
+                <div className="absolute bottom-full left-0 mb-2 w-full max-w-md bg-dark-800 border border-dark-700 rounded-lg shadow-lg overflow-hidden">
+                  <div className="p-2 border-b border-dark-700">
+                    <p className="text-xs text-dark-400">Commands</p>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {filteredCommands.map((cmd) => (
+                      <button
+                        key={cmd.name}
+                        onClick={() => handleCommand(cmd.name)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700/50 transition-colors text-left"
+                      >
+                        <span className="text-xl">{cmd.icon}</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-white">{cmd.name}</p>
+                          <p className="text-xs text-dark-400">{cmd.description}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Main Input */}
               <div className="flex-1 relative">
@@ -897,26 +930,6 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Emoji Picker */}
-      {showEmojiPicker && (
-        <div className="fixed bottom-20 left-4 bg-dark-800 border border-dark-700 rounded-lg shadow-lg p-2 z-50">
-          <div className="grid grid-cols-6 gap-1">
-            {['😊', '👍', '❤️', '🎉', '🔥', '💯', '🚀', '✨', '💡', '🎯', '📝', '💬'].map((emoji, index) => (
-              <button
-                key={index}
-                onClick={() => {
-                  setInput(prev => prev + emoji)
-                  setShowEmojiPicker(false)
-                  textareaRef.current?.focus()
-                }}
-                className="p-2 text-lg hover:bg-dark-700 rounded transition-colors"
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
