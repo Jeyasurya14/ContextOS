@@ -32,7 +32,7 @@ export default function AdminLogin() {
       const data = await response.json()
       
       // Verify user is admin by checking their profile
-      const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/users/me`, {
+      const profileResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/auth/me`, {
         headers: { 
           'Authorization': `Bearer ${data.access_token}`,
         },
