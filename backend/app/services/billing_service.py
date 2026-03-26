@@ -27,14 +27,30 @@ from app.models.user import User
 from app.models.team import Team
 from app.models.billing import BillingEvent, UsageRecord
 
-try:
-    import pkg_resources  # noqa: F401 — required by razorpay SDK
-except ImportError:
-    import subprocess
-    import sys
-    logger.warning("pkg_resources missing — installing setuptools at runtime")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "setuptools"])
-    import pkg_resources  # noqa: F401
+import sys
+import types
+
+# ── pkg_resources shim ───────────────────────────────────────
+# The razorpay SDK does `import pkg_resources` and
+# `from pkg_resources import DistributionNotFound`.
+# On environments where setuptools is missing (e.g. Render),
+# we inject a tiny shim so the SDK can still load.
+if "pkg_resources" not in sys.modules:
+    try:
+        import pkg_resources  # noqa: F401
+    except ImportError:
+        logger.info("pkg_resources unavailable — injecting lightweight shim for razorpay SDK")
+        _shim = types.ModuleType("pkg_resources")
+
+        class _DistributionNotFound(Exception):
+            pass
+
+        def _get_distribution(name: str):  # type: ignore[override]
+            raise _DistributionNotFound(name)
+
+        _shim.DistributionNotFound = _DistributionNotFound  # type: ignore[attr-defined]
+        _shim.get_distribution = _get_distribution  # type: ignore[attr-defined]
+        sys.modules["pkg_resources"] = _shim
 
 try:
     import razorpay
