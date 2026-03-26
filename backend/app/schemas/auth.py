@@ -34,6 +34,7 @@ class UserResponse(BaseModel):
     name: str  # Changed from full_name to name
     is_active: bool
     is_verified: bool
+    is_admin: bool = False
     plan: str = "free"
     api_key_prefix: str | None = None
     team_id: str | None = None
