@@ -48,10 +48,10 @@ export default function RootLayout({
   // Redirect to login if on dashboard without token (after initialization)
   useEffect(() => {
     console.log('Auth redirect check - isDashboard:', isDashboard, 'isInitialized:', isInitialized, 'hasToken:', !!token)
-    // COMMENTED OUT FOR DEBUGGING - if (isDashboard && isInitialized && !token) {
-    //   console.log('Redirecting to login - no token')
-    //   router.replace('/login')
-    // }
+    if (isDashboard && isInitialized && !token) {
+      console.log('Redirecting to login - no token')
+      router.replace('/login')
+    }
   }, [isDashboard, isInitialized, token, router])
 
   // Only block dashboard routes while initializing

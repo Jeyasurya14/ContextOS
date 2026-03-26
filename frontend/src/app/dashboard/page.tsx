@@ -330,13 +330,13 @@ function StatCard({
           {Icon && <Icon className="w-5 h-5 text-dark-300" />}
         </div>
       </div>
-      <p className="text-3xl font-bold text-white mb-1 tracking-tight">
+      <div className="text-3xl font-bold text-white mb-1 tracking-tight">
         {value === null ? (
           <div className="h-8 w-16 bg-dark-800 rounded animate-pulse" />
         ) : (
           value
         )}
-      </p>
+      </div>
       <p className="text-sm text-dark-400">{label}</p>
     </div>
   )
