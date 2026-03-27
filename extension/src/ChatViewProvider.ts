@@ -40,8 +40,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     public resolveWebviewView(webviewView: vscode.WebviewView, _ctx: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
         this._view = webviewView;
         webviewView.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [this._extensionUri]
+            enableScripts: true
         };
         webviewView.webview.html = this._getHtmlForWebview();
         
