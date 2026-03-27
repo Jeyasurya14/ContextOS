@@ -2,6 +2,11 @@
 
 All notable changes to the "ContextOS Copilot" extension will be documented in this file.
 
+## [1.3.4] - 2026-03-28
+
+- Maintenance update with webview security improvements
+- Cleaned up debug artifacts from production build
+
 ## [1.3.3] - 2026-03-27
 
 - Fixed webview CSP to include `connect-src` for API requests
