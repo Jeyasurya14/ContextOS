@@ -1,27 +1,39 @@
 'use client'
 
 import { useRef, useState, useEffect, useCallback } from 'react'
-import { Send, Loader2, AlertCircle, Plus, MessageSquare, Trash2, Edit3, Check, Copy, CheckCheck, Bot, User, Menu, X, Search, Share2, Bookmark, MoreVertical, Reply, RefreshCw, Paperclip, Smile } from 'lucide-react'
+import {
+  Plus, Trash2, Edit3, Copy, CheckCheck,
+  ArrowUp, Sparkles, Database, Brain, Loader2, ChevronDown,
+  AlertCircle, ExternalLink, Layers
+} from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
-import { queryApi, integrationsApi } from '@/lib/api'
+import { integrationsApi } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
+
+/* ─── Types ─────────────────────────────────────────── */
+interface ThinkingStep {
+  type: 'thinking' | 'searching' | 'generating'
+  message: string
+  source?: string
+  count?: number
+  done?: boolean
+}
+
+interface Source {
+  type: string
+  url?: string
+  title?: string
+}
 
 interface Message {
   id: number
   role: 'user' | 'assistant'
   content: string
-  thinkingSteps?: { step: string; duration?: number }[]
-  sources?: any[]
+  thinkingSteps?: ThinkingStep[]
+  sources?: Source[]
   isStreaming?: boolean
   isError?: boolean
   timestamp?: Date
-  isBookmarked?: boolean
-  replyTo?: number
-  attachments?: {
-    type: 'image' | 'file' | 'code'
-    url: string
-    name: string
-  }[]
 }
 
 interface Chat {
@@ -30,19 +42,312 @@ interface Chat {
   messages: Message[]
   createdAt: Date
   updatedAt: Date
-  isPinned?: boolean
-  isArchived?: boolean
-  tags?: string[]
 }
 
-const SUGGESTED_QUESTIONS = [
-  'What\'s the status of my recent work?',
-  'Show me my latest commits and changes',
-  'Give me a summary of my GitHub activity',
-  'What bugs have I fixed recently?',
-  'What did I work on today?',
+const SUGGESTED = [
+  "What's the status of my recent PRs?",
+  "Summarize my Notion docs",
+  "What did I work on last week?",
+  "Show me open GitHub issues",
+  "Find bugs mentioned in Slack",
 ]
 
+const STORAGE_KEY = 'contextos_chats_v2'
+
+/* ─── Markdown renderer ──────────────────────────────── */
+function escHtml(s: string) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+function renderMarkdown(text: string): string {
+  if (!text) return ''
+  let html = text
+    .replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) =>
+      `<pre class="chat-code-block"><div class="chat-code-lang">${lang || 'code'}</div><code>${escHtml(code.trim())}</code></pre>`)
+    .replace(/`([^`\n]+)`/g, '<code class="chat-inline-code">$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/^### (.+)$/gm, '<h3 class="chat-h3">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="chat-h2">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="chat-h1">$1</h1>')
+    .replace(/^> (.+)$/gm, '<blockquote class="chat-bq">$1</blockquote>')
+    .replace(/^---$/gm, '<hr class="chat-hr" />')
+
+  // Lists
+  html = html.replace(/^[-*] (.+)$/gm, '<li class="chat-li">$1</li>')
+  html = html.replace(/(<li class="chat-li">[\s\S]+?<\/li>(?:\n|$))+/g, (m) => `<ul class="chat-ul">${m}</ul>`)
+
+  // Paragraphs — double newlines
+  html = html.replace(/\n\n+/g, '\n\n')
+  html = html.split('\n\n').map(block => {
+    if (block.match(/^<(h[1-3]|ul|pre|blockquote|hr)/)) return block
+    if (!block.trim()) return ''
+    return `<p class="chat-p">${block.replace(/\n/g, '<br/>')}</p>`
+  }).join('')
+
+  return html
+}
+
+/* ─── Provider colors ────────────────────────────────── */
+const PROVIDER_COLORS: Record<string, string> = {
+  github: '#6e40c9',
+  notion: '#a0a0a0',
+  slack: '#e01e5a',
+  linear: '#5b5fc7',
+  google: '#4285f4',
+  google_drive: '#0f9d58',
+}
+
+/* ─── Source chip ────────────────────────────────────── */
+function SourceChip({ source }: { source: Source }) {
+  const type = (source.type || '').split('_')[0]
+  const color = PROVIDER_COLORS[source.type?.toLowerCase()] || '#6b7280'
+  return (
+    <a
+      href={source.url || '#'}
+      target={source.url ? '_blank' : undefined}
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-opacity hover:opacity-75"
+      style={{ background: `${color}1a`, border: `1px solid ${color}40`, color }}
+    >
+      <span className="capitalize">{type}</span>
+      {source.url && <ExternalLink className="w-2.5 h-2.5 opacity-60" />}
+    </a>
+  )
+}
+
+/* ─── Thinking dots ──────────────────────────────────── */
+function Dots() {
+  return (
+    <span className="inline-flex gap-1 ml-1 align-middle">
+      {[0, 1, 2].map(i => (
+        <span
+          key={i}
+          className="w-1.5 h-1.5 rounded-full"
+          style={{
+            background: '#d97706',
+            opacity: 0.5,
+            animation: `ctxBounce 1.2s ease-in-out ${i * 0.18}s infinite`,
+          }}
+        />
+      ))}
+    </span>
+  )
+}
+
+/* ─── Status panel ───────────────────────────────────── */
+function StatusPanel({ steps }: { steps: ThinkingStep[] }) {
+  return (
+    <div className="mb-3 space-y-1.5">
+      {steps.map((step, i) => {
+        const isLast = i === steps.length - 1 && !step.done
+        const isDone = step.done || (!isLast && i < steps.length - 1)
+        return (
+          <div
+            key={i}
+            className="flex items-center gap-2 text-xs"
+            style={{
+              color: isDone ? '#3f3f46' : isLast ? '#d97706' : '#52525b',
+              animation: isLast ? 'ctxFadeIn 0.2s ease-out' : 'none',
+            }}
+          >
+            <span className="flex-shrink-0">
+              {isDone
+                ? <CheckCheck className="w-3.5 h-3.5" style={{ color: '#16a34a' }} />
+                : step.type === 'thinking'
+                  ? <Brain className="w-3.5 h-3.5" />
+                  : <Database className="w-3.5 h-3.5" />
+              }
+            </span>
+            <span className={isDone ? 'line-through opacity-40' : isLast ? 'font-medium' : 'opacity-50'}>
+              {step.message}
+              {step.source && ` · ${step.source}${step.count ? ` (${step.count})` : ''}`}
+            </span>
+            {isLast && <Dots />}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ─── ContextOS mini SVG logo ────────────────────────── */
+function CtxLogo({ size = 20, id = 'logo' }: { size?: number; id?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width={size} height={size}>
+      <defs>
+        <linearGradient id={`cg-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#d97706" />
+          <stop offset="100%" stopColor="#b45309" />
+        </linearGradient>
+        <linearGradient id={`hg-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#f59e0b" />
+          <stop offset="100%" stopColor="#d97706" />
+        </linearGradient>
+      </defs>
+      <path d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50" fill="none" stroke={`url(#cg-${id})`} strokeWidth="5.5" strokeLinecap="round" />
+      <circle cx="17" cy="32" r="4" fill="#d97706" />
+      <g transform="translate(37,32)">
+        <path d="M0,-15 L13,-7.5 L13,7.5 L0,15 L-13,7.5 L-13,-7.5 Z" fill="none" stroke={`url(#hg-${id})`} strokeWidth="2.5" strokeLinejoin="round" />
+        <line x1="-7" y1="-4" x2="7" y2="-4" stroke={`url(#hg-${id})`} strokeWidth="2" strokeLinecap="round" />
+        <line x1="-7" y1="0" x2="7" y2="0" stroke={`url(#hg-${id})`} strokeWidth="2" strokeLinecap="round" />
+        <line x1="-7" y1="4" x2="7" y2="4" stroke={`url(#hg-${id})`} strokeWidth="2" strokeLinecap="round" />
+      </g>
+    </svg>
+  )
+}
+
+/* ─── Message bubble ─────────────────────────────────── */
+function MessageBubble({
+  msg, onCopy, copiedId,
+}: { msg: Message; onCopy: (c: string, id: number) => void; copiedId: number | null }) {
+  const isUser = msg.role === 'user'
+  const ts = msg.timestamp
+    ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    : ''
+
+  if (isUser) {
+    return (
+      <div className="flex justify-end mb-5 group" style={{ animation: 'ctxFadeIn 0.2s ease-out' }}>
+        <div className="max-w-[78%]">
+          <div
+            className="px-4 py-3 rounded-2xl rounded-tr-sm text-sm leading-relaxed text-white"
+            style={{ background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' }}
+          >
+            {msg.content}
+          </div>
+          <div className="flex justify-end items-center gap-2 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-[10px] text-dark-600">{ts}</span>
+            <button onClick={() => onCopy(msg.content, msg.id)} className="text-dark-600 hover:text-dark-400 transition-colors">
+              {copiedId === msg.id ? <CheckCheck className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex gap-3 mb-8 group" style={{ animation: 'ctxFadeIn 0.2s ease-out' }}>
+      {/* Avatar */}
+      <div className="flex-shrink-0 w-7 h-7 mt-0.5 rounded-lg flex items-center justify-center"
+        style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)' }}>
+        <CtxLogo size={18} id={`msg-${msg.id}`} />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-xs font-semibold text-white">ContextOS</span>
+          <span className="text-[10px] text-dark-600">{ts}</span>
+        </div>
+
+        {/* Status steps */}
+        {msg.thinkingSteps && msg.thinkingSteps.length > 0 && (
+          <StatusPanel steps={msg.thinkingSteps} />
+        )}
+
+        {/* Error */}
+        {msg.isError && (
+          <div className="flex items-start gap-2 p-3 rounded-xl text-sm mb-2"
+            style={{ background: 'rgba(220,38,38,0.05)', border: '1px solid rgba(220,38,38,0.2)', color: '#ef4444' }}>
+            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>{msg.content}</span>
+          </div>
+        )}
+
+        {/* Content */}
+        {!msg.isError && msg.content && (
+          <div className="chat-prose text-sm text-dark-200 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+        )}
+
+        {/* Streaming indicator when no content yet */}
+        {msg.isStreaming && !msg.content && !msg.thinkingSteps?.length && (
+          <div className="flex items-center gap-1">
+            {[0,1,2].map(i => (
+              <span key={i} className="w-2 h-2 rounded-full bg-dark-700"
+                style={{ animation: `ctxBounce 1.2s ease-in-out ${i*0.18}s infinite` }} />
+            ))}
+          </div>
+        )}
+
+        {/* Streaming cursor */}
+        {msg.isStreaming && msg.content && (
+          <span className="inline-block w-0.5 h-4 ml-0.5 align-middle animate-pulse"
+            style={{ background: '#d97706', verticalAlign: 'middle' }} />
+        )}
+
+        {/* Sources */}
+        {msg.sources && msg.sources.length > 0 && !msg.isStreaming && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <span className="text-[10px] text-dark-600 self-center mr-1">Sources:</span>
+            {msg.sources.map((s, i) => <SourceChip key={i} source={s} />)}
+          </div>
+        )}
+
+        {/* Actions */}
+        {!msg.isStreaming && msg.content && !msg.isError && (
+          <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => onCopy(msg.content, msg.id)}
+              className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-dark-500 hover:text-dark-200 hover:bg-dark-800/50 rounded-lg transition-all"
+            >
+              {copiedId === msg.id
+                ? <><CheckCheck className="w-3 h-3 text-success" /><span className="text-success">Copied!</span></>
+                : <><Copy className="w-3 h-3" /><span>Copy</span></>
+              }
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Empty state ────────────────────────────────────── */
+function EmptyState({ onSuggest }: { onSuggest: (q: string) => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full py-16 px-6 text-center">
+      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
+        style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.15)' }}>
+        <CtxLogo size={36} id="empty" />
+      </div>
+
+      <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">How can I help?</h2>
+      <p className="text-dark-400 text-sm max-w-sm mb-10 leading-relaxed">
+        Ask me anything about your project — commits, docs, Slack threads, or general engineering questions.
+      </p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
+        {SUGGESTED.map((q) => (
+          <button
+            key={q}
+            onClick={() => onSuggest(q)}
+            className="text-left px-4 py-3 rounded-xl text-sm text-dark-300 hover:text-white transition-all"
+            style={{ background: 'rgba(217,119,6,0.03)', border: '1px solid rgba(217,119,6,0.08)' }}
+            onMouseEnter={e => {
+              const el = e.currentTarget as HTMLButtonElement
+              el.style.background = 'rgba(217,119,6,0.07)'
+              el.style.borderColor = 'rgba(217,119,6,0.2)'
+            }}
+            onMouseLeave={e => {
+              const el = e.currentTarget as HTMLButtonElement
+              el.style.background = 'rgba(217,119,6,0.03)'
+              el.style.borderColor = 'rgba(217,119,6,0.08)'
+            }}
+          >
+            <span className="flex items-start gap-2">
+              <Sparkles className="w-3.5 h-3.5 mt-0.5 text-brand flex-shrink-0" />
+              {q}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ─── Main component ─────────────────────────────────── */
 export default function ChatPage() {
   const { toast } = useToast()
   const [chats, setChats] = useState<Chat[]>([])
@@ -52,883 +357,624 @@ export default function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [integrations, setIntegrations] = useState<any[]>([])
   const [loadingIntegrations, setLoadingIntegrations] = useState(true)
+  const [copiedId, setCopiedId] = useState<number | null>(null)
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
-  const [copiedMessageId, setCopiedMessageId] = useState<number | null>(null)
-  const [inputHeight, setInputHeight] = useState('44px')
-  const [currentThinkingStep, setCurrentThinkingStep] = useState<string>('')
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  
-  // Advanced features state
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearch, setShowSearch] = useState(false)
-  const [replyingTo, setReplyingTo] = useState<number | null>(null)
-  const [replyText, setReplyText] = useState('')
-  const [isTyping, setIsTyping] = useState(false)
-  const [typingUsers, setTypingUsers] = useState<string[]>([])
-  const [showAttachMenu, setShowAttachMenu] = useState(false)
-  const [bookmarkedMessages, setBookmarkedMessages] = useState<number[]>([])
-  const [showMessageActions, setShowMessageActions] = useState<number | null>(null)
-  const [showCommands, setShowCommands] = useState(false)
-  const [commandFilter, setCommandFilter] = useState('')
+  const [showScrollDown, setShowScrollDown] = useState(false)
 
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  // Use refs to always have latest values in async callbacks
+  const chatsRef = useRef<Chat[]>([])
+  const currentChatIdRef = useRef<string | null>(null)
+
+  const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const messagesContainerRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
+  /* ── Keep refs in sync ── */
+  useEffect(() => { chatsRef.current = chats }, [chats])
+  useEffect(() => { currentChatIdRef.current = currentChatId }, [currentChatId])
+
+  /* ── Load integrations ── */
   useEffect(() => {
-    const fetchIntegrations = async () => {
-      try {
-        const { data } = await integrationsApi.getAll()
-        setIntegrations(data || [])
-      } catch (err) {
-        console.error('Failed to load integrations:', err)
-      } finally {
-        setLoadingIntegrations(false)
-      }
-    }
-    fetchIntegrations()
+    integrationsApi.getAll()
+      .then(({ data }) => setIntegrations(data || []))
+      .catch(() => {})
+      .finally(() => setLoadingIntegrations(false))
   }, [])
 
+  /* ── Load history from localStorage ── */
   useEffect(() => {
-    const savedChats = localStorage.getItem('chatHistory')
-    if (savedChats) {
-      const parsedChats = JSON.parse(savedChats)
-      setChats(parsedChats)
-      if (parsedChats.length > 0) {
-        setCurrentChatId(parsedChats[0].id)
-        setMessages(parsedChats[0].messages)
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (raw) {
+        const parsed: Chat[] = JSON.parse(raw)
+        if (parsed.length > 0) {
+          setChats(parsed)
+          chatsRef.current = parsed
+          setCurrentChatId(parsed[0].id)
+          currentChatIdRef.current = parsed[0].id
+          setMessages(parsed[0].messages || [])
+        }
       }
-    }
+    } catch {}
   }, [])
 
-  const saveChats = (updatedChats: Chat[]) => {
-    localStorage.setItem('chatHistory', JSON.stringify(updatedChats))
-    setChats(updatedChats)
-  }
+  /* ── Persist chats ── */
+  const persistChats = useCallback((updated: Chat[]) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+    } catch {}
+    setChats(updated)
+    chatsRef.current = updated
+  }, [])
 
-  const createNewChat = () => {
-    const newChat: Chat = {
+  /* ── Save messages into current chat ── */
+  const saveMessages = useCallback((msgs: Message[], chatId: string) => {
+    const current = chatsRef.current
+    const title = msgs.length > 0
+      ? msgs[0].content.slice(0, 50) + (msgs[0].content.length > 50 ? '…' : '')
+      : 'New conversation'
+    const updated = current.map(c =>
+      c.id === chatId ? { ...c, messages: msgs, title, updatedAt: new Date() } : c
+    )
+    persistChats(updated)
+  }, [persistChats])
+
+  /* ── New chat ── */
+  const createNewChat = useCallback(() => {
+    const chat: Chat = {
       id: Date.now().toString(),
-      title: 'New Chat',
+      title: 'New conversation',
       messages: [],
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     }
-    const updatedChats = [newChat, ...chats]
-    saveChats(updatedChats)
-    setCurrentChatId(newChat.id)
+    const updated = [chat, ...chatsRef.current]
+    persistChats(updated)
+    setCurrentChatId(chat.id)
+    currentChatIdRef.current = chat.id
     setMessages([])
-    textareaRef.current?.focus()
+    setTimeout(() => textareaRef.current?.focus(), 50)
+  }, [persistChats])
+
+  /* ── Select chat ── */
+  const selectChat = (chat: Chat) => {
+    setCurrentChatId(chat.id)
+    currentChatIdRef.current = chat.id
+    setMessages(chat.messages || [])
   }
 
-  const deleteChat = (chatId: string) => {
-    const updatedChats = chats.filter(c => c.id !== chatId)
-    saveChats(updatedChats)
-    if (currentChatId === chatId) {
-      if (updatedChats.length > 0) {
-        setCurrentChatId(updatedChats[0].id)
-        setMessages(updatedChats[0].messages)
+  /* ── Delete chat ── */
+  const deleteChat = (id: string) => {
+    const updated = chatsRef.current.filter(c => c.id !== id)
+    persistChats(updated)
+    if (currentChatIdRef.current === id) {
+      if (updated.length > 0) {
+        setCurrentChatId(updated[0].id)
+        currentChatIdRef.current = updated[0].id
+        setMessages(updated[0].messages || [])
       } else {
         setCurrentChatId(null)
+        currentChatIdRef.current = null
         setMessages([])
       }
     }
   }
 
-  const updateChatTitle = (chatId: string, newTitle: string) => {
-    if (!newTitle.trim()) return
-    const updatedChats = chats.map(chat =>
-      chat.id === chatId ? { ...chat, title: newTitle, updatedAt: new Date() } : chat
-    )
-    saveChats(updatedChats)
+  /* ── Rename chat ── */
+  const renameChat = (id: string, title: string) => {
+    if (!title.trim()) return
+    const updated = chatsRef.current.map(c => c.id === id ? { ...c, title: title.trim() } : c)
+    persistChats(updated)
     setEditingChatId(null)
-    setEditingTitle('')
   }
 
-  const saveCurrentChat = (newMessages: Message[]) => {
-    if (!currentChatId) return
-
-    const updatedChats = chats.map(chat => {
-      if (chat.id === currentChatId) {
-        const title = newMessages.length > 0
-          ? newMessages[0].content.slice(0, 50) + (newMessages[0].content.length > 50 ? '...' : '')
-          : 'New Chat'
-        return { ...chat, messages: newMessages, title, updatedAt: new Date() }
-      }
-      return chat
-    })
-    saveChats(updatedChats)
-  }
-
+  /* ── Auto-scroll ── */
   const scrollToBottom = useCallback(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTo({
-        top: messagesContainerRef.current.scrollHeight,
-        behavior: 'smooth'
-      })
-    }
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
-  // Advanced functions
-  const toggleBookmark = (messageId: number) => {
-    setBookmarkedMessages(prev => {
-      if (prev.includes(messageId)) {
-        toast.success('Bookmark removed')
-        return prev.filter(id => id !== messageId)
-      } else {
-        toast.success('📌 Message bookmarked')
-        return [...prev, messageId]
+  useEffect(() => { scrollToBottom() }, [messages, scrollToBottom])
+
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    setShowScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 80)
+  }
+
+  /* ── Textarea resize ── */
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value)
+    const ta = e.target
+    ta.style.height = 'auto'
+    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px'
+  }
+
+  /* ── Copy ── */
+  const handleCopy = async (content: string, id: number) => {
+    try {
+      await navigator.clipboard.writeText(content)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch {}
+  }
+
+  /* ── Send ── */
+  const handleSend = useCallback(async () => {
+    const text = input.trim()
+    if (!text || isStreaming) return
+
+    // Ensure there's a chat to send to
+    let chatId = currentChatIdRef.current
+    if (!chatId) {
+      const chat: Chat = {
+        id: Date.now().toString(),
+        title: 'New conversation',
+        messages: [],
+        createdAt: new Date(),
+        updatedAt: new Date(),
       }
-    })
-  }
-
-  const shareMessage = (content: string) => {
-    if (navigator.share) {
-      navigator.share({
-        title: 'Shared from ContextOS',
-        text: content
-      })
-    } else {
-      navigator.clipboard.writeText(content)
-      toast.success('Message copied to clipboard')
-    }
-  }
-
-  const handleReply = (messageId: number) => {
-    const message = messages.find(m => m.id === messageId)
-    if (message) {
-      setReplyingTo(messageId)
-      setReplyText(message.content.slice(0, 50) + (message.content.length > 50 ? '...' : ''))
-      textareaRef.current?.focus()
-    }
-  }
-
-  const cancelReply = () => {
-    setReplyingTo(null)
-    setReplyText('')
-  }
-
-  // Slash commands
-  const commands = [
-    { name: '/clear', description: 'Clear chat history' },
-    { name: '/new', description: 'Start a new conversation' },
-    { name: '/search', description: 'Search messages' },
-    { name: '/export', description: 'Export chat as markdown' },
-    { name: '/help', description: 'Show available commands' },
-  ]
-
-  const handleCommand = (command: string) => {
-    setShowCommands(false)
-    setInput('')
-    
-    switch(command) {
-      case '/clear':
-        setMessages([])
-        toast.success('Chat cleared')
-        break
-      case '/new':
-        createNewChat()
-        toast.success('New conversation started')
-        break
-      case '/search':
-        setShowSearch(true)
-        toast.info('Search activated')
-        break
-      case '/export':
-        exportChat()
-        break
-      case '/help':
-        toast.info('Available commands: /clear, /new, /search, /export, /help')
-        break
-    }
-  }
-
-  const filteredCommands = commands.filter(cmd => 
-    cmd.name.toLowerCase().includes(commandFilter.toLowerCase()) ||
-    cmd.description.toLowerCase().includes(commandFilter.toLowerCase())
-  )
-
-  // Attachment handlers
-  const handleImageUpload = () => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'image/*'
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (file) {
-        toast.success(`📷 Image "${file.name}" uploaded`)
-        setShowAttachMenu(false)
-      }
-    }
-    input.click()
-  }
-
-  const handleFileUpload = () => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (file) {
-        toast.success(`📄 File "${file.name}" uploaded`)
-        setShowAttachMenu(false)
-      }
-    }
-    input.click()
-  }
-
-  const handleCodePaste = () => {
-    navigator.clipboard.readText().then(text => {
-      if (text.trim()) {
-        setInput(prev => prev + '\n```' + text + '```\n')
-        toast.success('💻 Code pasted from clipboard')
-        setShowAttachMenu(false)
-        textareaRef.current?.focus()
-      } else {
-        toast.info('No code found in clipboard')
-      }
-    }).catch(() => {
-      toast.info('Could not access clipboard')
-    })
-  }
-
-  // Enhanced send with reply support
-  const handleSendWithReply = async () => {
-    if (!input.trim() || isStreaming) return
-
-    if (!currentChatId) {
-      createNewChat()
+      persistChats([chat, ...chatsRef.current])
+      chatId = chat.id
+      setCurrentChatId(chat.id)
+      currentChatIdRef.current = chat.id
     }
 
-    const userMessage: Message = {
+    const userMsg: Message = {
       id: Date.now(),
       role: 'user',
-      content: input.trim(),
+      content: text,
       timestamp: new Date(),
-      replyTo: replyingTo || undefined,
     }
-
-    const assistantMessage: Message = {
+    const assistantMsg: Message = {
       id: Date.now() + 1,
       role: 'assistant',
       content: '',
       isStreaming: true,
+      thinkingSteps: [],
       timestamp: new Date(),
     }
 
-    const newMessages = [...messages, userMessage, assistantMessage]
-    setMessages(newMessages)
-    saveCurrentChat(newMessages)
+    const initialMsgs = [...messages, userMsg, assistantMsg]
+    setMessages(initialMsgs)
     setInput('')
-    setInputHeight('44px')
+    if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setIsStreaming(true)
-    setCurrentThinkingStep('')
-    cancelReply()
+
+    // Save user message immediately
+    saveMessages([...messages, userMsg], chatId)
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const response = await fetch(`${apiUrl}/api/v1/query`, {
+      const resp = await fetch(`${apiUrl}/api/v1/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${useAuthStore.getState().token}`,
         },
-        body: JSON.stringify({ 
-          question: userMessage.content,
-          reply_to: replyingTo 
-        }),
+        body: JSON.stringify({ question: text }),
       })
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
 
-      const reader = response.body?.getReader()
-      if (!reader) throw new Error('No reader available')
+      const reader = resp.body?.getReader()
+      if (!reader) throw new Error('No stream')
 
-      let accumulatedContent = ''
+      let accumulated = ''
       const decoder = new TextDecoder()
-      let sources: any[] = []
+      let stepsLog: ThinkingStep[] = []
+
+      const updateLast = (patch: Partial<Message>) => {
+        setMessages(prev => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { ...updated[updated.length - 1], ...patch }
+          return updated
+        })
+      }
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
 
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
+        for (const line of decoder.decode(value).split('\n')) {
+          if (!line.startsWith('data: ')) continue
+          try {
+            const data = JSON.parse(line.slice(6))
 
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-
-              if (data.event === 'thinking') {
-                setCurrentThinkingStep(data.message || 'Thinking...')
-                setMessages(prev => {
-                  const updated = [...prev]
-                  updated[updated.length - 1].thinkingSteps = updated[updated.length - 1].thinkingSteps || []
-                  updated[updated.length - 1].thinkingSteps!.push({
-                    step: data.message || 'Thinking...',
-                    duration: data.duration
-                  })
-                  return updated
-                })
-              } else if (data.event === 'searching') {
-                setCurrentThinkingStep(`Searching ${data.source || ''} (${data.count || 0} results)`)
-                setMessages(prev => {
-                  const updated = [...prev]
-                  updated[updated.length - 1].thinkingSteps = updated[updated.length - 1].thinkingSteps || []
-                  updated[updated.length - 1].thinkingSteps!.push({
-                    step: `Searching ${data.source || ''} (${data.count || 0} results)`,
-                    duration: data.duration
-                  })
-                  return updated
-                })
-              } else if (data.event === 'token') {
-                accumulatedContent += data.content
-                setMessages(prev => {
-                  const updated = [...prev]
-                  updated[updated.length - 1].content = accumulatedContent
-                  return updated
-                })
-              } else if (data.event === 'sources') {
-                sources = data.sources
-                setMessages(prev => {
-                  const updated = [...prev]
-                  updated[updated.length - 1].sources = sources
-                  return updated
-                })
-              } else if (data.event === 'done') {
-                setCurrentThinkingStep('')
-                setMessages(prev => {
-                  const updated = [...prev]
-                  updated[updated.length - 1].isStreaming = false
-                  return updated
-                })
-                saveCurrentChat(messages)
+            if (data.event === 'thinking') {
+              stepsLog = [...stepsLog, { type: 'thinking', message: data.message || 'Thinking…' }]
+              updateLast({ thinkingSteps: stepsLog })
+            } else if (data.event === 'searching') {
+              stepsLog = [...stepsLog, {
+                type: 'searching',
+                message: `Searching ${data.source || 'context'}`,
+                source: data.source,
+                count: data.count,
+              }]
+              updateLast({ thinkingSteps: stepsLog })
+            } else if (data.event === 'token') {
+              accumulated += data.content
+              // Mark all steps done once tokens arrive
+              if (stepsLog.some(s => !s.done)) {
+                stepsLog = stepsLog.map(s => ({ ...s, done: true }))
               }
-            } catch (e) {
-              // Ignore JSON parse errors
+              updateLast({ content: accumulated, thinkingSteps: stepsLog })
+            } else if (data.event === 'sources') {
+              updateLast({ sources: data.sources })
+            } else if (data.event === 'done') {
+              updateLast({ isStreaming: false })
+            } else if (data.event === 'error') {
+              updateLast({
+                content: data.message || 'Something went wrong.',
+                isStreaming: false,
+                isError: true,
+              })
             }
-          }
+          } catch {}
         }
       }
-    } catch (error) {
-      console.error('Query failed:', error)
+
+      // Final: persist full conversation
+      setMessages(prev => {
+        const final = prev.map((m, i) =>
+          i === prev.length - 1 ? { ...m, isStreaming: false } : m
+        )
+        if (chatId) saveMessages(final, chatId)
+        return final
+      })
+    } catch {
       setMessages(prev => {
         const updated = [...prev]
         updated[updated.length - 1] = {
           ...updated[updated.length - 1],
-          content: 'Sorry, I encountered an error while processing your request. Please try again.',
+          content: 'Failed to connect. Make sure the backend is running.',
           isStreaming: false,
           isError: true,
         }
+        if (chatId) saveMessages(updated, chatId)
         return updated
       })
     } finally {
       setIsStreaming(false)
     }
-  }
+  }, [input, isStreaming, messages, saveMessages, persistChats])
 
-  // Export chat functionality
-  const exportChat = () => {
-    if (!currentChat) return
-    
-    const chatContent = {
-      title: currentChat.title,
-      createdAt: currentChat.createdAt,
-      messages: currentChat.messages.map(msg => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp
-      }))
-    }
-    
-    const blob = new Blob([JSON.stringify(chatContent, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `chat-${currentChat.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    
-    toast.success('📥 Chat exported successfully')
-  }
-
-  // Legacy command handler removed - using new slash command system
-  // Bookmarks helper
-  const showBookmarks = () => {
-    const bookmarkedMsgs = messages.filter(m => bookmarkedMessages.includes(m.id))
-    if (bookmarkedMsgs.length > 0) {
-      toast.info(`📌 ${bookmarkedMsgs.length} bookmarked messages`)
-    } else {
-      toast.info('No bookmarked messages')
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
     }
   }
-
-  const filteredChats = chats.filter(chat => 
-    chat.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    chat.messages.some(msg => msg.content.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
-
-  const filteredMessages = messages.filter(msg =>
-    msg.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (msg.sources && msg.sources.some((s: any) => s.type.toLowerCase().includes(searchQuery.toLowerCase())))
-  )
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages, scrollToBottom])
-
-  // Auto-resize textarea with command support
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value
-    setInput(value)
-    
-    // Check for slash commands
-    if (value.startsWith('/')) {
-      setShowCommands(true)
-      setCommandFilter(value)
-    } else {
-      setShowCommands(false)
-      setCommandFilter('')
-    }
-    
-    // Check for commands
-    if (value.startsWith('/') && value.includes(' ')) {
-      const command = value.split(' ')[0]
-      handleCommand(command)
-      return
-    }
-    
-    const textarea = e.target
-    const newHeight = Math.min(textarea.scrollHeight, 150)
-    setInputHeight(`${newHeight}px`)
-  }
-
-  const handleSend = () => {
-    if (input.startsWith('/')) {
-      handleCommand(input)
-      setInput('')
-      return
-    }
-    handleSendWithReply()
-  }
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault()
-        handleSend()
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [input, isStreaming])
 
   const connectedIntegrations = integrations.filter(i => i.is_active)
-  const hasIntegrations = connectedIntegrations.length > 0
   const currentChat = chats.find(c => c.id === currentChatId)
 
-  const formatTime = (date?: Date) => {
-    if (!date) return ''
-    const d = new Date(date)
-    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-  }
-
-  const handleSendWithInput = (text: string) => {
-    setInput(text)
-    setTimeout(() => {
-      handleSend()
-    }, 100)
-  }
-
-  const handleCopyMessage = async (content: string) => {
-    try {
-      await navigator.clipboard.writeText(content)
-      setCopiedMessageId(Date.now())
-      toast.success('Copied to clipboard')
-      setTimeout(() => setCopiedMessageId(null), 2000)
-    } catch (err) {
-      toast.error('Failed to copy')
-    }
-  }
-
   return (
-    <div className="flex h-screen bg-dark-950 overflow-hidden">
-      {/* Sidebar */}
-      <div className={`fixed sm:relative w-80 bg-dark-900/40 border-r border-dark-800/40 flex flex-col flex-shrink-0 backdrop-blur-xl z-50 sm:z-10 transform transition-transform duration-300 ease-in-out ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full sm:translate-x-0'
-      }`}>
-        {/* Mobile Header */}
-        <div className="flex items-center justify-between p-4 border-b border-dark-800/30 sm:hidden">
-          <h2 className="text-sm font-medium text-white">Chats</h2>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-1 rounded-md text-dark-400 hover:text-white hover:bg-dark-800/50 transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        
-        {/* New Chat Button */}
-        <div className="p-3 border-b border-dark-800/30">
-          <button
-            onClick={createNewChat}
-            className="w-full flex items-center gap-2 px-3 py-2.5 bg-brand/10 border border-brand/20 text-brand hover:bg-brand/20 rounded-lg transition-all text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            New chat
-          </button>
-        </div>
+    <>
+      <style>{`
+        @keyframes ctxFadeIn {
+          from { opacity: 0; transform: translateY(5px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes ctxBounce {
+          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
+          40%            { transform: translateY(-4px); opacity: 1; }
+        }
 
-        {/* Chat List */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="p-2">
-            <div className="space-y-1">
-              {filteredChats.map((chat) => (
-                <div
-                  key={chat.id}
-                  className={`group relative rounded-lg p-3 cursor-pointer transition-all ${
-                    currentChatId === chat.id
-                      ? 'bg-brand/10 border border-brand/20'
-                      : 'hover:bg-dark-800/40 border border-transparent'
-                  }`}
-                  onClick={() => setCurrentChatId(chat.id)}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      {editingChatId === chat.id ? (
-                        <input
-                          type="text"
-                          value={editingTitle}
-                          onChange={(e) => setEditingTitle(e.target.value)}
-                          onBlur={() => updateChatTitle(chat.id, editingTitle)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') updateChatTitle(chat.id, editingTitle)
-                            if (e.key === 'Escape') setEditingChatId(null)
-                          }}
-                          className="w-full bg-transparent text-white text-sm font-medium outline-none border-b border-brand/50"
-                          autoFocus
-                        />
-                      ) : (
-                        <h3 className="text-sm font-medium text-white truncate">{chat.title}</h3>
-                      )}
-                      <p className="text-xs text-dark-400 mt-1">
-                        {formatTime(chat.updatedAt)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setEditingChatId(chat.id)
-                          setEditingTitle(chat.title)
-                        }}
-                        className="p-1 rounded text-dark-400 hover:text-white hover:bg-dark-700/50 transition-colors"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          deleteChat(chat.id)
-                        }}
-                        className="p-1 rounded text-dark-400 hover:text-danger hover:bg-danger/10 transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+        /* ── Prose ── */
+        .chat-prose { line-height: 1.75; }
+        .chat-prose .chat-h1 { font-size: 1.2rem; font-weight: 700; color: #fff; margin: 1.2em 0 0.5em; }
+        .chat-prose .chat-h2 { font-size: 1.05rem; font-weight: 700; color: #e4e4e7; margin: 1em 0 0.4em; }
+        .chat-prose .chat-h3 { font-size: 0.95rem; font-weight: 600; color: #d4d4d8; margin: 0.8em 0 0.3em; }
+        .chat-prose .chat-p  { margin-bottom: 0.75em; }
+        .chat-prose .chat-p:last-child { margin-bottom: 0; }
+        .chat-prose .chat-ul { padding-left: 1.25rem; margin: 0.5em 0; list-style-type: disc; }
+        .chat-prose .chat-li { margin: 0.3em 0; }
+        .chat-prose .chat-bq {
+          border-left: 3px solid rgba(217,119,6,0.5);
+          padding-left: 0.75rem;
+          margin: 0.75em 0;
+          color: #71717a;
+          font-style: italic;
+        }
+        .chat-prose .chat-hr { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 1em 0; }
+        .chat-prose .chat-code-block {
+          margin: 0.75em 0;
+          border-radius: 10px;
+          overflow: hidden;
+          background: rgba(0,0,0,0.45);
+          border: 1px solid rgba(255,255,255,0.07);
+        }
+        .chat-prose .chat-code-lang {
+          padding: 0.35rem 0.9rem;
+          font-size: 0.68rem;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: #52525b;
+          border-bottom: 1px solid rgba(255,255,255,0.05);
+          background: rgba(255,255,255,0.02);
+        }
+        .chat-prose .chat-code-block code {
+          display: block;
+          padding: 0.9rem;
+          font-size: 0.8rem;
+          line-height: 1.65;
+          color: #e4e4e7;
+          font-family: 'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+          white-space: pre;
+          overflow-x: auto;
+        }
+        .chat-prose .chat-inline-code {
+          background: rgba(217,119,6,0.1);
+          border: 1px solid rgba(217,119,6,0.2);
+          color: #f59e0b;
+          padding: 0.1em 0.35em;
+          border-radius: 4px;
+          font-size: 0.82em;
+          font-family: 'JetBrains Mono',monospace;
+        }
+        /* sidebar scrollbar */
+        .ctx-sidebar::-webkit-scrollbar { width: 3px; }
+        .ctx-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        /* messages scrollbar */
+        .ctx-messages::-webkit-scrollbar { width: 4px; }
+        .ctx-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
+      `}</style>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-dark-800/30 px-4 sm:px-6 py-3 bg-dark-900/20 backdrop-blur-sm">
-          <div className="flex items-center justify-between max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              {/* Mobile Menu Toggle */}
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-md text-dark-400 hover:text-white hover:bg-dark-800/50 transition-colors sm:hidden"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              
-              {/* Search Button */}
-              <button
-                onClick={() => setShowSearch(!showSearch)}
-                className="p-2 rounded-md text-dark-400 hover:text-white hover:bg-dark-800/50 transition-colors"
-              >
-                <Search className="w-5 h-5" />
-              </button>
-              
-              <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl font-semibold text-white truncate">
-                  {currentChat?.title || 'New conversation'}
-                </h1>
-                <p className="text-xs text-dark-400 mt-1 hidden sm:block">
-                  {connectedIntegrations.length} integration{connectedIntegrations.length !== 1 ? 's' : ''} connected
-                  {filteredMessages.length !== messages.length && ` • ${filteredMessages.length} filtered messages`}
-                </p>
-              </div>
-            </div>
-            
-            {/* Actions */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={exportChat}
-                className="p-2 rounded-md text-dark-400 hover:text-white hover:bg-dark-800/50 transition-colors"
-                title="Export chat"
-              >
-                <Share2 className="w-4 h-4" />
-              </button>
-              
-              {hasIntegrations && (
-                <div className="flex gap-1.5 flex-shrink-0 ml-2">
-                  {connectedIntegrations.slice(0, 3).map(i => (
-                    <span
-                      key={i.id}
-                      className="px-2 py-1 bg-success/10 border border-success/20 rounded-full text-[10px] font-medium text-success hidden xs:block"
-                    >
-                      {i.provider.charAt(0).toUpperCase() + i.provider.slice(1)}
-                    </span>
-                  ))}
-                  {connectedIntegrations.length > 3 && (
-                    <span className="px-2 py-1 bg-dark-800 border border-dark-700 rounded-full text-[10px] font-medium text-dark-300">
-                      +{connectedIntegrations.length - 3}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
+      <div className="flex overflow-hidden" style={{ height: 'calc(100vh - 0px)', background: '#09090b' }}>
+
+        {/* ══ Sidebar ══ */}
+        <div
+          className="w-[220px] flex-shrink-0 flex flex-col border-r"
+          style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(9,9,11,0.98)' }}
+        >
+          {/* New chat button */}
+          <div className="p-3 pb-2">
+            <button
+              onClick={createNewChat}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-white transition-all"
+              style={{ background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.15)' }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(217,119,6,0.12)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(217,119,6,0.07)')}
+            >
+              <Plus className="w-4 h-4 text-brand" />
+              New conversation
+            </button>
           </div>
-          
-          {/* Search Bar */}
-          {showSearch && (
-            <div className="max-w-4xl mx-auto mt-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-dark-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search messages and chats..."
-                  className="w-full pl-10 pr-4 py-2 bg-dark-800/50 border border-dark-700 rounded-lg text-white placeholder-dark-400 focus:outline-none focus:border-brand/50 transition-colors"
-                  autoFocus
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-dark-400 hover:text-white"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+
+          {/* Connected badge */}
+          {connectedIntegrations.length > 0 && (
+            <div className="px-3 pb-2">
+              <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
+                style={{ background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.12)' }}>
+                <div className="w-1.5 h-1.5 rounded-full bg-success" />
+                <span className="text-[10px] text-success font-medium">
+                  {connectedIntegrations.length} source{connectedIntegrations.length !== 1 ? 's' : ''} active
+                </span>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Messages Container */}
-        <div className="flex-1 overflow-hidden relative">
-          <div className="h-full flex flex-col max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            {/* Search Results Indicator */}
-            {searchQuery && (
-              <div className="mb-4 p-2 bg-dark-800/40 rounded-lg border border-dark-700">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-dark-400">
-                    Found {filteredMessages.length} message{filteredMessages.length !== 1 ? 's' : ''} for "{searchQuery}"
-                  </span>
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="text-xs text-brand hover:text-brand-light"
-                  >
-                    Clear search
-                  </button>
-                </div>
-              </div>
+          {/* Divider */}
+          <div className="mx-3 mb-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }} />
+
+          {/* Chat list */}
+          <div className="flex-1 overflow-y-auto ctx-sidebar px-2 pb-3">
+            {chats.length === 0 && (
+              <p className="text-[11px] text-dark-600 text-center py-6">No conversations yet</p>
             )}
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto">
-              {(searchQuery ? filteredMessages : messages).map((msg, idx) => (
+            {chats.map(chat => {
+              const isActive = currentChatId === chat.id
+              return (
                 <div
-                  key={msg.id}
-                  className={`group flex gap-4 py-6 animate-fade-in ${
-                    msg.role === 'user' ? 'flex-row-reverse' : ''
-                  }`}
+                  key={chat.id}
+                  onClick={() => selectChat(chat)}
+                  className="group relative rounded-xl px-3 py-2.5 cursor-pointer transition-all mb-px"
+                  style={isActive
+                    ? { background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.18)' }
+                    : { border: '1px solid transparent' }
+                  }
+                  onMouseEnter={e => {
+                    if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.025)'
+                  }}
+                  onMouseLeave={e => {
+                    if (!isActive) (e.currentTarget as HTMLDivElement).style.background = ''
+                  }}
                 >
-                  {/* Avatar */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-br from-brand to-brand-dark text-white shadow-lg shadow-brand/20'
-                      : 'bg-dark-800 border border-dark-700 text-dark-300'
-                  }`}>
-                    {msg.role === 'user' ? (
-                      <User className="w-4 h-4" />
-                    ) : (
-                      <Bot className="w-4 h-4" />
-                    )}
-                  </div>
-
-                  {/* Message Content */}
-                  <div className={`flex-1 min-w-0 ${msg.role === 'user' ? 'flex flex-col items-end' : ''}`}>
-                    <div
-                      className={`inline-block max-w-full rounded-2xl px-4 py-3 sm:px-5 sm:py-4 prose-content ${
-                        msg.role === 'user'
-                          ? 'bg-gradient-to-r from-brand to-brand-dark text-white shadow-lg shadow-brand/20'
-                          : msg.isError
-                          ? 'bg-danger/10 border border-danger/20 text-danger'
-                          : 'bg-dark-800/60 border border-dark-700/50 text-dark-200 backdrop-blur-sm'
-                      }`}
-                    >
-                      {msg.content}
-                      {msg.isStreaming && <span className="inline-block w-0.5 h-5 bg-current ml-1 animate-pulse align-middle" />}
+                  <div className="flex items-start justify-between gap-1">
+                    <div className="flex-1 min-w-0">
+                      {editingChatId === chat.id ? (
+                        <input
+                          value={editingTitle}
+                          onChange={e => setEditingTitle(e.target.value)}
+                          onBlur={() => renameChat(chat.id, editingTitle)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') renameChat(chat.id, editingTitle)
+                            if (e.key === 'Escape') setEditingChatId(null)
+                          }}
+                          className="w-full bg-transparent text-white text-xs outline-none border-b"
+                          style={{ borderColor: 'rgba(217,119,6,0.5)' }}
+                          autoFocus
+                          onClick={e => e.stopPropagation()}
+                        />
+                      ) : (
+                        <p className={`text-xs font-medium truncate ${isActive ? 'text-white' : 'text-dark-300'}`}>
+                          {chat.title}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-dark-600 mt-0.5">
+                        {chat.messages.length} message{chat.messages.length !== 1 ? 's' : ''}
+                      </p>
                     </div>
 
-                    {/* Message Actions */}
-                    {!msg.isStreaming && msg.content && (
-                      <div className={`flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                        <button
-                          onClick={() => handleCopyMessage(msg.content)}
-                          className="p-1.5 text-xs text-dark-400 hover:text-white hover:bg-dark-800/60 rounded transition-all"
-                          title="Copy message"
-                        >
-                          {copiedMessageId === msg.id ? (
-                            <CheckCheck className="w-3.5 h-3.5 text-success" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-
-                      </div>
-                    )}
+                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
+                      <button
+                        onClick={e => { e.stopPropagation(); setEditingChatId(chat.id); setEditingTitle(chat.title) }}
+                        className="p-1 rounded text-dark-600 hover:text-dark-300 transition-colors"
+                      >
+                        <Edit3 className="w-2.5 h-2.5" />
+                      </button>
+                      <button
+                        onClick={e => { e.stopPropagation(); deleteChat(chat.id) }}
+                        className="p-1 rounded text-dark-600 hover:text-danger transition-colors"
+                      >
+                        <Trash2 className="w-2.5 h-2.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))}
-              
-              <div ref={messagesEndRef} />
-            </div>
-
-            {/* Empty State */}
-            {!loadingIntegrations && !hasIntegrations && messages.length === 0 && (
-              <div className="flex-1 flex flex-col items-center justify-center text-center">
-                <div className="mb-8">
-                  <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-brand/10 to-brand/20 border border-brand/20 rounded-2xl mb-6">
-                    <Bot className="w-8 h-8 sm:w-10 sm:h-10 text-brand" />
-                  </div>
-                  <h2 className="text-xl sm:text-2xl font-semibold text-white mb-3">How can I help you today?</h2>
-                  <p className="text-dark-400 max-w-md text-sm sm:text-base">
-                    Connect GitHub, Notion, or Slack to get personalized answers from your workspace.
-                  </p>
-                </div>
-                <a
-                  href="/dashboard/integrations"
-                  className="inline-flex items-center gap-2 text-sm text-brand hover:text-brand-light font-medium transition-colors"
-                >
-                  Set up integrations
-                  <span className="transform transition-transform group-hover:translate-x-1">→</span>
-                </a>
-              </div>
-            )}
+              )
+            })}
           </div>
         </div>
 
-        {/* Input Area */}
-        <div className="flex-shrink-0 border-t border-dark-800/30 bg-gradient-to-t from-dark-950/90 to-dark-900/50 backdrop-blur-xl">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-            <div className="flex gap-3 items-end">
-              {/* Slash Commands Dropdown */}
-              {showCommands && filteredCommands.length > 0 && (
-                <div className="absolute bottom-full left-0 mb-2 w-full max-w-md bg-dark-800 border border-dark-700 rounded-lg shadow-lg overflow-hidden">
-                  <div className="p-2 border-b border-dark-700">
-                    <p className="text-xs text-dark-400">Commands</p>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto">
-                    {filteredCommands.map((cmd) => (
-                      <button
-                        key={cmd.name}
-                        onClick={() => handleCommand(cmd.name)}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-dark-700/50 transition-colors text-left"
-                      >
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-white">{cmd.name}</p>
-                          <p className="text-xs text-dark-400">{cmd.description}</p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+        {/* ══ Main ══ */}
+        <div className="flex-1 flex flex-col min-w-0">
 
-              {/* Main Input */}
-              <div className="flex-1 relative">
+          {/* Header */}
+          <div
+            className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b"
+            style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(9,9,11,0.9)', backdropFilter: 'blur(12px)' }}
+          >
+            <div>
+              <h1 className="text-sm font-semibold text-white">
+                {currentChat?.title || 'ContextOS AI'}
+              </h1>
+              <p className="text-[11px] mt-0.5" style={{ color: '#3f3f46' }}>
+                {loadingIntegrations ? 'Loading…'
+                  : connectedIntegrations.length === 0
+                    ? 'Connect integrations to search your context'
+                    : connectedIntegrations.map(i => i.provider.replace('_', ' ')).join(', ')
+                }
+              </p>
+            </div>
+
+            {/* Provider pills */}
+            <div className="flex items-center gap-1.5">
+              {connectedIntegrations.slice(0, 4).map(i => {
+                const color = PROVIDER_COLORS[i.provider] || '#6b7280'
+                return (
+                  <span key={i.id} className="px-2 py-0.5 rounded-full text-[10px] font-medium capitalize"
+                    style={{ background: `${color}15`, border: `1px solid ${color}30`, color }}>
+                    {i.provider.replace('_', ' ')}
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Messages */}
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto ctx-messages"
+          >
+            {messages.length === 0
+              ? <EmptyState onSuggest={q => { setInput(q); setTimeout(() => handleSend(), 50) }} />
+              : (
+                <div className="max-w-3xl mx-auto px-6 py-8">
+                  {messages.map(msg => (
+                    <MessageBubble
+                      key={msg.id}
+                      msg={msg}
+                      onCopy={handleCopy}
+                      copiedId={copiedId}
+                    />
+                  ))}
+                  <div ref={bottomRef} />
+                </div>
+              )
+            }
+
+            {showScrollDown && (
+              <button
+                onClick={scrollToBottom}
+                className="fixed bottom-28 right-8 p-2 rounded-full shadow-lg transition-all z-10"
+                style={{ background: 'rgba(24,24,27,0.95)', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <ChevronDown className="w-4 h-4 text-dark-300" />
+              </button>
+            )}
+          </div>
+
+          {/* Input */}
+          <div
+            className="flex-shrink-0 px-6 py-4 border-t"
+            style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(9,9,11,0.97)', backdropFilter: 'blur(12px)' }}
+          >
+            <div className="max-w-3xl mx-auto">
+              <div
+                id="chat-input-box"
+                className="relative rounded-2xl transition-all duration-150"
+                style={{ background: 'rgba(24,24,27,0.8)', border: '1px solid rgba(255,255,255,0.08)' }}
+                onFocusCapture={e => {
+                  const el = e.currentTarget as HTMLDivElement
+                  el.style.borderColor = 'rgba(217,119,6,0.35)'
+                  el.style.boxShadow = '0 0 0 3px rgba(217,119,6,0.06)'
+                }}
+                onBlurCapture={e => {
+                  const el = e.currentTarget as HTMLDivElement
+                  el.style.borderColor = 'rgba(255,255,255,0.08)'
+                  el.style.boxShadow = 'none'
+                }}
+              >
                 <textarea
                   ref={textareaRef}
                   value={input}
                   onChange={handleInputChange}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      handleSend()
-                    }
-                  }}
-                  placeholder="Send a message... (Ctrl+Enter to send)"
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask anything about your project…"
                   rows={1}
-                  style={{ height: inputHeight }}
-                  className="w-full bg-dark-900/80 border border-dark-700/50 rounded-2xl px-4 py-3 sm:px-5 sm:py-4 text-base text-white placeholder-dark-500 resize-none focus:outline-none focus:border-brand/50 focus:bg-dark-800/60 focus:ring-2 focus:ring-brand/20 transition-all min-h-[52px] sm:min-h-[56px] backdrop-blur-sm"
+                  disabled={isStreaming}
+                  className="w-full bg-transparent px-5 pt-4 pb-12 text-sm text-white placeholder-dark-600 resize-none focus:outline-none leading-relaxed"
+                  style={{ minHeight: '56px', maxHeight: '200px' }}
                 />
-                
-                {/* Input Status */}
-                <div className="absolute bottom-2 right-2 flex items-center gap-2 pointer-events-none">
-                  {input.length > 0 && (
-                    <span className="text-xs text-dark-500">{input.length}</span>
-                  )}
+
+                {/* Bottom bar */}
+                <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between pointer-events-none">
+                  <div className="pointer-events-auto">
+                    {isStreaming ? (
+                      <div className="flex items-center gap-1.5 text-[11px] text-dark-500">
+                        <span className="flex gap-1">
+                          {[0,1,2].map(i => (
+                            <span key={i} className="w-1 h-1 rounded-full"
+                              style={{ background: '#d97706', animation: `ctxBounce 1.2s ease-in-out ${i*0.15}s infinite` }} />
+                          ))}
+                        </span>
+                        <span>Generating…</span>
+                      </div>
+                    ) : (
+                      <span className="text-[10px]" style={{ color: '#27272a' }}>
+                        Enter ↵ to send · Shift+Enter for newline
+                      </span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleSend}
+                    disabled={isStreaming || !input.trim()}
+                    className="pointer-events-auto flex items-center justify-center w-8 h-8 rounded-xl transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed"
+                    style={{
+                      background: input.trim() && !isStreaming
+                        ? 'linear-gradient(135deg, #d97706, #b45309)'
+                        : 'rgba(255,255,255,0.05)',
+                    }}
+                  >
+                    {isStreaming
+                      ? <Loader2 className="w-4 h-4 text-white animate-spin" />
+                      : <ArrowUp className="w-4 h-4 text-white" />
+                    }
+                  </button>
                 </div>
               </div>
 
-              {/* Send Button */}
-              <button
-                onClick={handleSend}
-                disabled={isStreaming || !input.trim()}
-                className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 shadow-lg shadow-brand/20 h-[52px] sm:h-[56px] px-4 sm:px-6 rounded-2xl"
-              >
-                {isStreaming ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <Send className="w-5 h-5" />
-                )}
-              </button>
-            </div>
-            
-            {/* Footer */}
-            <div className="flex items-center justify-between mt-3 text-[10px] text-dark-500">
-              <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1">
-                  <span>Ctrl+Enter to send</span>
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>Press / for commands</span>
-                <span className="w-1 h-1 bg-dark-600 rounded-full" />
-                <span>Shift+Enter for new line</span>
-              </div>
+              <p className="text-center text-[10px] mt-2" style={{ color: '#27272a' }}>
+                ContextOS AI · Responses grounded in your connected sources
+              </p>
             </div>
           </div>
         </div>
       </div>
-
-    </div>
+    </>
   )
 }

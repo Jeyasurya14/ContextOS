@@ -12,6 +12,7 @@ from qdrant_client.models import (
     FieldCondition,
     MatchValue,
     MatchAny,
+    PayloadSchemaType,
 )
 
 from app.core.config import settings
@@ -53,6 +54,10 @@ async def init_collection() -> bool:
             logger.info(f"Created Qdrant collection: {settings.QDRANT_COLLECTION}")
         else:
             logger.info(f"Qdrant collection exists: {settings.QDRANT_COLLECTION}")
+
+        # Ensure payload indexes exist for filterable fields
+        _ensure_payload_indexes()
+
         qdrant_available = True
         return True
     except Exception as e:
@@ -65,6 +70,27 @@ async def init_collection() -> bool:
             e,
         )
         return False
+
+
+def _ensure_payload_indexes() -> None:
+    """Create payload indexes required for filtered search. Safe to call repeatedly."""
+    index_specs = [
+        ("user_id", PayloadSchemaType.UUID),
+        ("source_type", PayloadSchemaType.KEYWORD),
+        ("integration_id", PayloadSchemaType.KEYWORD),
+    ]
+    for field, schema_type in index_specs:
+        try:
+            qdrant_client.create_payload_index(
+                collection_name=settings.QDRANT_COLLECTION,
+                field_name=field,
+                field_schema=schema_type,
+            )
+            logger.info(f"Qdrant payload index ensured: {field} ({schema_type})")
+        except Exception as e:
+            # Index may already exist — Qdrant raises an error but it's safe to ignore
+            logger.debug(f"Payload index {field} already exists or skipped: {e}")
+
 
 async def upsert_vectors(points: list[dict]) -> bool:
     """Upsert batch of vectors to Qdrant."""

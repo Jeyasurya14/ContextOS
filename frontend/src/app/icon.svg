@@ -1,8 +1,55 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#0d1117"/>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d0d1a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#080810;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="cGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b5bff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aff;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#5e3aff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9f37ff;stop-opacity:1" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <!-- Background rounded rect -->
+  <rect width="64" height="64" rx="14" fill="url(#bg)" />
+  <!-- Subtle inner border -->
+  <rect width="64" height="64" rx="14" fill="none" stroke="rgba(100,80,255,0.18)" stroke-width="1"/>
+
+  <!-- "C" arc shape -->
   <path
-    d="M20 18h15c8.837 0 16 7.163 16 16s-7.163 16-16 16H20V18zm15 24c4.418 0 8-3.582 8-8s-3.582-8-8-8h-7v16h7z"
-    fill="#388bfd"
+    d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50"
+    fill="none"
+    stroke="url(#cGrad)"
+    stroke-width="5.5"
+    stroke-linecap="round"
+    filter="url(#glow)"
   />
-  <circle cx="22" cy="32" r="4" fill="#f0f6fc"/>
+  <!-- Blue dot center of C -->
+  <circle cx="17" cy="32" r="4" fill="#3b5bff" filter="url(#glow)" />
+
+  <!-- Hexagon "OS" shape (stacked layers inside hex) -->
+  <g transform="translate(37,32)" filter="url(#glow)">
+    <!-- Hex outline -->
+    <path
+      d="M0,-15 L13,-7.5 L13,7.5 L0,15 L-13,7.5 L-13,-7.5 Z"
+      fill="none"
+      stroke="url(#hexGrad)"
+      stroke-width="2.5"
+      stroke-linejoin="round"
+    />
+    <!-- Layer lines inside hex -->
+    <line x1="-7" y1="-4" x2="7" y2="-4" stroke="url(#hexGrad)" stroke-width="2" stroke-linecap="round"/>
+    <line x1="-7" y1="0" x2="7" y2="0" stroke="url(#hexGrad)" stroke-width="2" stroke-linecap="round"/>
+    <line x1="-7" y1="4" x2="7" y2="4" stroke="url(#hexGrad)" stroke-width="2" stroke-linecap="round"/>
+  </g>
 </svg>

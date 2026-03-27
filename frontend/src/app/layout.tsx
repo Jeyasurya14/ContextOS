@@ -2,90 +2,142 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { ToastProvider } from '@/components/ui/Toast'
-import { LayoutDashboard, MessageSquare, Plug, FolderOpen, Users, CreditCard, Settings, LogOut, Layers, Sparkles } from 'lucide-react'
+import {
+  LayoutDashboard, MessageSquare, Plug, FolderOpen, Users,
+  CreditCard, Settings, LogOut, ChevronRight
+} from 'lucide-react'
 import Link from 'next/link'
 import '@/globals.css'
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+const NAV_ITEMS = [
+  { href: '/dashboard',              icon: LayoutDashboard, label: 'Dashboard'    },
+  { href: '/dashboard/chat',         icon: MessageSquare,   label: 'Chat'         },
+  { href: '/dashboard/integrations', icon: Plug,            label: 'Integrations' },
+  { href: '/dashboard/projects',     icon: FolderOpen,      label: 'Projects'     },
+  { href: '/dashboard/team',         icon: Users,           label: 'Team'         },
+  { href: '/dashboard/billing',      icon: CreditCard,      label: 'Billing'      },
+  { href: '/dashboard/settings',     icon: Settings,        label: 'Settings'     },
+]
+
+/* ─── ContextOS Logo SVG ─────────────────────────────────────── */
+function Logo() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="36" height="36">
+      <defs>
+        <linearGradient id="lCGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#3b5bff" />
+          <stop offset="100%" stopColor="#7c3aff" />
+        </linearGradient>
+        <linearGradient id="lHGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#5e3aff" />
+          <stop offset="100%" stopColor="#9f37ff" />
+        </linearGradient>
+        <filter id="lGlow">
+          <feGaussianBlur stdDeviation="1.5" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+      <path d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50"
+        fill="none" stroke="url(#lCGrad)" strokeWidth="5.5" strokeLinecap="round" filter="url(#lGlow)" />
+      <circle cx="17" cy="32" r="4" fill="#3b5bff" filter="url(#lGlow)" />
+      <g transform="translate(37,32)" filter="url(#lGlow)">
+        <path d="M0,-15 L13,-7.5 L13,7.5 L0,15 L-13,7.5 L-13,-7.5 Z"
+          fill="none" stroke="url(#lHGrad)" strokeWidth="2.5" strokeLinejoin="round" />
+        <line x1="-7" y1="-4" x2="7" y2="-4" stroke="url(#lHGrad)" strokeWidth="2" strokeLinecap="round" />
+        <line x1="-7" y1="0" x2="7" y2="0" stroke="url(#lHGrad)" strokeWidth="2" strokeLinecap="round" />
+        <line x1="-7" y1="4" x2="7" y2="4" stroke="url(#lHGrad)" strokeWidth="2" strokeLinecap="round" />
+      </g>
+    </svg>
+  )
+}
+
+/* ─── Nav item ───────────────────────────────────────────────── */
+function NavItem({ item, isActive }: { item: typeof NAV_ITEMS[0]; isActive: boolean }) {
+  const [hov, setHov] = useState(false)
+  const Icon = item.icon
+
+  return (
+    <Link href={item.href}>
+      <div
+        className="relative flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 group"
+        style={{
+          background: isActive
+            ? 'rgba(217,119,6,0.1)'
+            : hov ? 'rgba(255,255,255,0.035)' : 'transparent',
+          border: isActive
+            ? '1px solid rgba(217,119,6,0.18)'
+            : '1px solid transparent',
+        }}
+        onMouseEnter={() => setHov(true)}
+        onMouseLeave={() => setHov(false)}
+      >
+        {/* Active left bar */}
+        {isActive && (
+          <div className="absolute left-0 top-2 bottom-2 w-0.5 rounded-full"
+            style={{ background: 'linear-gradient(180deg, #d97706, #f59e0b)' }} />
+        )}
+
+        <Icon
+          className="w-[17px] h-[17px] flex-shrink-0 transition-colors duration-150"
+          style={{ color: isActive ? '#d97706' : hov ? '#a1a1aa' : '#52525b' }}
+        />
+        <span
+          className="text-[13px] font-medium transition-colors duration-150"
+          style={{ color: isActive ? '#f59e0b' : hov ? '#d4d4d8' : '#71717a' }}
+        >
+          {item.label}
+        </span>
+
+        {isActive && (
+          <div className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0"
+            style={{ background: '#d97706', boxShadow: '0 0 6px rgba(217,119,6,0.8)' }} />
+        )}
+      </div>
+    </Link>
+  )
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const { user, isInitialized, isLoading, initialize, token } = useAuthStore()
 
-  useEffect(() => {
-    initialize()
-  }, [])
+  useEffect(() => { initialize() }, [])
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      const store = useAuthStore.getState()
-      if (!store.isInitialized) {
-        useAuthStore.setState({ isInitialized: true, isLoading: false })
-      }
+    const t = setTimeout(() => {
+      const s = useAuthStore.getState()
+      if (!s.isInitialized) useAuthStore.setState({ isInitialized: true, isLoading: false })
     }, 5000)
-    return () => clearTimeout(timeout)
+    return () => clearTimeout(t)
   }, [])
 
   const isDashboard = pathname?.startsWith('/dashboard')
-  const isAuth = pathname?.startsWith('/login') ||
-                 pathname?.startsWith('/register')
 
   useEffect(() => {
-    if (isDashboard && isInitialized && !token) {
-      window.location.href = '/login'
-    }
+    if (isDashboard && isInitialized && !token) window.location.href = '/login'
   }, [isDashboard, isInitialized, token])
 
-  if (isDashboard && !isInitialized) {
+  const handleLogout = () => { useAuthStore.getState().logout(); router.push('/login') }
+
+  // Loading states
+  if (isDashboard && (!isInitialized || (isInitialized && !token))) {
     return (
       <html lang="en" className="dark">
         <body>
           <div className="flex items-center justify-center min-h-screen bg-dark-950">
             <div className="flex flex-col items-center gap-4">
               <div className="w-10 h-10 border-2 border-brand border-t-transparent rounded-full animate-spin" />
-              <p className="text-dark-400 text-sm">Loading ContextOS...</p>
+              <p className="text-dark-500 text-sm">{isInitialized ? 'Redirecting…' : 'Loading ContextOS…'}</p>
             </div>
           </div>
         </body>
       </html>
     )
   }
-
-  if (isDashboard && isInitialized && !token) {
-    return (
-      <html lang="en" className="dark">
-        <body>
-          <div className="flex items-center justify-center min-h-screen bg-dark-950">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-10 h-10 border-2 border-brand border-t-transparent rounded-full animate-spin" />
-              <p className="text-dark-400 text-sm">Redirecting to login...</p>
-            </div>
-          </div>
-        </body>
-      </html>
-    )
-  }
-
-  const handleLogout = () => {
-    useAuthStore.getState().logout()
-    router.push('/login')
-  }
-
-  const navItems = [
-    { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { href: '/dashboard/chat', icon: MessageSquare, label: 'Chat' },
-    { href: '/dashboard/integrations', icon: Plug, label: 'Integrations' },
-    { href: '/dashboard/projects', icon: FolderOpen, label: 'Projects' },
-    { href: '/dashboard/team', icon: Users, label: 'Team' },
-    { href: '/dashboard/billing', icon: CreditCard, label: 'Billing' },
-    { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
-  ]
 
   return (
     <html lang="en" className="dark">
@@ -93,102 +145,115 @@ export default function RootLayout({
         <ToastProvider>
           {isDashboard ? (
             <div className="flex h-screen bg-dark-950 overflow-hidden">
-              {/* Premium Sidebar */}
-              <aside className="w-[240px] flex flex-col flex-shrink-0 relative border-r border-dark-800/30" style={{
-                background: 'linear-gradient(180deg, rgba(15,15,17,0.95) 0%, rgba(9,9,11,0.98) 100%)',
-              }}>
-                {/* Ambient glow behind sidebar */}
-                <div className="absolute top-0 right-0 w-40 h-40 bg-brand/[0.03] rounded-full blur-3xl pointer-events-none" />
-                <div className="absolute bottom-0 left-0 w-32 h-32 bg-brand/[0.02] rounded-full blur-3xl pointer-events-none" />
 
-                {/* Logo section */}
-                <div className="p-5 pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 bg-gradient-to-br from-brand to-brand-dark rounded-xl flex items-center justify-center shadow-glow-brand">
-                      <Layers className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h1 className="text-base font-bold text-white tracking-tight">ContextOS</h1>
-                      <p className="text-[10px] text-dark-500 font-medium uppercase tracking-widest">Dashboard</p>
-                    </div>
+              {/* ── Sidebar ── */}
+              <aside
+                className="w-[220px] flex flex-col flex-shrink-0 relative"
+                style={{
+                  background: 'linear-gradient(180deg, rgba(12,12,14,0.98) 0%, rgba(9,9,11,0.99) 100%)',
+                  borderRight: '1px solid rgba(255,255,255,0.05)',
+                }}
+              >
+                {/* Ambient glows */}
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, rgba(59,91,255,0.04) 0%, transparent 70%)' }} />
+                <div className="absolute bottom-20 left-0 w-24 h-24 rounded-full pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, rgba(217,119,6,0.03) 0%, transparent 70%)' }} />
+
+                {/* Logo */}
+                <div className="flex items-center gap-3 px-5 py-5">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden"
+                    style={{ background: 'linear-gradient(135deg, #0d0d1a, #080810)', border: '1px solid rgba(100,80,255,0.2)' }}>
+                    <Logo />
+                  </div>
+                  <div>
+                    <p className="text-[15px] font-bold text-white tracking-tight leading-none">ContextOS</p>
+                    <p className="text-[9px] text-dark-600 font-semibold uppercase tracking-[0.15em] mt-0.5">Workspace</p>
                   </div>
                 </div>
 
-                {/* Separator */}
-                <div className="mx-4 h-px bg-gradient-to-r from-transparent via-dark-700/50 to-transparent" />
+                {/* Divider */}
+                <div className="mx-4 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)' }} />
 
-                {/* Navigation */}
-                <nav className="flex-1 p-3 space-y-0.5 mt-2">
-                  {navItems.map((item) => {
-                    const isActive = pathname === item.href
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`nav-item ${isActive ? 'nav-item-active' : 'nav-item-inactive'}`}
-                      >
-                        <item.icon className={`w-[18px] h-[18px] transition-colors duration-200 ${
-                          isActive ? 'text-brand' : 'text-dark-500'
-                        }`} />
-                        <span>{item.label}</span>
-                        {isActive && (
-                          <div className="ml-auto w-1.5 h-1.5 rounded-full bg-brand shadow-sm shadow-brand/50" />
-                        )}
-                      </Link>
-                    )
-                  })}
+                {/* Nav */}
+                <nav className="flex-1 p-3 space-y-0.5 mt-1 overflow-y-auto">
+                  {NAV_ITEMS.map(item => (
+                    <NavItem
+                      key={item.href}
+                      item={item}
+                      isActive={item.href === '/dashboard' ? pathname === '/dashboard' : pathname?.startsWith(item.href) ?? false}
+                    />
+                  ))}
                 </nav>
 
-                {/* Separator */}
-                <div className="mx-4 h-px bg-gradient-to-r from-transparent via-dark-700/50 to-transparent" />
+                {/* Divider */}
+                <div className="mx-4 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)' }} />
 
-                {/* User Profile Card */}
-                <div className="p-3">
-                  <div className="glass-card !p-3 !rounded-xl mb-2">
-                    <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-brand/30 to-brand-dark/20 flex items-center justify-center text-brand font-semibold text-sm ring-2 ring-brand/10">
+                {/* User card */}
+                <div className="p-3 space-y-1">
+                  <Link href="/dashboard/settings">
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-all duration-150 group"
+                      style={{ border: '1px solid transparent' }}
+                      onMouseEnter={e => {
+                        (e.currentTarget.style.background = 'rgba(255,255,255,0.03)')
+                        ;(e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)')
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget.style.background = '')
+                        ;(e.currentTarget.style.borderColor = 'transparent')
+                      }}>
+                      {/* Avatar */}
+                      <div className="relative flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                          style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
                           {user?.name?.[0]?.toUpperCase() ?? '?'}
                         </div>
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-success rounded-full border-2 border-dark-900" />
+                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-dark-950" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
-                          {user?.name ?? 'Loading...'}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <Sparkles className="w-3 h-3 text-brand" />
-                          <span className="text-[10px] text-dark-400 capitalize font-medium">
-                            {user?.plan ?? 'free'} plan
-                          </span>
-                        </div>
+                        <p className="text-[12px] font-semibold text-white truncate leading-tight">{user?.name ?? '—'}</p>
+                        <p className="text-[9px] text-dark-600 capitalize">{user?.plan ?? 'free'} plan</p>
                       </div>
+                      <ChevronRight className="w-3 h-3 text-dark-700 flex-shrink-0 group-hover:text-dark-500 transition-colors" />
                     </div>
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-dark-500 hover:text-dark-200 hover:bg-dark-800/30 rounded-xl transition-all duration-200"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>Sign out</span>
+                  </Link>
+
+                  {/* Logout */}
+                  <button onClick={handleLogout}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] transition-all duration-150"
+                    style={{ color: '#3f3f46' }}
+                    onMouseEnter={e => {
+                      (e.currentTarget.style.background = 'rgba(220,38,38,0.06)')
+                      ;(e.currentTarget.style.color = '#f87171')
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget.style.background = '')
+                      ;(e.currentTarget.style.color = '#3f3f46')
+                    }}>
+                    <LogOut className="w-3.5 h-3.5" />
+                    Sign out
                   </button>
                 </div>
               </aside>
 
-              {/* Main Content */}
+              {/* ── Main ── */}
               <main className="flex-1 overflow-auto relative">
-                {/* Subtle ambient background */}
-                <div className="absolute inset-0 ambient-dots pointer-events-none opacity-50" />
-                <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-brand/[0.02] rounded-full blur-[120px] pointer-events-none" />
-                <div className="relative p-6 md:p-10">
+                {/* Ambient */}
+                <div className="absolute inset-0 pointer-events-none"
+                  style={{
+                    backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.012) 1px, transparent 1px)',
+                    backgroundSize: '24px 24px',
+                  }} />
+                <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full pointer-events-none"
+                  style={{ background: 'radial-gradient(circle, rgba(217,119,6,0.025) 0%, transparent 70%)' }} />
+
+                <div className="relative p-6 md:p-8 lg:p-10">
                   {children}
                 </div>
               </main>
             </div>
           ) : (
-            <div className="min-h-screen bg-dark-950">
-              {children}
-            </div>
+            <div className="min-h-screen bg-dark-950">{children}</div>
           )}
         </ToastProvider>
       </body>

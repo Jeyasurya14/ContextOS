@@ -2,11 +2,29 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Users, UserPlus, Mail, Loader2, Trash2, Copy, Sparkles, Crown, Shield, CheckCircle2 } from 'lucide-react'
+import { Users, UserPlus, Mail, Loader2, Trash2, Copy, Crown, Shield, CheckCircle2, X, ArrowRight } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { teamsApi } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
+
+const AVATAR_COLORS = ['#d97706','#8b5cf6','#3b82f6','#22c55e','#e01e5a','#f59e0b','#06b6d4','#a855f7']
+const getAvatarColor = (name: string) => AVATAR_COLORS[(name?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length]
+
+function RoleBadge({ role }: { role: string }) {
+  const cfg = role === 'owner'
+    ? { icon: Crown, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)' }
+    : role === 'admin'
+    ? { icon: Shield, color: '#818cf8', bg: 'rgba(129,140,248,0.1)', border: 'rgba(129,140,248,0.2)' }
+    : { icon: Users, color: '#71717a', bg: 'rgba(113,113,122,0.08)', border: 'rgba(113,113,122,0.15)' }
+  const Icon = cfg.icon
+  return (
+    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize"
+      style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}>
+      <Icon className="w-2.5 h-2.5" /> {role}
+    </span>
+  )
+}
 
 export default function TeamPage() {
   const { user } = useAuthStore()
@@ -22,9 +40,7 @@ export default function TeamPage() {
   const [inviteLink, setInviteLink] = useState('')
   const [removingMember, setRemovingMember] = useState<any>(null)
 
-  useEffect(() => {
-    loadTeam()
-  }, [])
+  useEffect(() => { loadTeam() }, [])
 
   const loadTeam = async () => {
     setLoading(true)
@@ -32,16 +48,12 @@ export default function TeamPage() {
       const res = await teamsApi.getMyTeam()
       setTeam(res.data)
       if (res.data?.id) {
-        const membersRes = await teamsApi.getMembers()
-        setMembers(membersRes.data || [])
+        const mres = await teamsApi.getMembers()
+        setMembers(mres.data || [])
       }
-    } catch (err: any) {
-      if (err?.response?.status !== 404) {
-        toast.error('Failed to load team')
-      }
-    } finally {
-      setLoading(false)
-    }
+    } catch (e: any) {
+      if (e?.response?.status !== 404) toast.error('Failed to load team')
+    } finally { setLoading(false) }
   }
 
   const handleCreateTeam = async () => {
@@ -52,11 +64,8 @@ export default function TeamPage() {
       setTeam(res.data)
       setMembers(user ? [{ ...user, full_name: user.name, team_role: 'owner' }] : [])
       toast.success('Team created!')
-    } catch (err: any) {
-      toast.error(err?.response?.data?.detail || 'Failed to create team')
-    } finally {
-      setSubmitting(false)
-    }
+    } catch (e: any) { toast.error(e?.response?.data?.detail || 'Failed to create team') }
+    finally { setSubmitting(false) }
   }
 
   const handleInvite = async () => {
@@ -66,193 +75,138 @@ export default function TeamPage() {
       const res = await teamsApi.invite(team.id, inviteEmail, inviteRole)
       setInviteLink(res.data.invite_url)
       setInviteEmail('')
-      toast.success('Invitation created!')
-    } catch (err: any) {
-      const msg = err?.response?.data?.detail
-      if (msg?.includes('already a member')) {
-        toast.error('This person is already in your team.')
-      } else {
-        toast.error(msg || 'Failed to send invite')
-      }
-    } finally {
-      setInviting(false)
-    }
-  }
-
-  const handleCopyInviteLink = () => {
-    navigator.clipboard.writeText(inviteLink)
-    toast.success('Link copied!')
+      toast.success('Invite link created!')
+    } catch (e: any) {
+      const msg = e?.response?.data?.detail
+      toast.error(msg?.includes('already') ? 'Already a member.' : msg || 'Failed to invite')
+    } finally { setInviting(false) }
   }
 
   const handleRemoveMember = async () => {
     if (!removingMember || !team) return
     try {
       await teamsApi.removeMember(team.id, removingMember.id)
-      setMembers((prev) => prev.filter((m) => m.id !== removingMember.id))
+      setMembers(prev => prev.filter(m => m.id !== removingMember.id))
       setRemovingMember(null)
       toast.success('Member removed')
-    } catch (err: any) {
-      toast.error('Failed to remove member')
-    }
+    } catch { toast.error('Failed to remove member') }
   }
 
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'owner': return <Crown className="w-3 h-3 text-brand" />
-      case 'admin': return <Shield className="w-3 h-3 text-warning" />
-      default: return <Users className="w-3 h-3 text-dark-400" />
-    }
-  }
+  if (loading) return (
+    <div className="flex items-center justify-center h-64">
+      <Loader2 className="w-6 h-6 animate-spin text-brand" />
+    </div>
+  )
 
-  const getRoleBadgeClass = (role: string) => {
-    switch (role) {
-      case 'owner': return 'bg-brand/10 text-brand border-brand/20'
-      case 'admin': return 'bg-warning/10 text-warning border-warning/20'
-      default: return 'bg-dark-800/60 text-dark-400 border-dark-700/40'
-    }
-  }
+  // ── No team ──
+  if (!team) return (
+    <div className="max-w-2xl">
+      <div className="mb-7">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+            style={{ background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.15)' }}>
+            <Users className="w-3.5 h-3.5 text-brand" />
+            <span className="text-[10px] font-semibold text-brand uppercase tracking-widest">Team</span>
+          </div>
+        </div>
+        <h1 className="text-2xl font-bold text-white">Team</h1>
+        <p className="text-dark-500 text-sm mt-1">Collaborate with colleagues on shared context</p>
+      </div>
 
-  const getAvatarColor = (name: string): string => {
-    const colors = [
-      'from-brand/30 to-brand-dark/20',
-      'from-success/30 to-success/10',
-      'from-warning/30 to-warning/10',
-      'from-purple-500/30 to-purple-900/10',
-      'from-sky-500/30 to-sky-900/10',
-      'from-pink-500/30 to-pink-900/10',
-    ]
-    const idx = name?.charCodeAt(0) % colors.length || 0
-    return colors[idx]
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-brand" />
-          <p className="text-dark-500 text-sm">Loading team...</p>
+      <div className="rounded-2xl p-8 text-center"
+        style={{ background: 'rgba(15,15,17,0.85)', border: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)' }}>
+        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
+          style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.15)' }}>
+          <Users className="w-8 h-8 text-brand opacity-60" />
+        </div>
+        <h2 className="text-xl font-bold text-white mb-2">Create your team</h2>
+        <p className="text-sm text-dark-500 mb-7 max-w-sm mx-auto leading-relaxed">
+          Teams let you share context across members. Every teammate gets smarter answers from the shared workspace.
+        </p>
+        <div className="flex flex-col gap-2.5 max-w-xs mx-auto">
+          <input value={teamName} onChange={e => setTeamName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleCreateTeam()}
+            placeholder="e.g. Acme Engineering"
+            className="px-4 py-3 rounded-xl text-sm text-center bg-dark-900/70 border border-white/7 text-white placeholder-dark-700 outline-none focus:border-brand/30 transition-colors" />
+          <button onClick={handleCreateTeam} disabled={submitting || !teamName.trim()}
+            className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium text-white disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Users className="w-4 h-4" /> Create Team</>}
+          </button>
         </div>
       </div>
-    )
-  }
+    </div>
+  )
 
-  // No team yet — Create team state
-  if (!team) {
-    return (
-      <div className="max-w-3xl animate-fade-in">
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/5 border border-brand/10">
-              <Sparkles className="w-3.5 h-3.5 text-brand" />
-              <span className="text-[11px] font-semibold text-brand uppercase tracking-widest">Team</span>
+  // ── Has team ──
+  return (
+    <div className="max-w-3xl">
+      <style>{`
+        @keyframes tmFade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+      `}</style>
+
+      <div className="mb-7" style={{ animation: 'tmFade 0.3s ease-out' }}>
+        <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+            style={{ background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.15)' }}>
+            <Users className="w-3.5 h-3.5 text-brand" />
+            <span className="text-[10px] font-semibold text-brand uppercase tracking-widest">Team</span>
+          </div>
+        </div>
+        <h1 className="text-2xl font-bold text-white">{team.name}</h1>
+        <p className="text-dark-500 text-sm mt-1">{members.length} member{members.length !== 1 ? 's' : ''} · Shared context workspace</p>
+      </div>
+
+      {/* Invite card */}
+      <div className="rounded-2xl mb-4"
+        style={{
+          background: 'rgba(15,15,17,0.85)', border: '1px solid rgba(255,255,255,0.07)',
+          backdropFilter: 'blur(12px)', animation: 'tmFade 0.35s ease-out',
+        }}>
+        <div className="p-5 border-b border-white/5">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.2)' }}>
+              <UserPlus className="w-4 h-4 text-brand" />
+            </div>
+            <div>
+              <p className="text-[13px] font-semibold text-white">Invite Member</p>
+              <p className="text-[10px] text-dark-600">Send an invite link to your teammate</p>
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Team</h1>
-          <p className="text-dark-400 text-[15px]">Create a team to share context with collaborators</p>
         </div>
-
-        <div className="glass-card max-w-lg animate-slide-up text-center">
-          <div className="w-16 h-16 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center mx-auto mb-5">
-            <Users className="w-8 h-8 text-brand" />
-          </div>
-          <h2 className="text-xl font-bold text-white mb-2">Create a Team</h2>
-          <p className="text-sm text-dark-400 mb-8 max-w-sm mx-auto leading-relaxed">
-            Teams let you share context across members. Everyone gets smarter answers based on shared knowledge.
-          </p>
-          <div className="space-y-3 max-w-sm mx-auto">
-            <input
-              value={teamName}
-              onChange={(e) => setTeamName(e.target.value)}
-              placeholder="Team name"
-              className="input-premium text-center"
-            />
-            <button
-              onClick={handleCreateTeam}
-              disabled={submitting || !teamName.trim()}
-              className="btn btn-primary disabled:opacity-50 w-full justify-center"
-            >
-              {submitting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {submitting ? 'Creating...' : 'Create Team'}
-            </button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Team exists — Full team management
-  return (
-    <div className="max-w-3xl animate-fade-in">
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/5 border border-brand/10">
-            <Sparkles className="w-3.5 h-3.5 text-brand" />
-            <span className="text-[11px] font-semibold text-brand uppercase tracking-widest">Team</span>
-          </div>
-        </div>
-        <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Team</h1>
-        <p className="text-dark-400 text-[15px]">Manage your team members and invitations</p>
-      </div>
-
-      {/* Team Info Card */}
-      <div className="glass-card mb-6 animate-slide-up">
-        <div className="flex items-center gap-4 mb-5">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand/20 to-brand-dark/10 border border-brand/20 flex items-center justify-center">
-            <Users className="w-6 h-6 text-brand" />
-          </div>
-          <div>
-            <h2 className="font-bold text-white text-lg">{team.name}</h2>
-            <p className="text-sm text-dark-400">{members.length} member{members.length !== 1 ? 's' : ''}</p>
-          </div>
-        </div>
-
-        {/* Invite Section */}
-        <div className="pt-4 border-t border-dark-800/40">
-          <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-            <UserPlus className="w-4 h-4 text-brand" /> Invite Member
-          </h3>
-          <div className="flex gap-3">
-            <input
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="Email address"
-              type="email"
-              className="input-premium flex-1"
-            />
-            <select
-              value={inviteRole}
-              onChange={(e) => setInviteRole(e.target.value)}
-              className="input-premium !w-auto"
-            >
+        <div className="p-5 space-y-3">
+          <div className="flex gap-2.5">
+            <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+              placeholder="colleague@company.com" type="email"
+              onKeyDown={e => e.key === 'Enter' && handleInvite()}
+              className="flex-1 px-3.5 py-2.5 rounded-xl text-sm bg-dark-900/70 border border-white/7 text-white placeholder-dark-700 outline-none focus:border-brand/30 transition-colors" />
+            <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
+              className="px-3 py-2.5 rounded-xl text-sm bg-dark-900/70 border border-white/7 text-white outline-none">
               <option value="member">Member</option>
               <option value="admin">Admin</option>
             </select>
-            <button
-              onClick={handleInvite}
-              disabled={inviting || !inviteEmail.trim()}
-              className="btn btn-primary disabled:opacity-50"
-            >
+            <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-50 flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
               {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
               Invite
             </button>
           </div>
+
           {inviteLink && (
-            <div className="mt-4 animate-slide-up rounded-xl border border-success/20 overflow-hidden">
-              <div className="bg-success/5 px-4 py-2.5 border-b border-success/10 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-success" />
-                <p className="text-xs text-success font-medium">Invitation link created</p>
+            <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.15)' }}>
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-green-900/20">
+                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                <p className="text-[11px] text-green-400 font-medium">Invite link ready — share this with your teammate</p>
               </div>
-              <div className="p-3 flex gap-2 bg-dark-900/30">
-                <input
-                  value={inviteLink}
-                  readOnly
-                  className="input-premium flex-1 !text-xs font-mono"
-                />
-                <button
-                  onClick={handleCopyInviteLink}
-                  className="btn btn-secondary text-brand text-sm !px-3"
-                >
-                  <Copy className="w-4 h-4" />
+              <div className="flex gap-2 p-3">
+                <input value={inviteLink} readOnly
+                  className="flex-1 px-3 py-2 rounded-xl text-[11px] font-mono bg-dark-900/60 border border-white/5 text-dark-400 outline-none" />
+                <button onClick={() => { navigator.clipboard.writeText(inviteLink); toast.success('Copied!') }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all"
+                  style={{ background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.2)', color: '#22c55e' }}>
+                  <Copy className="w-3.5 h-3.5" /> Copy
                 </button>
               </div>
             </div>
@@ -260,56 +214,68 @@ export default function TeamPage() {
         </div>
       </div>
 
-      {/* Members List */}
-      <div className="glass-card animate-slide-up" style={{ animationDelay: '0.1s' }}>
-        <h3 className="text-sm font-semibold text-white mb-4 flex items-center gap-2">
-          <Users className="w-4 h-4 text-dark-400" />
-          Members ({members.length})
-        </h3>
-        <div className="space-y-2">
-          {members.map((member, idx) => (
-            <div
-              key={member.id}
-              className="flex items-center justify-between p-3.5 rounded-xl bg-dark-800/20 border border-dark-800/30 hover:border-dark-700/40 transition-all duration-200 group animate-slide-up"
-              style={{ animationDelay: `${0.15 + idx * 0.05}s` }}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${getAvatarColor(member.full_name || '')} flex items-center justify-center text-white font-semibold text-sm`}>
-                  {(member.full_name || '?')[0]?.toUpperCase()}
+      {/* Members list */}
+      <div className="rounded-2xl overflow-hidden"
+        style={{ background: 'rgba(15,15,17,0.85)', border: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)', animation: 'tmFade 0.4s ease-out' }}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
+          <div className="flex items-center gap-2">
+            <Users className="w-3.5 h-3.5 text-dark-600" />
+            <span className="text-[13px] font-semibold text-white">Members</span>
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full text-dark-500"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              {members.length}
+            </span>
+          </div>
+        </div>
+
+        <div className="divide-y divide-white/[0.03]">
+          {members.map((member, idx) => {
+            const color = getAvatarColor(member.full_name || '')
+            const isMe = member.id === user?.id
+            return (
+              <div key={member.id} className="flex items-center gap-4 px-5 py-3.5 group transition-colors hover:bg-white/[0.01]"
+                style={{ animation: `tmFade 0.3s ease-out ${idx * 0.04}s both` }}>
+                {/* Avatar */}
+                <div className="relative flex-shrink-0">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                    style={{ background: color }}>
+                    {(member.full_name || '?')[0]?.toUpperCase()}
+                  </div>
+                  {isMe && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-dark-900" />
+                  )}
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-white">{member.full_name}</p>
-                  <p className="text-[11px] text-dark-500">{member.email}</p>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-white truncate">{member.full_name}</p>
+                    {isMe && <span className="text-[9px] text-dark-600">(you)</span>}
+                  </div>
+                  <p className="text-[11px] text-dark-600 truncate">{member.email}</p>
                 </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={`text-[11px] px-2.5 py-1 rounded-full capitalize font-medium flex items-center gap-1.5 border ${getRoleBadgeClass(member.team_role)}`}>
-                  {getRoleIcon(member.team_role)}
-                  {member.team_role}
-                </span>
-                {member.id !== user?.id && (
-                  <button
-                    onClick={() => setRemovingMember(member)}
-                    className="text-dark-600 hover:text-danger transition-all duration-200 p-1.5 rounded-lg hover:bg-danger/10 opacity-0 group-hover:opacity-100"
-                  >
-                    <Trash2 className="w-4 h-4" />
+
+                <RoleBadge role={member.team_role} />
+
+                {!isMe && (
+                  <button onClick={() => setRemovingMember(member)}
+                    className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg flex items-center justify-center transition-all"
+                    style={{ background: 'rgba(255,255,255,0.03)', color: '#3f3f46' }}
+                    onMouseEnter={e => { (e.currentTarget.style.background = 'rgba(220,38,38,0.1)'); (e.currentTarget.style.color = '#f87171') }}
+                    onMouseLeave={e => { (e.currentTarget.style.background = 'rgba(255,255,255,0.03)'); (e.currentTarget.style.color = '#3f3f46') }}>
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
 
-      <ConfirmModal
-        isOpen={!!removingMember}
-        onClose={() => setRemovingMember(null)}
+      <ConfirmModal isOpen={!!removingMember} onClose={() => setRemovingMember(null)}
         onConfirm={handleRemoveMember}
         title="Remove Member"
-        message={`Are you sure you want to remove ${removingMember?.full_name} from the team?`}
-        confirmLabel="Remove"
-        isDangerous
-      />
+        message={`Remove ${removingMember?.full_name} from the team?`}
+        confirmLabel="Remove" isDangerous />
     </div>
   )
 }

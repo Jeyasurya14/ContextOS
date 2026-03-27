@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Github, FileText, MessageSquare, Code2, Zap, Shield, Users, Sparkles, Brain, Database, Search, Check, ChevronRight, Globe, Layers } from 'lucide-react';
+import { ArrowRight, Github, FileText, MessageSquare, Code2, Zap, Shield, Users, Sparkles, Brain, Database, Search, Check, ChevronRight, Globe } from 'lucide-react';
 
 function useInView(threshold = 0.2) {
   const ref = useRef<HTMLDivElement>(null);
@@ -240,8 +240,22 @@ export default function LandingPage() {
       <nav className="border-b border-dark-800/50 bg-dark-950/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-gradient-to-br from-brand to-brand-dark rounded-lg flex items-center justify-center">
-              <Layers className="w-4 h-4 text-white" />
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(135deg, #0d0d1a 0%, #080810 100%)', border: '1px solid rgba(100,80,255,0.2)' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" className="w-7 h-7">
+                <defs>
+                  <linearGradient id="navCGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#3b5bff" /><stop offset="100%" stopColor="#7c3aff" /></linearGradient>
+                  <linearGradient id="navHGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#5e3aff" /><stop offset="100%" stopColor="#9f37ff" /></linearGradient>
+                  <filter id="navGlow"><feGaussianBlur stdDeviation="1.5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                </defs>
+                <path d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50" fill="none" stroke="url(#navCGrad)" strokeWidth="5.5" strokeLinecap="round" filter="url(#navGlow)" />
+                <circle cx="17" cy="32" r="4" fill="#3b5bff" filter="url(#navGlow)" />
+                <g transform="translate(37,32)" filter="url(#navGlow)">
+                  <path d="M0,-15 L13,-7.5 L13,7.5 L0,15 L-13,7.5 L-13,-7.5 Z" fill="none" stroke="url(#navHGrad)" strokeWidth="2.5" strokeLinejoin="round" />
+                  <line x1="-7" y1="-4" x2="7" y2="-4" stroke="url(#navHGrad)" strokeWidth="2" strokeLinecap="round"/>
+                  <line x1="-7" y1="0" x2="7" y2="0" stroke="url(#navHGrad)" strokeWidth="2" strokeLinecap="round"/>
+                  <line x1="-7" y1="4" x2="7" y2="4" stroke="url(#navHGrad)" strokeWidth="2" strokeLinecap="round"/>
+                </g>
+              </svg>
             </div>
             <span className="text-lg font-bold text-white tracking-tight">ContextOS</span>
           </div>
@@ -262,7 +276,20 @@ export default function LandingPage() {
       {/* Hero */}
       <section className="max-w-5xl mx-auto px-6 pt-28 pb-24 text-center">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/5 border border-brand/10 text-brand text-xs font-medium mb-8 tracking-wide uppercase">
-          <Layers className="w-3.5 h-3.5" />
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" className="w-3.5 h-3.5">
+            <defs>
+              <linearGradient id="badgeCGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#3b5bff" /><stop offset="100%" stopColor="#7c3aff" /></linearGradient>
+              <linearGradient id="badgeHGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#5e3aff" /><stop offset="100%" stopColor="#9f37ff" /></linearGradient>
+            </defs>
+            <path d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50" fill="none" stroke="url(#badgeCGrad)" strokeWidth="5.5" strokeLinecap="round" />
+            <circle cx="17" cy="32" r="4" fill="#3b5bff" />
+            <g transform="translate(37,32)">
+              <path d="M0,-15 L13,-7.5 L13,7.5 L0,15 L-13,7.5 L-13,-7.5 Z" fill="none" stroke="url(#badgeHGrad)" strokeWidth="2.5" strokeLinejoin="round" />
+              <line x1="-7" y1="-4" x2="7" y2="-4" stroke="url(#badgeHGrad)" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="-7" y1="0" x2="7" y2="0" stroke="url(#badgeHGrad)" strokeWidth="2" strokeLinecap="round"/>
+              <line x1="-7" y1="4" x2="7" y2="4" stroke="url(#badgeHGrad)" strokeWidth="2" strokeLinecap="round"/>
+            </g>
+          </svg>
           AI-powered project intelligence
         </div>
         <h1 className="text-5xl md:text-[4.5rem] font-bold text-white leading-[1.1] mb-6 tracking-tight">
@@ -511,8 +538,21 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-gradient-to-br from-brand to-brand-dark rounded-md flex items-center justify-center">
-                <Layers className="w-3.5 h-3.5 text-white" />
+              <div className="w-6 h-6 rounded-md flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(135deg, #0d0d1a 0%, #080810 100%)', border: '1px solid rgba(100,80,255,0.2)' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" className="w-6 h-6">
+                  <defs>
+                    <linearGradient id="ftCGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#3b5bff" /><stop offset="100%" stopColor="#7c3aff" /></linearGradient>
+                    <linearGradient id="ftHGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#5e3aff" /><stop offset="100%" stopColor="#9f37ff" /></linearGradient>
+                  </defs>
+                  <path d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50" fill="none" stroke="url(#ftCGrad)" strokeWidth="5.5" strokeLinecap="round" />
+                  <circle cx="17" cy="32" r="4" fill="#3b5bff" />
+                  <g transform="translate(37,32)">
+                    <path d="M0,-15 L13,-7.5 L13,7.5 L0,15 L-13,7.5 L-13,-7.5 Z" fill="none" stroke="url(#ftHGrad)" strokeWidth="2.5" strokeLinejoin="round" />
+                    <line x1="-7" y1="-4" x2="7" y2="-4" stroke="url(#ftHGrad)" strokeWidth="2" strokeLinecap="round"/>
+                    <line x1="-7" y1="0" x2="7" y2="0" stroke="url(#ftHGrad)" strokeWidth="2" strokeLinecap="round"/>
+                    <line x1="-7" y1="4" x2="7" y2="4" stroke="url(#ftHGrad)" strokeWidth="2" strokeLinecap="round"/>
+                  </g>
+                </svg>
               </div>
               <span className="text-dark-500 text-xs">&copy; 2026 ContextOS</span>
             </div>
