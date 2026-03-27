@@ -19,7 +19,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (token) {
-      router.replace('/dashboard')
+      router.replace('/')
     }
   }, [token, router])
 
@@ -45,7 +45,7 @@ export default function LoginPage() {
       // Small delay to ensure state is persisted
       await new Promise(resolve => setTimeout(resolve, 100))
       
-      window.location.href = '/dashboard'
+      window.location.href = '/'
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'response' in err) {
         const axiosErr = err as { response?: { data?: { detail?: string } } }

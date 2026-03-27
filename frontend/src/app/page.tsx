@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useAuthStore } from '@/store/auth';
 import { ArrowRight, Github, FileText, MessageSquare, Code2, Zap, Shield, Users, Sparkles, Brain, Database, Search, Check, ChevronRight, Globe } from 'lucide-react';
 
 function useInView(threshold = 0.2) {
@@ -234,6 +235,13 @@ function WorkflowAnimation() {
 }
 
 export default function LandingPage() {
+  const { token } = useAuthStore();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   return (
     <div className="min-h-screen bg-dark-950">
       {/* Nav */}
@@ -260,15 +268,26 @@ export default function LandingPage() {
             <span className="text-lg font-bold text-white tracking-tight">ContextOS</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/login" className="text-dark-400 hover:text-white transition text-sm font-medium px-3 py-1.5">
-              Log in
-            </Link>
-            <Link
-              href="/register"
-              className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition"
-            >
-              Get Started
-            </Link>
+            {isMounted && token ? (
+              <Link
+                href="/dashboard"
+                className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition"
+              >
+                Go to Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="text-dark-400 hover:text-white transition text-sm font-medium px-3 py-1.5">
+                  Log in
+                </Link>
+                <Link
+                  href="/register"
+                  className="bg-brand text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-dark transition"
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -302,10 +321,10 @@ export default function LandingPage() {
         </p>
         <div className="flex items-center justify-center gap-3">
           <Link
-            href="/register"
+            href={isMounted && token ? "/dashboard" : "/register"}
             className="bg-brand text-white px-6 py-3 rounded-lg font-medium hover:bg-brand-dark transition inline-flex items-center gap-2"
           >
-            Start Free <ArrowRight className="w-4 h-4" />
+            {isMounted && token ? "Go to Dashboard" : "Start Free"} <ArrowRight className="w-4 h-4" />
           </Link>
           <Link
             href="#how-it-works"
@@ -525,10 +544,10 @@ export default function LandingPage() {
           <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Ready to give your AI real context?</h2>
           <p className="text-dark-400 mb-8 max-w-md mx-auto">Join developers who are building smarter with ContextOS. Free to start, no credit card required.</p>
           <Link
-            href="/register"
+            href={isMounted && token ? "/dashboard" : "/register"}
             className="bg-brand text-white px-8 py-3.5 rounded-lg font-medium hover:bg-brand-dark transition inline-flex items-center gap-2"
           >
-            Get Started Free <ArrowRight className="w-4 h-4" />
+            {isMounted && token ? "Go to Dashboard" : "Get Started Free"} <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </section>

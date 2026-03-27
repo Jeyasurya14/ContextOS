@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
     request.headers.get('x-auth-token')
 
   // Redirect authenticated users away from landing/auth pages
-  if (token && (pathname === '/' || pathname === '/login' || pathname === '/register')) {
+  if (token && (pathname === '/login' || pathname === '/register')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
