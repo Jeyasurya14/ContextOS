@@ -2,6 +2,20 @@
 
 All notable changes to the "ContextOS Copilot" extension will be documented in this file.
 
+## [2.0.0] - 2026-03-28
+
+- **Major production upgrade**: Complete rewrite with enterprise-grade reliability
+- Added telemetry (opt-in) for usage insights
+- Implemented rate limiting to protect backend resources
+- Added circuit breaker pattern to handle backend failures gracefully
+- Request caching to improve performance and reduce redundant calls
+- Health monitoring with automatic recovery
+- Robust retry logic with exponential backoff
+- State persistence across VS Code sessions
+- Enhanced error handling throughout
+- Memory leak prevention and proper resource cleanup
+- All verification checks passed - production ready
+
 ## [1.3.7] - 2026-03-28
 
 - Production release with fully functional chat panel

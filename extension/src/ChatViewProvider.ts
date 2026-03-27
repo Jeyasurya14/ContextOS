@@ -1,295 +1,426 @@
 import * as vscode from 'vscode';
 
+// ============================================================================
+// TYPES & INTERFACES
+// ============================================================================
+
+interface Message {
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+    timestamp?: number;
+}
+
+interface ConversationState {
+    conversationId?: string;
+    messageHistory: Message[];
+    isProcessing: boolean;
+    lastError?: string;
+    retryCount: number;
+}
+
+interface Extensions {
+    get(scope: string, key: string): unknown;
+    update(scope: string, key: string, value: unknown): Promise<void>;
+    secrets: {
+        get(key: string): Promise<string | undefined>;
+        store(key: string, value: string): Promise<void>;
+    };
+}
+
+// ============================================================================
+// PRODUCTION TELEMETRY (optional, privacy-respecting)
+// ============================================================================
+
+class Telemetry {
+    private enabled: boolean = false;
+    private sessionId: string;
+    private startTime: number;
+
+    constructor(context: vscode.ExtensionContext) {
+        this.sessionId = this.generateSessionId();
+        this.startTime = Date.now();
+        const config = vscode.workspace.getConfiguration('contextos');
+        this.enabled = config.get<boolean>('enableTelemetry') || false;
+
+        if (this.enabled) {
+            this.track('extension_activated', {
+                sessionId: this.sessionId,
+                timestamp: new Date().toISOString(),
+                version: context.extension.packageJSON.version
+            });
+        }
+    }
+
+    private generateSessionId(): string {
+        return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    track(event: string, properties: Record<string, any> = {}): void {
+        if (!this.enabled) return;
+
+        // In production, send to your telemetry endpoint
+        // For now, just log to console if debugMode is on
+        const config = vscode.workspace.getConfiguration('contextos');
+        if (config.get<boolean>('debugMode')) {
+            console.log('[Telemetry]', event, properties);
+        }
+    }
+
+    trackError(error: Error, context: Record<string, any> = {}): void {
+        this.track('error', {
+            message: error.message,
+            stack: error.stack,
+            ...context
+        });
+    }
+
+    getSessionDuration(): number {
+        return Date.now() - this.startTime;
+    }
+}
+
+// ============================================================================
+// RATE LIMITER (Client-side protection)
+// ============================================================================
+
+class RateLimiter {
+    private maxRequests: number;
+    private windowMs: number;
+    private requests: number[] = [];
+
+    constructor(maxRequests: number, windowMs: number) {
+        this.maxRequests = maxRequests;
+        this.windowMs = windowMs;
+    }
+
+    tryAcquire(): boolean {
+        const now = Date.now();
+        this.requests = this.requests.filter(time => now - time < this.windowMs);
+
+        if (this.requests.length < this.maxRequests) {
+            this.requests.push(now);
+            return true;
+        }
+
+        return false;
+    }
+
+    getRemaining(): number {
+        const now = Date.now();
+        this.requests = this.requests.filter(time => now - time < this.windowMs);
+        return Math.max(0, this.maxRequests - this.requests.length);
+    }
+
+    getResetTime(): number {
+        if (this.requests.length === 0) return 0;
+        const oldest = Math.min(...this.requests);
+        return oldest + this.windowMs;
+    }
+}
+
+// ============================================================================
+// CIRCUIT BREAKER (Prevent hammering failing backend)
+// ============================================================================
+
+enum CircuitState {
+    CLOSED = 'CLOSED',
+    OPEN = 'OPEN',
+    HALF_OPEN = 'HALF_OPEN'
+}
+
+class CircuitBreaker {
+    private state: CircuitState = CircuitState.CLOSED;
+    private failureCount: number = 0;
+    private lastFailureTime: number = 0;
+    private readonly failureThreshold: number;
+    private readonly recoveryTimeout: number;
+    private readonly onStateChange: (state: CircuitState) => void;
+
+    constructor(
+        failureThreshold: number = 5,
+        recoveryTimeout: number = 30000,
+        onStateChange?: (state: CircuitState) => void
+    ) {
+        this.failureThreshold = failureThreshold;
+        this.recoveryTimeout = recoveryTimeout;
+        this.onStateChange = onStateChange || (() => {});
+    }
+
+    async execute<T>(operation: () => Promise<T>): Promise<T> {
+        if (this.state === CircuitState.OPEN) {
+            if (Date.now() - this.lastFailureTime > this.recoveryTimeout) {
+                this.setState(CircuitState.HALF_OPEN);
+            } else {
+                throw new Error('Circuit breaker is OPEN. Backend temporarily unavailable.');
+            }
+        }
+
+        try {
+            const result = await operation();
+            this.onSuccess();
+            return result;
+        } catch (error) {
+            this.onFailure();
+            throw error;
+        }
+    }
+
+    private onSuccess(): void {
+        this.state = CircuitState.CLOSED;
+        this.failureCount = 0;
+        this.onStateChange(this.state);
+    }
+
+    private onFailure(): void {
+        this.failureCount++;
+        this.lastFailureTime = Date.now();
+
+        if (this.failureCount >= this.failureThreshold) {
+            this.setState(CircuitState.OPEN);
+        }
+    }
+
+    private setState(state: CircuitState): void {
+        const previous = this.state;
+        this.state = state;
+        if (previous !== state) {
+            this.onStateChange(state);
+            console.log('[CircuitBreaker] State changed:', previous, '→', state);
+        }
+    }
+
+    getState(): CircuitState {
+        return this.state;
+    }
+
+    getFailureCount(): number {
+        return this.failureCount;
+    }
+}
+
+// ============================================================================
+// REQUEST CACHE (Avoid duplicate requests)
+// ============================================================================
+
+class RequestCache {
+    private cache: Map<string, { data: any; timestamp: number; ttl: number }> = new Map();
+    private readonly defaultTTL: number;
+
+    constructor(defaultTTL: number = 300000) {
+        this.defaultTTL = defaultTTL;
+    }
+
+    get(key: string): any {
+        const entry = this.cache.get(key);
+        if (!entry) return null;
+
+        if (Date.now() - entry.timestamp > entry.ttl) {
+            this.cache.delete(key);
+            return null;
+        }
+
+        return entry.data;
+    }
+
+    set(key: string, data: any, ttl?: number): void {
+        this.cache.set(key, {
+            data,
+            timestamp: Date.now(),
+            ttl: ttl || this.defaultTTL
+        });
+    }
+
+    invalidate(key?: string): void {
+        if (key) {
+            this.cache.delete(key);
+        } else {
+            this.cache.clear();
+        }
+    }
+
+    getStats(): { size: number; hits: number; misses: number } {
+        return {
+            size: this.cache.size,
+            hits: 0,
+            misses: 0
+        };
+    }
+}
+
+// ============================================================================
+// HEALTH MONITOR (Track backend connectivity)
+// ============================================================================
+
+class HealthMonitor {
+    private healthy: boolean = true;
+    private lastCheck: number = 0;
+    private consecutiveFailures: number = 0;
+    private readonly threshold: number;
+    private readonly checkInterval: number;
+    private listeners: Array<(healthy: boolean) => void> = [];
+
+    constructor(threshold: number = 3, checkInterval: number = 60000) {
+        this.threshold = threshold;
+        this.checkInterval = checkInterval;
+    }
+
+    recordSuccess(): void {
+        this.consecutiveFailures = 0;
+        if (!this.healthy) {
+            this.setHealthy(true);
+        }
+    }
+
+    recordFailure(): void {
+        this.consecutiveFailures++;
+        this.lastCheck = Date.now();
+
+        if (this.consecutiveFailures >= this.threshold && this.healthy) {
+            this.setHealthy(false);
+        }
+    }
+
+    isHealthy(): boolean {
+        return this.healthy;
+    }
+
+    getConsecutiveFailures(): number {
+        return this.consecutiveFailures;
+    }
+
+    addListener(listener: (healthy: boolean) => void): void {
+        this.listeners.push(listener);
+    }
+
+    private setHealthy(healthy: boolean): void {
+        this.healthy = healthy;
+        this.listeners.forEach(listener => listener(healthy));
+        console.log('[HealthMonitor] Health status:', healthy ? '✅ HEALTHY' : '🔴 UNHEALTHY');
+    }
+}
+
+// ============================================================================
+// MAIN CHAT VIEW PROVIDER (Production Grade)
+// ============================================================================
+
 export class ChatViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'contextos.chatView';
     private _view?: vscode.WebviewView;
-    private _currentConversationId?: string;
-    private _messageHistory: Array<{role: string, content: string}> = [];
-    private _isProcessing: boolean = false;
+    private _state: ConversationState = {
+        messageHistory: [],
+        isProcessing: false,
+        retryCount: 0
+    };
+
+    private readonly _telemetry: Telemetry;
+    private readonly _rateLimiter: RateLimiter;
+    private readonly _circuitBreaker: CircuitBreaker;
+    private readonly _requestCache: RequestCache;
+    private readonly _healthMonitor: HealthMonitor;
+
+    // UI references (persisted across webview recreations)
+    private _lastScrollPosition: number = 0;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _context: vscode.ExtensionContext
     ) {
-        this._loadConversationHistory();
+        const config = vscode.workspace.getConfiguration('contextos');
+
+        // Initialize production components
+        this._telemetry = new Telemetry(_context);
+        this._rateLimiter = new RateLimiter(
+            config.get<number>('rateLimitMaxRequests') || 30,
+            config.get<number>('rateLimitWindowMs') || 60000
+        );
+        this._requestCache = new RequestCache(config.get<number>('cacheTTL') || 300000);
+        this._healthMonitor = new HealthMonitor(3, 60000);
+        this._circuitBreaker = new CircuitBreaker(5, 30000, (state) => {
+            this._healthMonitor.recordFailure();
+            this._telemetry.track('circuit_breaker_state_change', { state });
+        });
+
+        // Load persisted state
+        this._loadState();
     }
 
-    private async _loadConversationHistory() {
+    // ========================================================================
+    // STATE PERSISTENCE
+    // ========================================================================
+
+    private async _loadState(): Promise<void> {
         try {
-            const history = this._context.globalState.get<Array<{role: string, content: string}>>('messageHistory', []);
+            const history = this._context.globalState.get<Message[]>('messageHistory', []);
             const conversationId = this._context.globalState.get<string>('conversationId');
-            this._messageHistory = history;
-            this._currentConversationId = conversationId;
+            const lastScroll = this._context.globalState.get<number>('lastScrollPosition', 0);
+
+            this._state = {
+                ...this._state,
+                messageHistory: history,
+                conversationId
+            };
+            this._lastScrollPosition = lastScroll;
+
+            console.log('[ChatViewProvider] State loaded:', {
+                messageCount: history.length,
+                conversationId: conversationId?.slice(-8)
+            });
         } catch (error) {
-            console.error('Failed to load conversation history:', error);
+            console.error('[ChatViewProvider] Failed to load state:', error);
+            this._telemetry.trackError(error as Error, { action: 'load_state' });
         }
     }
 
-    private async _saveConversationHistory() {
+    private async _saveState(): Promise<void> {
         try {
-            await this._context.globalState.update('messageHistory', this._messageHistory);
-            if (this._currentConversationId) {
-                await this._context.globalState.update('conversationId', this._currentConversationId);
-            }
+            await Promise.all([
+                this._context.globalState.update('messageHistory', this._state.messageHistory),
+                this._context.globalState.update('conversationId', this._state.conversationId),
+                this._context.globalState.update('lastScrollPosition', this._lastScrollPosition)
+            ]);
         } catch (error) {
-            console.error('Failed to save conversation history:', error);
+            console.error('[ChatViewProvider] Failed to save state:', error);
+            this._telemetry.trackError(error as Error, { action: 'save_state' });
         }
     }
 
-    public resolveWebviewView(webviewView: vscode.WebviewView, _ctx: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
-        this._view = webviewView;
+    // ========================================================================
+    // WEBVIEW INITIALIZATION
+    // ========================================================================
 
-        // Configure webview with minimal, secure options
+    public resolveWebviewView(
+        webviewView: vscode.WebviewView,
+        _ctx: vscode.WebviewViewResolveContext,
+        _token: vscode.CancellationToken
+    ): void {
+        this._view = webviewView;
+        this._telemetry.track('webview_resolved');
+
+        // Secure webview configuration
         webviewView.webview.options = {
             enableScripts: true
         };
 
-        // Build CSP dynamically based on configured API URL
-        const config = vscode.workspace.getConfiguration('contextos');
-        const apiUrl = config.get<string>('apiUrl') || 'https://contextos-api-jxdr.onrender.com';
-        let apiOrigin = '*';
-        try {
-            const url = new URL(apiUrl);
-            apiOrigin = url.origin;
-        } catch (e) {
-            console.warn('Invalid API URL, using wildcard for CSP:', e);
-        }
-
-        const csp = `default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src ${apiOrigin} *; img-src data: blob: https:;`;
+        // Build secure CSP
+        const csp = this._buildCSP();
         webviewView.webview.html = this._getHtmlForWebview(csp);
 
-        // Restore conversation history after webview is ready
-        webviewView.webview.onDidReceiveMessage(message => {
-            if (message.type === 'ready' && this._messageHistory.length > 0) {
+        // Message handling with error boundaries
+        this._setupMessageHandlers(webviewView);
+
+        // Restore conversation history
+        webviewView.webview.onDidReceiveMessage((message) => {
+            if (message.type === 'ready' && this._state.messageHistory.length > 0) {
                 webviewView.webview.postMessage({
                     type: 'restoreHistory',
-                    messages: this._messageHistory
+                    messages: this._state.messageHistory,
+                    scrollPosition: this._lastScrollPosition
                 });
+                this._telemetry.track('history_restored', { count: this._state.messageHistory.length });
             }
         });
 
-        webviewView.webview.onDidReceiveMessage(async (data) => {
-            console.log('[ChatViewProvider] Received:', data.type, data);
-
-            try {
-                switch (data.type) {
-                    case 'prompt':
-                        await this._handlePrompt(data.value, webviewView);
-                        break;
-                    case 'clearHistory':
-                        await this._clearHistory();
-                        webviewView.webview.postMessage({ type: 'historyCleared' });
-                        break;
-                    case 'copyCode':
-                        await vscode.env.clipboard.writeText(data.value);
-                        webviewView.webview.postMessage({ type: 'codeCopied', id: data.id });
-                        break;
-                    case 'copyMsg':
-                        await vscode.env.clipboard.writeText(data.value);
-                        break;
-                    case 'retry':
-                        if (data.message) {
-                            await this._handlePrompt(data.message, webviewView);
-                        }
-                        break;
-                    case 'ready':
-                        console.log('[ChatViewProvider] Webview ready');
-                        break;
-                }
-            } catch (error) {
-                console.error('[ChatViewProvider] Error handling message:', error);
-                webviewView.webview.postMessage({
-                    type: 'error',
-                    value: 'Internal error: ' + (error as Error).message
-                });
-            }
-        });
-    }
-
-    private async _clearHistory() {
-        this._currentConversationId = undefined;
-        this._messageHistory = [];
-        await this._context.globalState.update('messageHistory', []);
-        await this._context.globalState.update('conversationId', undefined);
-    }
-
-    private async _handlePrompt(question: string, webviewView: vscode.WebviewView) {
-        console.log('[ChatViewProvider] Handling prompt:', question);
-
-        if (this._isProcessing) {
-            console.log('[ChatViewProvider] Already processing, rejecting');
-            webviewView.webview.postMessage({
-                type: 'error',
-                value: 'Please wait for the current response to complete.',
-                canRetry: true,
-                originalMessage: question
-            });
-            return;
-        }
-
-        this._isProcessing = true;
-        const post = (msg: object) => webviewView.webview.postMessage(msg);
-
-        // Add user message to history immediately
-        this._messageHistory.push({ role: 'user', content: question });
-        await this._saveConversationHistory();
-
-        // Get API key
-        const apiKey = await this._context.secrets.get('contextos_api_key');
-        if (!apiKey) {
-            post({
-                type: 'error',
-                value: 'No API key configured.\n\nPlease run "ContextOS: Set API Key" from the Command Palette.',
-                canRetry: false
-            });
-            this._isProcessing = false;
-            return;
-        }
-
-        // Get API configuration
-        const config = vscode.workspace.getConfiguration('contextos');
-        const apiUrl = config.get<string>('apiUrl') || 'https://contextos-api-jxdr.onrender.com';
-        console.log('[ChatViewProvider] API URL:', apiUrl);
-
-        let assistantMessage = '';
-        let retryCount = 0;
-        const maxRetries = 2;
-
-        while (retryCount <= maxRetries) {
-            try {
-                console.log(`[ChatViewProvider] Attempt ${retryCount + 1}/${maxRetries + 1}`);
-                post({ type: 'thinking' });
-
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 120000);
-
-                const requestBody = {
-                    question,
-                    stream: true,
-                    conversation_id: this._currentConversationId ?? null
-                };
-
-                console.log('[ChatViewProvider] Request:', `${apiUrl}/api/v1/query`, requestBody);
-
-                const res = await fetch(`${apiUrl}/api/v1/query`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-API-Key': apiKey
-                    },
-                    body: JSON.stringify(requestBody),
-                    signal: controller.signal
-                });
-
-                clearTimeout(timeoutId);
-
-                if (!res.ok) {
-                    const errorText = await res.text().catch(() => res.statusText);
-                    throw new Error(`API error ${res.status}: ${errorText}`);
-                }
-
-                if (!res.body) {
-                    throw new Error('No response body from server');
-                }
-
-                // Stream response
-                const reader = res.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const parts = buffer.split('\n\n');
-                    buffer = parts.pop() || '';
-
-                    for (const part of parts) {
-                        const lines = part.split('\n');
-                        for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (!trimmed.startsWith('data: ')) continue;
-
-                            const dataStr = trimmed.slice(6).trim();
-                            if (!dataStr || dataStr === '[DONE]') continue;
-
-                            try {
-                                const data = JSON.parse(dataStr);
-
-                                switch (data.event) {
-                                    case 'thinking':
-                                        post({ type: 'thinking', message: data.message });
-                                        break;
-                                    case 'searching':
-                                        post({ type: 'searching', source: data.source, count: data.count });
-                                        break;
-                                    case 'token':
-                                        assistantMessage += data.content;
-                                        post({ type: 'token', content: data.content });
-                                        break;
-                                    case 'sources':
-                                        post({ type: 'sources', sources: data.sources });
-                                        break;
-                                    case 'done':
-                                        if (data.conversation_id) {
-                                            this._currentConversationId = data.conversation_id;
-                                        }
-                                        if (assistantMessage) {
-                                            this._messageHistory.push({ role: 'assistant', content: assistantMessage });
-                                            await this._saveConversationHistory();
-                                        }
-                                        post({ type: 'done' });
-                                        this._isProcessing = false;
-                                        return;
-                                    case 'error':
-                                        throw new Error(data.message || 'Unknown error from server');
-                                }
-                            } catch (parseError) {
-                                console.error('[ChatViewProvider] Failed to parse SSE:', parseError, 'data:', line);
-                            }
-                        }
-                    }
-                }
-
-                // Stream ended without explicit 'done'
-                if (assistantMessage) {
-                    this._messageHistory.push({ role: 'assistant', content: assistantMessage });
-                    await this._saveConversationHistory();
-                }
-                post({ type: 'done' });
-                this._isProcessing = false;
-                return;
-
-            } catch (error: any) {
-                retryCount++;
-                console.error(`[ChatViewProvider] Request failed (${retryCount}/${maxRetries + 1}):`, error);
-
-                if (retryCount > maxRetries) {
-                    const msg = error?.message || String(error);
-                    const isNetwork = msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network') || msg.toLowerCase().includes('aborted');
-
-                    post({
-                        type: 'error',
-                        value: `${msg}\n\n${isNetwork ? 'Check your connection and API URL.' : 'Please try again.'}`,
-                        canRetry: true,
-                        originalMessage: question
-                    });
-                    this._isProcessing = false;
-                    return;
-                }
-
-                // Wait before retry
-                await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-            }
-        }
-    }
-
-    public sendContextToChat(context: string) {
-        if (this._view) {
-            this._view.show(true);
-            this._view.webview.postMessage({ type: 'addContext', value: context });
-        }
+        console.log('[ChatViewProvider] Webview initialized successfully');
     }
 
     private _getHtmlForWebview(csp: string): string {
@@ -710,7 +841,7 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
     let text = raw;
 
     // Extract fenced code blocks
-    text = text.replace(/\x60\x60\x60(\w*)\n?([\s\S]*?)\x60\x60\x60/g, (_, lang, code) => {
+    text = text.replace(/\`\`\`(\w*)\n?([\s\S]*?)\`\`\`/g, (_, lang, code) => {
       const id = 'cb' + codeIdx++;
       const trimmed = code.replace(/\n$/, '');
       codeMap[id] = trimmed;
@@ -725,7 +856,7 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
     text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
     text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
     text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-    text = text.replace(/^(-{3,}|={3,})$/gm, '<hr>');
+    text = text.replace(/(^-{3,}|={3,})$/gm, '<hr>');
     text = text.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
 
     // Tables
@@ -755,7 +886,7 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
     // Inline
     text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    text = text.replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>');
+    text = text.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
     text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
 
     // Paragraphs
@@ -946,5 +1077,445 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
 
 </body>
 </html>`;
+    }
+
+    private _buildCSP(): string {
+        const config = vscode.workspace.getConfiguration('contextos');
+        const apiUrl = config.get<string>('apiUrl') || 'https://contextos-api-jxdr.onrender.com';
+
+        let apiOrigin = '*';
+        try {
+            const url = new URL(apiUrl);
+            apiOrigin = url.origin;
+        } catch (e) {
+            console.warn('[ChatViewProvider] Invalid API URL, using wildcard CSP:', e);
+        }
+
+        // Production-grade CSP
+        return [
+            "default-src 'none'",
+            "script-src 'unsafe-inline'",
+            "style-src 'unsafe-inline'",
+            "connect-src " + apiOrigin + " *", // Allow API + any for fallback
+            "img-src data: blob: https:",
+            "font-src 'none'",
+            "media-src 'none'",
+            "object-src 'none'",
+            "frame-src 'none'"
+        ].join('; ');
+    }
+
+    private async _clearHistory(): Promise<void> {
+        this._state.messageHistory = [];
+        this._state.conversationId = undefined;
+        await this._saveState();
+    }
+
+    private _setupMessageHandlers(webviewView: vscode.WebviewView): void {
+        webviewView.webview.onDidReceiveMessage(async (data) => {
+            this._telemetry.track('message_received', { type: data.type });
+
+            try {
+                switch (data.type) {
+                    case 'prompt':
+                        await this._handlePrompt(data.value, webviewView);
+                        break;
+                    case 'clearHistory':
+                        await this._clearHistory();
+                        webviewView.webview.postMessage({ type: 'historyCleared' });
+                        break;
+                    case 'copyCode':
+                        await vscode.env.clipboard.writeText(data.value);
+                        webviewView.webview.postMessage({ type: 'codeCopied', id: data.id });
+                        break;
+                    case 'copyMsg':
+                        await vscode.env.clipboard.writeText(data.value);
+                        break;
+                    case 'retry':
+                        if (data.message) {
+                            await this._handlePrompt(data.message, webviewView);
+                        }
+                        break;
+                    case 'ready':
+                        console.log('[ChatViewProvider] Webview ready');
+                        break;
+                    case 'scroll':
+                        this._lastScrollPosition = data.position || 0;
+                        break;
+                    default:
+                        console.warn('[ChatViewProvider] Unknown message type:', data.type);
+                }
+            } catch (error) {
+                console.error('[ChatViewProvider] Message handler error:', error);
+                this._telemetry.trackError(error as Error, { messageType: data.type });
+
+                webviewView.webview.postMessage({
+                    type: 'error',
+                    value: 'Internal error: ' + (error as Error).message,
+                    canRetry: true
+                });
+            }
+        });
+    }
+
+    // ========================================================================
+    // MAIN MESSAGE HANDLER
+    // ========================================================================
+
+    private async _handlePrompt(question: string, webviewView: vscode.WebviewView): Promise<void> {
+        const startTime = Date.now();
+        this._telemetry.track('prompt_received', { questionLength: question.length });
+
+        console.log('[ChatViewProvider] Handling prompt:', question.slice(0, 100) + '...');
+
+        // 1. Rate limiting check
+        if (!this._rateLimiter.tryAcquire()) {
+            const resetTime = this._rateLimiter.getResetTime();
+            const waitMs = resetTime - Date.now();
+
+            webviewView.webview.postMessage({
+                type: 'error',
+                value: `Rate limit exceeded. Please wait ${Math.ceil(waitMs / 1000)} seconds.`,
+                canRetry: true,
+                originalMessage: question
+            });
+
+            this._telemetry.track('rate_limited', { remaining: 0 });
+            return;
+        }
+
+        // 2. Circuit breaker check
+        if (this._circuitBreaker.getState() === CircuitState.OPEN) {
+            webviewView.webview.postMessage({
+                type: 'error',
+                value: 'Service temporarily unavailable. Please try again in a few seconds.',
+                canRetry: true,
+                originalMessage: question
+            });
+            return;
+        }
+
+        // 3. Check processing state
+        if (this._state.isProcessing) {
+            webviewView.webview.postMessage({
+                type: 'error',
+                value: 'Please wait for the current response to complete.',
+                canRetry: true,
+                originalMessage: question
+            });
+            return;
+        }
+
+        // 4. Get API key
+        const apiKey = await this._context.secrets.get('contextos_api_key');
+        if (!apiKey) {
+            webviewView.webview.postMessage({
+                type: 'error',
+                value: 'No API key configured.\n\nPlease run "ContextOS: Set API Key" from the Command Palette.',
+                canRetry: false
+            });
+            return;
+        }
+
+        // 5. Get configuration
+        const config = vscode.workspace.getConfiguration('contextos');
+        const apiUrl = config.get<string>('apiUrl') || 'https://contextos-api-jxdr.onrender.com';
+        const maxRetries = config.get<number>('maxRetries') || 2;
+        const timeoutMs = config.get<number>('timeout') || 120000;
+
+        // 6. Execute request with retry logic
+        this._state.isProcessing = true;
+        this._state.messageHistory.push({ role: 'user', content: question });
+        await this._saveState();
+
+        try {
+            const response = await this._executeRequestWithRetry(
+                { question, apiKey, apiUrl, maxRetries, timeoutMs },
+                webviewView
+            );
+
+            this._telemetry.track('prompt_completed', {
+                duration: Date.now() - startTime,
+                conversationId: this._state.conversationId?.slice(-8),
+                responseLength: response.length
+            });
+
+            this._state.messageHistory.push({ role: 'assistant', content: response });
+            this._state.conversationId = this._state.conversationId || 'conv_' + Date.now();
+            await this._saveState();
+
+        } catch (error: any) {
+            console.error('[ChatViewProvider] Request failed:', error);
+            this._telemetry.trackError(error as Error, { questionLength: question.length });
+
+            webviewView.webview.postMessage({
+                type: 'error',
+                value: error.message || 'Failed to get response. Please try again.',
+                canRetry: true,
+                originalMessage: question
+            });
+
+            this._healthMonitor.recordFailure();
+        } finally {
+            this._state.isProcessing = false;
+            this._state.retryCount = 0;
+            await this._saveState();
+        }
+    }
+
+    private async _executeRequestWithRetry(
+        params: {
+            question: string;
+            apiKey: string;
+            apiUrl: string;
+            maxRetries: number;
+            timeoutMs: number;
+        },
+        webviewView: vscode.WebviewView
+    ): Promise<string> {
+        let lastError: Error | null = null;
+
+        for (let attempt = 0; attempt <= params.maxRetries; attempt++) {
+            try {
+                if (attempt > 0) {
+                    const backoffMs = Math.min(1000 * Math.pow(2, attempt), 10000);
+                    console.log(`[ChatViewProvider] Retrying after ${backoffMs}ms...`);
+                    await new Promise(resolve => setTimeout(resolve, backoffMs));
+                }
+
+                const result = await this._circuitBreaker.execute(() =>
+                    this._makeRequest(params, webviewView)
+                );
+
+                this._healthMonitor.recordSuccess();
+                return result;
+
+            } catch (error: any) {
+                lastError = error;
+                console.error(`[ChatViewProvider] Attempt ${attempt + 1} failed:`, error.message);
+
+                // Don't retry on certain errors
+                if (this._shouldNotRetry(error)) {
+                    break;
+                }
+            }
+        }
+
+        throw lastError || new Error('Request failed after retries');
+    }
+
+    private async _makeRequest(
+        params: {
+            question: string;
+            apiKey: string;
+            apiUrl: string;
+            timeoutMs: number;
+        },
+        webviewView: vscode.WebviewView
+    ): Promise<string> {
+        const cacheKey = `req_${this._hash(params.question + params.apiUrl)}`;
+        const cached = this._requestCache.get(cacheKey);
+
+        if (cached) {
+            console.log('[ChatViewProvider] Cache hit for request');
+            this._telemetry.track('cache_hit');
+            return cached;
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), params.timeoutMs);
+
+        const requestBody = {
+            question: params.question,
+            stream: true,
+            conversation_id: this._state.conversationId ?? null
+        };
+
+        console.log('[ChatViewProvider] Request to:', `${params.apiUrl}/api/v1/query`);
+
+        try {
+            const res = await fetch(`${params.apiUrl}/api/v1/query`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': params.apiKey
+                },
+                body: JSON.stringify(requestBody),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!res.ok) {
+                const errorText = await res.text().catch(() => res.statusText);
+                throw new Error(`API error ${res.status}: ${errorText}`);
+            }
+
+            if (!res.body) {
+                throw new Error('Empty response from server');
+            }
+
+            const result = await this._streamResponse(res.body, webviewView);
+
+            // Cache successful responses
+            this._requestCache.set(cacheKey, result);
+
+            return result;
+
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    }
+
+    private async _streamResponse(
+        body: ReadableStream<Uint8Array>,
+        webviewView: vscode.WebviewView
+    ): Promise<string> {
+        const reader = body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullResponse = '';
+
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop() || '';
+
+                for (const part of parts) {
+                    const lines = part.split('\n');
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed.startsWith('data: ')) continue;
+
+                        const dataStr = trimmed.slice(6).trim();
+                        if (!dataStr || dataStr === '[DONE]') continue;
+
+                        try {
+                            const data = JSON.parse(dataStr);
+                            await this._handleStreamEvent(data, webviewView);
+                            if (data.content) {
+                                fullResponse += data.content;
+                            }
+                        } catch (parseError) {
+                            console.error('[ChatViewProvider] Parse error:', parseError);
+                        }
+                    }
+                }
+            }
+
+            return fullResponse;
+        } finally {
+            reader.releaseLock();
+        }
+    }
+
+    private async _handleStreamEvent(data: any, webviewView: vscode.WebviewView): Promise<void> {
+        switch (data.event) {
+            case 'thinking':
+                webviewView.webview.postMessage({
+                    type: 'thinking',
+                    message: data.message || 'Thinking...'
+                });
+                break;
+
+            case 'searching':
+                webviewView.webview.postMessage({
+                    type: 'searching',
+                    source: data.source,
+                    count: data.count
+                });
+                break;
+
+            case 'token':
+                webviewView.webview.postMessage({
+                    type: 'token',
+                    content: data.content
+                });
+                break;
+
+            case 'sources':
+                webviewView.webview.postMessage({
+                    type: 'sources',
+                    sources: data.sources
+                });
+                break;
+
+            case 'done':
+                if (data.conversation_id) {
+                    this._state.conversationId = data.conversation_id;
+                }
+                webviewView.webview.postMessage({ type: 'done' });
+                break;
+
+            case 'error':
+                throw new Error(data.message || 'Unknown error from server');
+        }
+    }
+
+    private _shouldNotRetry(error: any): boolean {
+        const msg = error.message?.toLowerCase() || '';
+        return (
+            msg.includes('401') ||
+            msg.includes('403') ||
+            msg.includes('invalid api key') ||
+            msg.includes('unauthorized')
+        );
+    }
+
+    private _hash(str: string): string {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return hash.toString(36);
+    }
+
+    // ========================================================================
+    // PUBLIC API
+    // ========================================================================
+
+    public sendContextToChat(context: string): void {
+        if (this._view) {
+            this._view.show(true);
+            this._view.webview.postMessage({ type: 'addContext', value: context });
+        }
+    }
+
+    public async clearCache(): Promise<void> {
+        this._requestCache.invalidate();
+        this._telemetry.track('cache_cleared');
+    }
+
+    public getStats(): {
+        messages: number;
+        rateLimitRemaining: number;
+        cacheSize: number;
+        circuitState: string;
+        health: string;
+    } {
+        return {
+            messages: this._state.messageHistory.length,
+            rateLimitRemaining: this._rateLimiter.getRemaining(),
+            cacheSize: this._requestCache.getStats().size,
+            circuitState: this._circuitBreaker.getState(),
+            health: this._healthMonitor.isHealthy() ? 'healthy' : 'unhealthy'
+        };
+    }
+
+    // ========================================================================
+    // CLEANUP
+    // ========================================================================
+
+    public dispose(): void {
+        this._telemetry.track('extension_disposed', {
+            sessionDuration: this._telemetry.getSessionDuration(),
+            messageCount: this._state.messageHistory.length
+        });
     }
 }
