@@ -74,7 +74,10 @@ PROJECT CONTEXT (use this when relevant):
     def client(self) -> AsyncOpenAI:
         """Lazy-initialize the OpenAI client."""
         if self._client is None:
-            self._client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+            kwargs = {"api_key": settings.llm_api_key}
+            if settings.llm_base_url:
+                kwargs["base_url"] = settings.llm_base_url
+            self._client = AsyncOpenAI(**kwargs)
         return self._client
 
     async def stream_response(
@@ -176,11 +179,11 @@ PROJECT CONTEXT (use this when relevant):
 
             yield {"event": "thinking", "message": "Generating answer..."}
 
-            if not settings.OPENAI_API_KEY:
+            if not settings.llm_api_key:
                 yield {
                     "event": "token",
-                    "content": "I found relevant context but the OpenAI API key is not configured. "
-                    "Please set OPENAI_API_KEY in your environment to enable AI responses.\n\n"
+                    "content": "I found relevant context but the API key is not configured. "
+                    "Please set OPENAI_API_KEY or OPENROUTER_API_KEY in your environment to enable AI responses.\n\n"
                     "Here's what I found in your context:\n\n"
                 }
                 for chunk in retrieved_chunks[:5]:
@@ -192,7 +195,7 @@ PROJECT CONTEXT (use this when relevant):
                     }
             else:
                 stream = await self.client.chat.completions.create(
-                    model=settings.OPENAI_MODEL,
+                    model=settings.llm_model,
                     messages=messages,
                     stream=True,
                     max_tokens=2048,

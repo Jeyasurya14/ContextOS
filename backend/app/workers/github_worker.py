@@ -304,7 +304,10 @@ async def _run_process_pr_event(
                         context_str = "\n\n".join([f"[{c['source_type']}] {c['content']}" for c in context_results])
                         
                         # Generate Review
-                        client = openai.AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+                        kwargs = {"api_key": settings.llm_api_key}
+                        if settings.llm_base_url:
+                            kwargs["base_url"] = settings.llm_base_url
+                        client = openai.AsyncOpenAI(**kwargs)
                         prompt = (
                             "You are ContextOS AI, an expert staff developer and automated PR reviewer.\n"
                             "Your job is to review the following Pull Request diff.\n\n"
@@ -322,7 +325,7 @@ async def _run_process_pr_event(
                         )
                         
                         response = await client.chat.completions.create(
-                            model=settings.OPENAI_MODEL,
+                            model=settings.llm_model,
                             messages=[{"role": "user", "content": prompt}],
                             temperature=0.3,
                         )
