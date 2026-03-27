@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Chat UI</title>
+    <style>
+        body { margin: 0; padding: 20px; font-family: system-ui; background: #1e1e1e; color: #fff; }
+        #msgs { height: 400px; overflow-y: auto; border: 1px solid #333; padding: 10px; margin-bottom: 10px; }
+        .chip { display: inline-block; padding: 8px 12px; margin: 4px; background: #2a2a2a; border: 1px solid #444; border-radius: 6px; cursor: pointer; }
+        .chip:hover { background: #333; }
+        #inp { width: calc(100% - 60px); padding: 10px; background: #2a2a2a; border: 1px solid #444; color: #fff; }
+        #sndBtn { padding: 10px 20px; background: #f59e0b; border: none; color: #000; cursor: pointer; }
+        .msg { padding: 8px; margin: 4px 0; background: #2a2a2a; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h2>ContextOS Chat Test</h2>
+    
+    <div id="msgs">
+        <div class="welcome">
+            <h3>Test the chat functionality</h3>
+            <div class="chips">
+                <span class="chip">What did I last commit?</span>
+                <span class="chip">Explain this codebase</span>
+                <span class="chip">Write a unit test</span>
+            </div>
+        </div>
+    </div>
+    
+    <div>
+        <input type="text" id="inp" placeholder="Type a message...">
+        <button id="sndBtn">Send</button>
+    </div>
+    
+    <div id="console" style="margin-top: 20px; padding: 10px; background: #000; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto;"></div>
+
+    <script>
+        var msgsEl = document.getElementById('msgs');
+        var inp = document.getElementById('inp');
+        var sndBtn = document.getElementById('sndBtn');
+        var consoleEl = document.getElementById('console');
+        
+        function log(msg) {
+            console.log(msg);
+            consoleEl.innerHTML += '<div style="color: #0f0;">' + msg + '</div>';
+            consoleEl.scrollTop = consoleEl.scrollHeight;
+        }
+        
+        function send() {
+            var text = inp.value.trim();
+            if (!text) {
+                log('ERROR: Empty message');
+                inp.focus();
+                return;
+            }
+            
+            log('Sending message: ' + text);
+            
+            // Add message to chat
+            var msgDiv = document.createElement('div');
+            msgDiv.className = 'msg';
+            msgDiv.textContent = 'You: ' + text;
+            msgsEl.appendChild(msgDiv);
+            
+            inp.value = '';
+            log('Message sent successfully');
+            
+            // Simulate response
+            setTimeout(function() {
+                var botDiv = document.createElement('div');
+                botDiv.className = 'msg';
+                botDiv.textContent = 'Bot: I received your message: ' + text;
+                msgsEl.appendChild(botDiv);
+                log('Bot responded');
+            }, 500);
+        }
+        
+        // Event listeners
+        sndBtn.addEventListener('click', function(e) {
+            log('Send button clicked');
+            e.preventDefault();
+            send();
+        });
+        
+        inp.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                log('Enter key pressed');
+                e.preventDefault();
+                send();
+            }
+        });
+        
+        // Chip clicks
+        msgsEl.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('chip')) {
+                log('Chip clicked: ' + e.target.textContent);
+                inp.value = e.target.textContent.trim();
+                inp.focus();
+            }
+        });
+        
+        log('Chat UI initialized');
+        log('Try clicking a chip, typing a message, or clicking send');
+    </script>
+</body>
+</html>

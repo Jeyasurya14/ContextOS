@@ -86,7 +86,7 @@ export default function BillingPage() {
       <style>{`
         @keyframes blFade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
       `}</style>
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
 
       <div className="max-w-5xl" style={{ animation: 'blFade 0.3s ease-out' }}>
         {/* Header */}

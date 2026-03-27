@@ -4,83 +4,269 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'contextos.chatView';
     private _view?: vscode.WebviewView;
     private _currentConversationId?: string;
+    private _messageHistory: Array<{role: string, content: string}> = [];
+    private _isProcessing: boolean = false;
 
     constructor(
         private readonly _extensionUri: vscode.Uri,
         private readonly _context: vscode.ExtensionContext
-    ) { }
+    ) {
+        // Load conversation history from storage
+        this._loadConversationHistory();
+    }
+
+    private async _loadConversationHistory() {
+        try {
+            const history = this._context.globalState.get<Array<{role: string, content: string}>>('messageHistory', []);
+            const conversationId = this._context.globalState.get<string>('conversationId');
+            this._messageHistory = history;
+            this._currentConversationId = conversationId;
+        } catch (error) {
+            console.error('Failed to load conversation history:', error);
+        }
+    }
+
+    private async _saveConversationHistory() {
+        try {
+            await this._context.globalState.update('messageHistory', this._messageHistory);
+            if (this._currentConversationId) {
+                await this._context.globalState.update('conversationId', this._currentConversationId);
+            }
+        } catch (error) {
+            console.error('Failed to save conversation history:', error);
+        }
+    }
 
     public resolveWebviewView(webviewView: vscode.WebviewView, _ctx: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
         this._view = webviewView;
-        webviewView.webview.options = { enableScripts: true, localResourceRoots: [this._extensionUri] };
+        webviewView.webview.options = { 
+            enableScripts: true, 
+            localResourceRoots: [this._extensionUri]
+        };
         webviewView.webview.html = this._getHtmlForWebview();
+        
+        // Restore conversation history when view is loaded
+        setTimeout(() => {
+            if (this._messageHistory.length > 0) {
+                webviewView.webview.postMessage({ 
+                    type: 'restoreHistory', 
+                    messages: this._messageHistory 
+                });
+            }
+        }, 100);
+
         webviewView.webview.onDidReceiveMessage(async (data) => {
-            if (data.type === 'prompt') {
-                await this._handlePrompt(data.value, webviewView);
-            } else if (data.type === 'clearHistory') {
-                this._currentConversationId = undefined;
-            } else if (data.type === 'copyCode') {
-                await vscode.env.clipboard.writeText(data.value);
-                webviewView.webview.postMessage({ type: 'codeCopied', id: data.id });
-            } else if (data.type === 'copyMsg') {
-                await vscode.env.clipboard.writeText(data.value);
+            console.log('Received message from webview:', data.type, data);
+            
+            try {
+                if (data.type === 'prompt') {
+                    console.log('Handling prompt:', data.value);
+                    await this._handlePrompt(data.value, webviewView);
+                } else if (data.type === 'clearHistory') {
+                    console.log('Clearing history');
+                    await this._clearHistory();
+                } else if (data.type === 'copyCode') {
+                    await vscode.env.clipboard.writeText(data.value);
+                    webviewView.webview.postMessage({ type: 'codeCopied', id: data.id });
+                } else if (data.type === 'copyMsg') {
+                    await vscode.env.clipboard.writeText(data.value);
+                } else if (data.type === 'retry') {
+                    console.log('Retrying message:', data.message);
+                    if (data.message) {
+                        await this._handlePrompt(data.message, webviewView);
+                    }
+                } else if (data.type === 'ready') {
+                    console.log('Webview ready');
+                }
+            } catch (error) {
+                console.error('Error handling webview message:', error);
+                webviewView.webview.postMessage({ 
+                    type: 'error', 
+                    value: 'Internal error: ' + (error as Error).message 
+                });
             }
         });
     }
 
+    private async _clearHistory() {
+        this._currentConversationId = undefined;
+        this._messageHistory = [];
+        await this._context.globalState.update('messageHistory', []);
+        await this._context.globalState.update('conversationId', undefined);
+    }
+
     private async _handlePrompt(question: string, webviewView: vscode.WebviewView) {
-        const post = (msg: object) => webviewView.webview.postMessage(msg);
-        const apiKey = await this._context.secrets.get('contextos_api_key');
-        if (!apiKey) {
-            post({ type: 'error', value: 'No API key found.\n\nRun **ContextOS: Set API Key** from the Command Palette (Ctrl+Shift+P).' });
+        console.log('_handlePrompt called with:', question);
+        
+        if (this._isProcessing) {
+            console.log('Already processing, rejecting new message');
+            webviewView.webview.postMessage({ 
+                type: 'error', 
+                value: 'Please wait for the current message to complete.' 
+            });
             return;
         }
-        const config = vscode.workspace.getConfiguration('contextos');
-        const apiUrl = config.get<string>('apiUrl') || 'http://localhost:8000';
-        try {
-            post({ type: 'thinking', value: 'Thinking…' });
-            const res = await fetch(`${apiUrl}/api/v1/query`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-API-Key': apiKey },
-                body: JSON.stringify({ question, stream: true, conversation_id: this._currentConversationId ?? null }),
+
+        this._isProcessing = true;
+        console.log('Processing started, isProcessing:', this._isProcessing);
+        const post = (msg: object) => {
+            console.log('Posting to webview:', msg);
+            webviewView.webview.postMessage(msg);
+        };
+        
+        // Add user message to history
+        this._messageHistory.push({ role: 'user', content: question });
+        await this._saveConversationHistory();
+
+        const apiKey = await this._context.secrets.get('contextos_api_key');
+        console.log('API key retrieved:', apiKey ? 'Yes (length: ' + apiKey.length + ')' : 'No');
+        
+        if (!apiKey) {
+            console.log('No API key found, showing error');
+            post({ 
+                type: 'error', 
+                value: 'No API key found.\n\nRun **ContextOS: Set API Key** from the Command Palette (Ctrl+Shift+P).',
+                canRetry: false
             });
-            if (!res.ok) {
-                const body = await res.text().catch(() => res.statusText);
-                post({ type: 'error', value: `Server error ${res.status}: ${body}` });
-                return;
-            }
-            if (!res.body) { post({ type: 'error', value: 'Empty response.' }); return; }
-            const reader = (res.body as any).getReader();
-            const decoder = new TextDecoder('utf-8');
-            let buffer = '';
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                buffer += decoder.decode(value, { stream: true });
-                const parts = buffer.split('\n\n');
-                buffer = parts.pop() ?? '';
-                for (const part of parts) {
-                    for (const line of part.split('\n')) {
-                        const t = line.trim();
-                        if (!t.startsWith('data: ')) continue;
-                        const jsonStr = t.slice(6).trim();
-                        if (!jsonStr || jsonStr === '[DONE]') continue;
-                        try {
-                            const p = JSON.parse(jsonStr);
-                            if (p.event === 'thinking') post({ type: 'thinking', value: p.message || 'Thinking…' });
-                            else if (p.event === 'searching') post({ type: 'searching', source: p.source, count: p.count });
-                            else if (p.event === 'token') post({ type: 'token', value: p.content });
-                            else if (p.event === 'sources') post({ type: 'sources', sources: p.sources });
-                            else if (p.event === 'done') {
-                                if (p.conversation_id) this._currentConversationId = p.conversation_id;
-                                post({ type: 'done' });
-                            } else if (p.event === 'error') post({ type: 'error', value: p.message });
-                        } catch { /* skip malformed */ }
+            this._isProcessing = false;
+            return;
+        }
+
+        const config = vscode.workspace.getConfiguration('contextos');
+        const apiUrl = config.get<string>('apiUrl') || 'https://contextos-api-jxdr.onrender.com';
+        console.log('API URL:', apiUrl);
+        
+        let assistantMessage = '';
+        let retryCount = 0;
+        const maxRetries = 2;
+
+        while (retryCount <= maxRetries) {
+            try {
+                console.log('Attempt', retryCount + 1, 'of', maxRetries + 1);
+                post({ type: 'thinking', value: 'Thinking…' });
+                
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+
+                const requestBody = { 
+                    question, 
+                    stream: true, 
+                    conversation_id: this._currentConversationId ?? null 
+                };
+                console.log('Sending request to:', `${apiUrl}/api/v1/query`);
+                console.log('Request body:', requestBody);
+                
+                const res = await fetch(`${apiUrl}/api/v1/query`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'X-API-Key': apiKey 
+                    },
+                    body: JSON.stringify(requestBody),
+                    signal: controller.signal
+                });
+                
+                console.log('Response status:', res.status, res.statusText);
+
+                clearTimeout(timeout);
+
+                if (!res.ok) {
+                    const body = await res.text().catch(() => res.statusText);
+                    throw new Error(`Server error ${res.status}: ${body}`);
+                }
+
+                if (!res.body) {
+                    throw new Error('Empty response from server');
+                }
+
+                const reader = (res.body as any).getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const parts = buffer.split('\n\n');
+                    buffer = parts.pop() ?? '';
+                    
+                    for (const part of parts) {
+                        for (const line of part.split('\n')) {
+                            const t = line.trim();
+                            if (!t.startsWith('data: ')) continue;
+                            const jsonStr = t.slice(6).trim();
+                            if (!jsonStr || jsonStr === '[DONE]') continue;
+                            
+                            try {
+                                const p = JSON.parse(jsonStr);
+                                
+                                if (p.event === 'thinking') {
+                                    post({ type: 'thinking', value: p.message || 'Thinking…' });
+                                } else if (p.event === 'searching') {
+                                    post({ type: 'searching', source: p.source, count: p.count });
+                                } else if (p.event === 'token') {
+                                    assistantMessage += p.content;
+                                    post({ type: 'token', value: p.content });
+                                } else if (p.event === 'sources') {
+                                    post({ type: 'sources', sources: p.sources });
+                                } else if (p.event === 'done') {
+                                    if (p.conversation_id) {
+                                        this._currentConversationId = p.conversation_id;
+                                    }
+                                    
+                                    // Add assistant message to history
+                                    if (assistantMessage) {
+                                        this._messageHistory.push({ role: 'assistant', content: assistantMessage });
+                                        await this._saveConversationHistory();
+                                    }
+                                    
+                                    post({ type: 'done' });
+                                    this._isProcessing = false;
+                                    return;
+                                } else if (p.event === 'error') {
+                                    throw new Error(p.message || 'Unknown error from server');
+                                }
+                            } catch (parseError) {
+                                console.error('Failed to parse SSE message:', parseError);
+                            }
+                        }
                     }
                 }
+                
+                // If we get here, stream ended without 'done' event
+                if (assistantMessage) {
+                    this._messageHistory.push({ role: 'assistant', content: assistantMessage });
+                    await this._saveConversationHistory();
+                }
+                post({ type: 'done' });
+                this._isProcessing = false;
+                return;
+
+            } catch (e: any) {
+                retryCount++;
+                console.error(`Request failed (attempt ${retryCount}/${maxRetries + 1}):`, e);
+                console.error('Error details:', e.message, e.stack);
+                
+                if (retryCount > maxRetries) {
+                    const errorMessage = e?.message ?? String(e);
+                    const isNetworkError = errorMessage.includes('fetch') || errorMessage.includes('network') || errorMessage.includes('aborted');
+                    
+                    console.log('Max retries reached, showing error to user');
+                    post({ 
+                        type: 'error', 
+                        value: `${errorMessage}\n\n${isNetworkError ? 'Please check your internet connection and API URL settings.' : 'Please try again.'}`,
+                        canRetry: true,
+                        originalMessage: question
+                    });
+                    this._isProcessing = false;
+                    console.log('Processing ended, isProcessing:', this._isProcessing);
+                    return;
+                }
+                
+                // Wait before retry
+                await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
             }
-        } catch (e: any) {
-            post({ type: 'error', value: e?.message ?? String(e) });
         }
     }
 
@@ -142,6 +328,9 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
 .mg.user .mc{background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(251,191,36,.04));border:1px solid rgba(245,158,11,.16);border-radius:10px 2px 10px 10px;padding:8px 11px;font-size:12.5px;word-break:break-word;white-space:pre-wrap}
 .mg.bot .mc{color:var(--fg);word-break:break-word;font-size:12.5px}
 .mg.err .mc{background:rgba(248,113,113,.07);border:1px solid rgba(248,113,113,.18);border-radius:2px 10px 10px 10px;padding:8px 11px;color:var(--err);font-size:12px;word-break:break-word}
+.retry-btn{margin-top:8px;padding:5px 12px;background:var(--brand-dim);border:1px solid var(--brand-b);color:var(--brand);border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);transition:all .14s;font-weight:600}
+.retry-btn:hover{background:rgba(245,158,11,.15);border-color:var(--brand);transform:translateY(-1px)}
+.retry-btn:active{transform:translateY(0)}
 
 /* Copy msg button */
 .msg-copy{position:absolute;top:8px;right:10px;opacity:0;background:var(--s2);border:1px solid var(--bd);border-radius:5px;padding:2px 6px;font-size:9.5px;color:var(--fg2);cursor:pointer;transition:all .14s;font-family:var(--font)}
@@ -188,6 +377,11 @@ body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(
 /* Cursor */
 .cur{display:inline-block;width:2px;height:.82em;background:var(--brand);margin-left:1px;vertical-align:middle;animation:bl .65s step-end infinite}
 @keyframes bl{50%{opacity:0}}
+.typing-indicator{display:inline-flex;align-items:center;gap:3px;padding:8px 12px;background:var(--s2);border-radius:12px;margin:4px 0}
+.typing-indicator span{width:6px;height:6px;border-radius:50%;background:var(--brand);animation:typing 1.4s ease-in-out infinite}
+.typing-indicator span:nth-child(2){animation-delay:.2s}
+.typing-indicator span:nth-child(3){animation-delay:.4s}
+@keyframes typing{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-8px);opacity:1}}
 
 /* Status bar */
 #sbar{flex-shrink:0;overflow:hidden;max-height:0;transition:max-height .2s ease;background:rgba(11,11,14,.97);border-top:1px solid transparent}
@@ -212,6 +406,8 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
 #sndBtn:hover:not(:disabled){opacity:.88;box-shadow:0 3px 12px rgba(245,158,11,.42)}
 #sndBtn:active:not(:disabled){transform:scale(.91)}
 #sndBtn:disabled{opacity:.2;cursor:not-allowed;box-shadow:none}
+#sndBtn.sending{animation:pulse .8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
 .fmeta{display:flex;align-items:center;justify-content:space-between;padding:0 1px}
 .hint{font-size:9.5px;color:var(--fg3)}
 .mtag{font-size:9.5px;color:var(--brand);font-weight:600;opacity:.6;display:flex;align-items:center;gap:3px}
@@ -227,6 +423,7 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
 
 /* Context banner */
 .ctxban{margin:4px 12px;padding:7px 10px;border-radius:var(--r2);background:rgba(139,92,246,.07);border:1px solid rgba(139,92,246,.2);font-size:11px;color:var(--fg2);display:flex;align-items:center;gap:6px;animation:mi .18s ease-out}
+.success-banner{margin:4px 12px;padding:7px 10px;border-radius:var(--r2);background:rgba(52,211,153,.07);border:1px solid rgba(52,211,153,.2);font-size:11px;color:var(--ok);display:flex;align-items:center;gap:6px;animation:mi .18s ease-out}
 
 /* Divider */
 .day-div{display:flex;align-items:center;gap:8px;padding:6px 14px;margin:4px 0}
@@ -309,13 +506,30 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
 <script>
 (function(){
 'use strict';
+alert('ContextOS JavaScript is loading...');
 var vscode = acquireVsCodeApi();
+console.log('VSCode API acquired:', vscode);
 var msgsEl = document.getElementById('msgs');
 var inp    = document.getElementById('inp');
 var sndBtn = document.getElementById('sndBtn');
 var sbar   = document.getElementById('sbar');
 var sbarIn = document.getElementById('sbar-in');
 var clearBtn = document.getElementById('clearBtn');
+
+// Debug: Check if elements exist
+console.log('DOM Elements Check:', {
+  msgsEl: !!msgsEl,
+  inp: !!inp,
+  sndBtn: !!sndBtn,
+  sbar: !!sbar,
+  sbarIn: !!sbarIn,
+  clearBtn: !!clearBtn
+});
+
+if (!inp || !sndBtn) {
+  console.error('CRITICAL: Input or Send button not found!');
+  alert('Extension Error: Chat elements not found. Please reload VS Code.');
+}
 
 var bot = null;     // current streaming bot: {group, mc, rawEl, cur}
 var busy = false;
@@ -449,10 +663,26 @@ function startBot(){
   return {group:g, mc:mc, rawEl:raw, cur:cur};
 }
 
-function addErr(text){
+function addErr(text, canRetry, originalMessage){
   var g=document.createElement('div'); g.className='mg err';
   var av=document.createElement('div'); av.className='av av-b'; av.innerHTML=BOT_AV;
-  var mc=document.createElement('div'); mc.className='mc'; mc.innerHTML='<strong>Error</strong><br>'+esc(text);
+  var mc=document.createElement('div'); mc.className='mc'; 
+  mc.innerHTML='<strong>Error</strong><br>'+esc(text);
+  
+  if(canRetry && originalMessage){
+    var retryBtn=document.createElement('button');
+    retryBtn.className='retry-btn';
+    retryBtn.textContent='🔄 Retry';
+    retryBtn.style.cssText='margin-top:8px;padding:4px 10px;background:var(--brand-dim);border:1px solid var(--brand-b);color:var(--brand);border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);transition:all .14s';
+    retryBtn.onmouseover=function(){this.style.background='rgba(245,158,11,.15)'};
+    retryBtn.onmouseout=function(){this.style.background='var(--brand-dim)'};
+    retryBtn.onclick=function(){
+      vscode.postMessage({type:'retry',message:originalMessage});
+      g.remove();
+    };
+    mc.appendChild(retryBtn);
+  }
+  
   g.appendChild(av); g.appendChild(mc); msgsEl.appendChild(g); scrollBot(true);
 }
 
@@ -512,7 +742,7 @@ window.addEventListener('message',function(ev){
     case 'error':
       hideStatus();
       if(bot){ bot.cur.remove(); bot.group.remove(); bot=null; }
-      addErr(m.value||'Unknown error');
+      addErr(m.value||'Unknown error', m.canRetry, m.originalMessage);
       lock(false); break;
     case 'codeCopied':
       var btn=msgsEl.querySelector('.cb-copy[data-id="'+m.id+'"]');
@@ -525,18 +755,76 @@ window.addEventListener('message',function(ev){
       inp.value=(inp.value?'[Context]\n'+m.value+'\n\n'+inp.value:'[Context]\n'+m.value+'\n\n');
       autoSize(); inp.focus(); scrollBot(true);
       break;
+    case 'restoreHistory':
+      clearWelcome();
+      if(m.messages && m.messages.length > 0){
+        m.messages.forEach(function(msg){
+          if(msg.role === 'user'){
+            addUser(msg.content);
+          } else if(msg.role === 'assistant'){
+            var b=startBot();
+            b.rawEl.textContent=msg.content;
+            finishBot();
+          }
+        });
+      }
+      break;
   }
 });
 
+// Notify extension that webview is ready
+vscode.postMessage({type:'ready'});
+
 /* ── send ── */
 function send(){
-  var text=inp.value.trim(); if(!text||busy)return;
-  addUser(text); inp.value=''; autoSize(); lock(true); bot=null;
+  var text=inp.value.trim(); 
+  if(!text){
+    inp.focus();
+    return;
+  }
+  if(busy){
+    showStatus('thinking','Please wait...');
+    setTimeout(hideStatus, 2000);
+    return;
+  }
+  
+  console.log('Sending message:', text);
+  addUser(text); 
+  inp.value=''; 
+  autoSize(); 
+  lock(true); 
+  bot=null;
+  
+  // Send to extension
   vscode.postMessage({type:'prompt',value:text});
+  console.log('Message sent to extension');
 }
-sndBtn.addEventListener('click',send);
-inp.addEventListener('keydown',function(e){ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();} });
-function autoSize(){ inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,148)+'px'; }
+if (sndBtn) {
+  console.log('Attaching click listener to send button');
+  sndBtn.addEventListener('click',function(e){
+    console.log('Send button clicked!');
+    e.preventDefault();
+    send();
+  });
+} else {
+  console.error('Send button not found, cannot attach listener');
+}
+if (inp) {
+  console.log('Attaching keydown listener to input');
+  inp.addEventListener('keydown',function(e){ 
+    if(e.key==='Enter'&&!e.shiftKey){
+      console.log('Enter key pressed!');
+      e.preventDefault();
+      send();
+    } 
+  });
+} else {
+  console.error('Input not found, cannot attach listener');
+}
+function autoSize(){ 
+  inp.style.height='auto'; 
+  inp.style.height=Math.min(inp.scrollHeight,148)+'px'; 
+}
 inp.addEventListener('input',autoSize);
 
 /* ── clear ── */
@@ -549,11 +837,35 @@ clearBtn.addEventListener('click',function(){
 
 /* ── chips ── */
 function attachChips(){
-  msgsEl.querySelectorAll('.chip').forEach(function(c){
-    c.addEventListener('click',function(){ inp.value=c.textContent.trim(); inp.focus(); autoSize(); });
+  var chips = document.querySelectorAll('.chip');
+  chips.forEach(function(c){
+    c.addEventListener('click',function(){ 
+      inp.value=c.textContent.trim(); 
+      inp.focus(); 
+      autoSize();
+    });
   });
 }
+
+// Use event delegation for chips that might be added dynamically
+msgsEl.addEventListener('click', function(e){
+  if(e.target && e.target.classList.contains('chip')){
+    inp.value=e.target.textContent.trim();
+    inp.focus();
+    autoSize();
+  }
+});
+
+// Initial attach
 attachChips();
+
+// Focus input on load
+if (inp) {
+  inp.focus();
+}
+
+console.log('ContextOS Chat UI initialized successfully');
+console.log('Ready to send messages!');
 
 })();
 </script>

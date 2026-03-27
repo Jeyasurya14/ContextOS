@@ -544,16 +544,36 @@ export default function ChatPage() {
     // Save user message immediately
     saveMessages([...messages, userMsg], chatId)
 
+    const token = useAuthStore.getState().token
+    if (!token) {
+      setMessages(prev => [...prev, {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: 'Your session has expired. Please refresh the page or log in again.',
+        isStreaming: false,
+        isError: true,
+        timestamp: new Date(),
+      }])
+      setIsStreaming(false)
+      return
+    }
+
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       const resp = await fetch(`${apiUrl}/api/v1/query`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${useAuthStore.getState().token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ question: text }),
       })
+
+      if (resp.status === 401) {
+        useAuthStore.getState().logout()
+        window.location.href = '/login'
+        return
+      }
 
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
 

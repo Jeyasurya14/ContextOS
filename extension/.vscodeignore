@@ -1,0 +1,25 @@
+# Production build - exclude development files
+.vscode/**
+.vscode-test/**
+src/**
+.gitignore
+.yarnrc
+vsc-extension-quickstart.md
+**/tsconfig.json
+**/.eslintrc.json
+**/*.map
+**/*.ts
+!dist/**/*.js
+node_modules/**
+.github/**
+*.md
+!README.md
+!CHANGELOG.md
+!LICENSE
+TESTING_GUIDE.md
+UPGRADE_NOTES.md
+UPGRADE_SUMMARY.md
+QUICKSTART.md
+CHANGELOG_v1.3.0.md
+out/**
+.DS_Store
