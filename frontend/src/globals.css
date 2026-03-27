@@ -409,3 +409,96 @@ body {
 .provider-vscode {
   --provider-color: 0, 122, 204;
 }
+
+/* ============================================
+   MOBILE RESPONSIVE UTILITIES
+   ============================================ */
+
+/* Safe viewport height (handles mobile browser bars) */
+.h-screen-safe {
+  height: 100dvh;
+}
+
+/* Touch-friendly tap targets */
+@media (max-width: 1023px) {
+  .nav-item {
+    @apply py-3;
+    min-height: 44px;
+  }
+  .btn {
+    min-height: 44px;
+  }
+}
+
+/* Mobile card padding adjustments */
+@media (max-width: 640px) {
+  .card, .glass-card, .gradient-border-card, .stat-card {
+    @apply p-4 rounded-xl;
+  }
+}
+
+/* Prevent horizontal overflow on mobile */
+body {
+  overflow-x: hidden;
+}
+
+/* Mobile sidebar drawer */
+@media (max-width: 1023px) {
+  .sidebar-drawer {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sidebar-drawer.open {
+    transform: translateX(0);
+  }
+}
+
+/* Responsive text scales */
+@media (max-width: 640px) {
+  h1 { font-size: clamp(1.25rem, 5vw, 1.75rem); }
+  h2 { font-size: clamp(1rem, 4vw, 1.25rem); }
+}
+
+/* Responsive table - horizontal scroll on mobile */
+@media (max-width: 640px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+/* Mobile form input touch targets */
+@media (max-width: 640px) {
+  .input-premium {
+    @apply py-3 text-base; /* 16px prevents iOS zoom */
+    font-size: 16px !important;
+  }
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Hide scrollbar on mobile for cleaner look */
+@media (max-width: 1023px) {
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+}
+
+/* Responsive grid helpers */
+.responsive-grid-2 {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-4;
+}
+.responsive-grid-3 {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4;
+}
+.responsive-grid-4 {
+  @apply grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4;
+}

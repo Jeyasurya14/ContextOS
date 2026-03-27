@@ -646,6 +646,8 @@ export default function ChatPage() {
     }
   }
 
+  const [chatSidebarOpen, setChatSidebarOpen] = useState(false)
+
   const connectedIntegrations = integrations.filter(i => i.is_active)
   const currentChat = chats.find(c => c.id === currentChatId)
 
@@ -721,11 +723,19 @@ export default function ChatPage() {
         .ctx-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
       `}</style>
 
-      <div className="flex overflow-hidden" style={{ height: 'calc(100vh - 0px)', background: '#09090b' }}>
+      <div className="flex overflow-hidden" style={{ height: '100dvh', background: '#09090b' }}>
 
-        {/* ══ Sidebar ══ */}
+        {/* ══ Mobile overlay ══ */}
+        {chatSidebarOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden" style={{ background: 'rgba(0,0,0,0.6)' }}
+            onClick={() => setChatSidebarOpen(false)} />
+        )}
+
+        {/* ══ Chat Sidebar ══ */}
         <div
-          className="w-[220px] flex-shrink-0 flex flex-col border-r"
+          className={`flex-shrink-0 flex flex-col border-r z-50 transition-transform duration-250
+            fixed lg:relative inset-y-0 left-0 w-[220px]
+            ${chatSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
           style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(9,9,11,0.98)' }}
         >
           {/* New chat button */}
@@ -833,25 +843,35 @@ export default function ChatPage() {
 
           {/* Header */}
           <div
-            className="flex-shrink-0 flex items-center justify-between px-6 py-3 border-b"
+            className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 border-b"
             style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(9,9,11,0.9)', backdropFilter: 'blur(12px)' }}
           >
-            <div>
-              <h1 className="text-sm font-semibold text-white">
-                {currentChat?.title || 'ContextOS AI'}
-              </h1>
-              <p className="text-[11px] mt-0.5" style={{ color: '#3f3f46' }}>
-                {loadingIntegrations ? 'Loading…'
-                  : connectedIntegrations.length === 0
-                    ? 'Connect integrations to search your context'
-                    : connectedIntegrations.map(i => i.provider.replace('_', ' ')).join(', ')
-                }
-              </p>
+            <div className="flex items-center gap-2 min-w-0">
+              {/* Mobile: show sidebar toggle */}
+              <button
+                className="lg:hidden flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+                onClick={() => setChatSidebarOpen(true)}
+              >
+                <Layers className="w-3.5 h-3.5 text-dark-400" />
+              </button>
+              <div className="min-w-0">
+                <h1 className="text-sm font-semibold text-white truncate">
+                  {currentChat?.title || 'ContextOS AI'}
+                </h1>
+                <p className="text-[11px] mt-0.5 hidden sm:block" style={{ color: '#3f3f46' }}>
+                  {loadingIntegrations ? 'Loading…'
+                    : connectedIntegrations.length === 0
+                      ? 'Connect integrations to search your context'
+                      : connectedIntegrations.map(i => i.provider.replace('_', ' ')).join(', ')
+                  }
+                </p>
+              </div>
             </div>
 
-            {/* Provider pills */}
-            <div className="flex items-center gap-1.5">
-              {connectedIntegrations.slice(0, 4).map(i => {
+            {/* Provider pills - hidden on xs */}
+            <div className="hidden sm:flex items-center gap-1.5">
+              {connectedIntegrations.slice(0, 3).map(i => {
                 const color = PROVIDER_COLORS[i.provider] || '#6b7280'
                 return (
                   <span key={i.id} className="px-2 py-0.5 rounded-full text-[10px] font-medium capitalize"
