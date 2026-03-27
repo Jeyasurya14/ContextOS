@@ -179,6 +179,7 @@ class Settings(BaseSettings):
             "http://localhost:3001",
             "http://localhost:3002",
             "https://contextos.vercel.app",
+            "https://context-os-admin.vercel.app",
             "https://*.vercel.app",
         ]
 
