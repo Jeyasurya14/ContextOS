@@ -2,7 +2,7 @@
   "name": "contextos-copilot",
   "displayName": "ContextOS",
   "description": "The AI Copilot that knows everything about your workspace.",
-  "version": "1.3.6",
+  "version": "1.3.7",
   "publisher": "JeyaSuryaM",
   "icon": "images/icon.png",
   "repository": {
