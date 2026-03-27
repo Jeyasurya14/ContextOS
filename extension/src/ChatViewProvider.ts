@@ -39,8 +39,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     public resolveWebviewView(webviewView: vscode.WebviewView, _ctx: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
         this._view = webviewView;
-        webviewView.webview.options = { 
-            enableScripts: true, 
+        webviewView.webview.options = {
+            enableScripts: true,
             localResourceRoots: [this._extensionUri]
         };
         webviewView.webview.html = this._getHtmlForWebview();
@@ -275,12 +275,25 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(): string {
+        // Dynamically build CSP with connect-src for the configured API URL
+        const config = vscode.workspace.getConfiguration('contextos');
+        const apiUrl = config.get<string>('apiUrl') || 'https://contextos-api-jxdr.onrender.com';
+        let apiOrigin = '';
+        try {
+            const url = new URL(apiUrl);
+            apiOrigin = url.origin;
+        } catch (e) {
+            // Fallback - use wildcard if URL is invalid to avoid CSP issues
+            apiOrigin = '*';
+        }
+        const csp = `default-src 'none'; style-src 'unsafe-inline' 'unsafe-eval'; script-src 'unsafe-inline' 'unsafe-eval'; connect-src ${apiOrigin} *; img-src data: blob: https:;`;
+
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data: blob:;">
+<meta http-equiv="Content-Security-Policy" content="${csp}">
 <title>ContextOS</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -506,7 +519,6 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
 <script>
 (function(){
 'use strict';
-alert('ContextOS JavaScript is loading...');
 var vscode = acquireVsCodeApi();
 console.log('VSCode API acquired:', vscode);
 var msgsEl = document.getElementById('msgs');
