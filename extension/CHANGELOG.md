@@ -2,6 +2,14 @@
 
 All notable changes to the "ContextOS Copilot" extension will be documented in this file.
 
+## [1.3.5] - 2026-03-28
+
+- Fixed chat panel functionality - send button and input work correctly
+- Resolved webview errors: removed `localResourceRoots` causing `local-network-access` warnings
+- Implemented dynamic CSP with `connect-src` for API connections
+- Cleaned up debug artifacts and test files
+- Production-ready build with both OpenRouter and OpenAI backend support
+
 ## [1.3.4] - 2026-03-28
 
 - Maintenance update with webview security improvements
