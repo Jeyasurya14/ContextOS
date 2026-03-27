@@ -2,7 +2,7 @@
   "name": "contextos-copilot",
   "displayName": "ContextOS",
   "description": "The AI Copilot that knows everything about your workspace.",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "publisher": "JeyaSuryaM",
   "icon": "images/icon.png",
   "repository": {
@@ -15,6 +15,18 @@
   "categories": [
     "Machine Learning",
     "Other"
+  ],
+  "keywords": [
+    "AI",
+    "copilot",
+    "context",
+    "github",
+    "notion",
+    "slack",
+    "assistant",
+    "chat",
+    "gpt",
+    "rag"
   ],
   "license": "MIT",
   "activationEvents": [],
@@ -54,8 +66,8 @@
       "properties": {
         "contextos.apiUrl": {
           "type": "string",
-          "default": "http://localhost:8000",
-          "description": "The base URL for the ContextOS API. Use http://localhost:8000 for local development, or your production URL (e.g. https://contextos-api-jxdr.onrender.com) for cloud use."
+          "default": "https://contextos-api-jxdr.onrender.com",
+          "description": "The ContextOS API base URL. Defaults to the cloud API. Change to http://localhost:8000 for local development."
         }
       }
     }
