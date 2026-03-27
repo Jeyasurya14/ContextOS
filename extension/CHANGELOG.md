@@ -2,6 +2,15 @@
 
 All notable changes to the "ContextOS Copilot" extension will be documented in this file.
 
+## [1.3.6] - 2026-03-28
+
+- ✅ **Complete chat panel rewrite** - Fully functional send button and input
+- Fixed DOM event binding issues (click, keydown)
+- Rewrote message handling for reliability
+- Improved error handling and user feedback
+- Clean, modern code without debug artifacts
+- Stable streaming responses with proper SSE parsing
+
 ## [1.3.5] - 2026-03-28
 
 - Fixed chat panel functionality - send button and input work correctly

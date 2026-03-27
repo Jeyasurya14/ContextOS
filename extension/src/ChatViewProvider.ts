@@ -11,7 +11,6 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
         private readonly _extensionUri: vscode.Uri,
         private readonly _context: vscode.ExtensionContext
     ) {
-        // Load conversation history from storage
         this._loadConversationHistory();
     }
 
@@ -39,49 +38,69 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
     public resolveWebviewView(webviewView: vscode.WebviewView, _ctx: vscode.WebviewViewResolveContext, _token: vscode.CancellationToken) {
         this._view = webviewView;
+
+        // Configure webview with minimal, secure options
         webviewView.webview.options = {
             enableScripts: true
         };
-        webviewView.webview.html = this._getHtmlForWebview();
-        
-        // Restore conversation history when view is loaded
-        setTimeout(() => {
-            if (this._messageHistory.length > 0) {
-                webviewView.webview.postMessage({ 
-                    type: 'restoreHistory', 
-                    messages: this._messageHistory 
+
+        // Build CSP dynamically based on configured API URL
+        const config = vscode.workspace.getConfiguration('contextos');
+        const apiUrl = config.get<string>('apiUrl') || 'https://contextos-api-jxdr.onrender.com';
+        let apiOrigin = '*';
+        try {
+            const url = new URL(apiUrl);
+            apiOrigin = url.origin;
+        } catch (e) {
+            console.warn('Invalid API URL, using wildcard for CSP:', e);
+        }
+
+        const csp = `default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src ${apiOrigin} *; img-src data: blob: https:;`;
+        webviewView.webview.html = this._getHtmlForWebview(csp);
+
+        // Restore conversation history after webview is ready
+        webviewView.webview.onDidReceiveMessage(message => {
+            if (message.type === 'ready' && this._messageHistory.length > 0) {
+                webviewView.webview.postMessage({
+                    type: 'restoreHistory',
+                    messages: this._messageHistory
                 });
             }
-        }, 100);
+        });
 
         webviewView.webview.onDidReceiveMessage(async (data) => {
-            console.log('Received message from webview:', data.type, data);
-            
+            console.log('[ChatViewProvider] Received:', data.type, data);
+
             try {
-                if (data.type === 'prompt') {
-                    console.log('Handling prompt:', data.value);
-                    await this._handlePrompt(data.value, webviewView);
-                } else if (data.type === 'clearHistory') {
-                    console.log('Clearing history');
-                    await this._clearHistory();
-                } else if (data.type === 'copyCode') {
-                    await vscode.env.clipboard.writeText(data.value);
-                    webviewView.webview.postMessage({ type: 'codeCopied', id: data.id });
-                } else if (data.type === 'copyMsg') {
-                    await vscode.env.clipboard.writeText(data.value);
-                } else if (data.type === 'retry') {
-                    console.log('Retrying message:', data.message);
-                    if (data.message) {
-                        await this._handlePrompt(data.message, webviewView);
-                    }
-                } else if (data.type === 'ready') {
-                    console.log('Webview ready');
+                switch (data.type) {
+                    case 'prompt':
+                        await this._handlePrompt(data.value, webviewView);
+                        break;
+                    case 'clearHistory':
+                        await this._clearHistory();
+                        webviewView.webview.postMessage({ type: 'historyCleared' });
+                        break;
+                    case 'copyCode':
+                        await vscode.env.clipboard.writeText(data.value);
+                        webviewView.webview.postMessage({ type: 'codeCopied', id: data.id });
+                        break;
+                    case 'copyMsg':
+                        await vscode.env.clipboard.writeText(data.value);
+                        break;
+                    case 'retry':
+                        if (data.message) {
+                            await this._handlePrompt(data.message, webviewView);
+                        }
+                        break;
+                    case 'ready':
+                        console.log('[ChatViewProvider] Webview ready');
+                        break;
                 }
             } catch (error) {
-                console.error('Error handling webview message:', error);
-                webviewView.webview.postMessage({ 
-                    type: 'error', 
-                    value: 'Internal error: ' + (error as Error).message 
+                console.error('[ChatViewProvider] Error handling message:', error);
+                webviewView.webview.postMessage({
+                    type: 'error',
+                    value: 'Internal error: ' + (error as Error).message
                 });
             }
         });
@@ -95,145 +114,145 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
     }
 
     private async _handlePrompt(question: string, webviewView: vscode.WebviewView) {
-        console.log('_handlePrompt called with:', question);
-        
+        console.log('[ChatViewProvider] Handling prompt:', question);
+
         if (this._isProcessing) {
-            console.log('Already processing, rejecting new message');
-            webviewView.webview.postMessage({ 
-                type: 'error', 
-                value: 'Please wait for the current message to complete.' 
+            console.log('[ChatViewProvider] Already processing, rejecting');
+            webviewView.webview.postMessage({
+                type: 'error',
+                value: 'Please wait for the current response to complete.',
+                canRetry: true,
+                originalMessage: question
             });
             return;
         }
 
         this._isProcessing = true;
-        console.log('Processing started, isProcessing:', this._isProcessing);
-        const post = (msg: object) => {
-            console.log('Posting to webview:', msg);
-            webviewView.webview.postMessage(msg);
-        };
-        
-        // Add user message to history
+        const post = (msg: object) => webviewView.webview.postMessage(msg);
+
+        // Add user message to history immediately
         this._messageHistory.push({ role: 'user', content: question });
         await this._saveConversationHistory();
 
+        // Get API key
         const apiKey = await this._context.secrets.get('contextos_api_key');
-        console.log('API key retrieved:', apiKey ? 'Yes (length: ' + apiKey.length + ')' : 'No');
-        
         if (!apiKey) {
-            console.log('No API key found, showing error');
-            post({ 
-                type: 'error', 
-                value: 'No API key found.\n\nRun **ContextOS: Set API Key** from the Command Palette (Ctrl+Shift+P).',
+            post({
+                type: 'error',
+                value: 'No API key configured.\n\nPlease run "ContextOS: Set API Key" from the Command Palette.',
                 canRetry: false
             });
             this._isProcessing = false;
             return;
         }
 
+        // Get API configuration
         const config = vscode.workspace.getConfiguration('contextos');
         const apiUrl = config.get<string>('apiUrl') || 'https://contextos-api-jxdr.onrender.com';
-        console.log('API URL:', apiUrl);
-        
+        console.log('[ChatViewProvider] API URL:', apiUrl);
+
         let assistantMessage = '';
         let retryCount = 0;
         const maxRetries = 2;
 
         while (retryCount <= maxRetries) {
             try {
-                console.log('Attempt', retryCount + 1, 'of', maxRetries + 1);
-                post({ type: 'thinking', value: 'Thinking…' });
-                
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
+                console.log(`[ChatViewProvider] Attempt ${retryCount + 1}/${maxRetries + 1}`);
+                post({ type: 'thinking' });
 
-                const requestBody = { 
-                    question, 
-                    stream: true, 
-                    conversation_id: this._currentConversationId ?? null 
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+                const requestBody = {
+                    question,
+                    stream: true,
+                    conversation_id: this._currentConversationId ?? null
                 };
-                console.log('Sending request to:', `${apiUrl}/api/v1/query`);
-                console.log('Request body:', requestBody);
-                
+
+                console.log('[ChatViewProvider] Request:', `${apiUrl}/api/v1/query`, requestBody);
+
                 const res = await fetch(`${apiUrl}/api/v1/query`, {
                     method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json', 
-                        'X-API-Key': apiKey 
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': apiKey
                     },
                     body: JSON.stringify(requestBody),
                     signal: controller.signal
                 });
-                
-                console.log('Response status:', res.status, res.statusText);
 
-                clearTimeout(timeout);
+                clearTimeout(timeoutId);
 
                 if (!res.ok) {
-                    const body = await res.text().catch(() => res.statusText);
-                    throw new Error(`Server error ${res.status}: ${body}`);
+                    const errorText = await res.text().catch(() => res.statusText);
+                    throw new Error(`API error ${res.status}: ${errorText}`);
                 }
 
                 if (!res.body) {
-                    throw new Error('Empty response from server');
+                    throw new Error('No response body from server');
                 }
 
-                const reader = (res.body as any).getReader();
-                const decoder = new TextDecoder('utf-8');
+                // Stream response
+                const reader = res.body.getReader();
+                const decoder = new TextDecoder();
                 let buffer = '';
-                
+
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
-                    
+
                     buffer += decoder.decode(value, { stream: true });
                     const parts = buffer.split('\n\n');
-                    buffer = parts.pop() ?? '';
-                    
+                    buffer = parts.pop() || '';
+
                     for (const part of parts) {
-                        for (const line of part.split('\n')) {
-                            const t = line.trim();
-                            if (!t.startsWith('data: ')) continue;
-                            const jsonStr = t.slice(6).trim();
-                            if (!jsonStr || jsonStr === '[DONE]') continue;
-                            
+                        const lines = part.split('\n');
+                        for (const line of lines) {
+                            const trimmed = line.trim();
+                            if (!trimmed.startsWith('data: ')) continue;
+
+                            const dataStr = trimmed.slice(6).trim();
+                            if (!dataStr || dataStr === '[DONE]') continue;
+
                             try {
-                                const p = JSON.parse(jsonStr);
-                                
-                                if (p.event === 'thinking') {
-                                    post({ type: 'thinking', value: p.message || 'Thinking…' });
-                                } else if (p.event === 'searching') {
-                                    post({ type: 'searching', source: p.source, count: p.count });
-                                } else if (p.event === 'token') {
-                                    assistantMessage += p.content;
-                                    post({ type: 'token', value: p.content });
-                                } else if (p.event === 'sources') {
-                                    post({ type: 'sources', sources: p.sources });
-                                } else if (p.event === 'done') {
-                                    if (p.conversation_id) {
-                                        this._currentConversationId = p.conversation_id;
-                                    }
-                                    
-                                    // Add assistant message to history
-                                    if (assistantMessage) {
-                                        this._messageHistory.push({ role: 'assistant', content: assistantMessage });
-                                        await this._saveConversationHistory();
-                                    }
-                                    
-                                    post({ type: 'done' });
-                                    this._isProcessing = false;
-                                    return;
-                                } else if (p.event === 'error') {
-                                    throw new Error(p.message || 'Unknown error from server');
+                                const data = JSON.parse(dataStr);
+
+                                switch (data.event) {
+                                    case 'thinking':
+                                        post({ type: 'thinking', message: data.message });
+                                        break;
+                                    case 'searching':
+                                        post({ type: 'searching', source: data.source, count: data.count });
+                                        break;
+                                    case 'token':
+                                        assistantMessage += data.content;
+                                        post({ type: 'token', content: data.content });
+                                        break;
+                                    case 'sources':
+                                        post({ type: 'sources', sources: data.sources });
+                                        break;
+                                    case 'done':
+                                        if (data.conversation_id) {
+                                            this._currentConversationId = data.conversation_id;
+                                        }
+                                        if (assistantMessage) {
+                                            this._messageHistory.push({ role: 'assistant', content: assistantMessage });
+                                            await this._saveConversationHistory();
+                                        }
+                                        post({ type: 'done' });
+                                        this._isProcessing = false;
+                                        return;
+                                    case 'error':
+                                        throw new Error(data.message || 'Unknown error from server');
                                 }
                             } catch (parseError) {
-                                console.error('Failed to parse SSE message:', parseError);
+                                console.error('[ChatViewProvider] Failed to parse SSE:', parseError, 'data:', line);
                             }
                         }
                     }
                 }
-                
-                // If we get here, stream ended without 'done' event
+
+                // Stream ended without explicit 'done'
                 if (assistantMessage) {
                     this._messageHistory.push({ role: 'assistant', content: assistantMessage });
                     await this._saveConversationHistory();
@@ -242,51 +261,38 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
                 this._isProcessing = false;
                 return;
 
-            } catch (e: any) {
+            } catch (error: any) {
                 retryCount++;
-                console.error(`Request failed (attempt ${retryCount}/${maxRetries + 1}):`, e);
-                console.error('Error details:', e.message, e.stack);
-                
+                console.error(`[ChatViewProvider] Request failed (${retryCount}/${maxRetries + 1}):`, error);
+
                 if (retryCount > maxRetries) {
-                    const errorMessage = e?.message ?? String(e);
-                    const isNetworkError = errorMessage.includes('fetch') || errorMessage.includes('network') || errorMessage.includes('aborted');
-                    
-                    console.log('Max retries reached, showing error to user');
-                    post({ 
-                        type: 'error', 
-                        value: `${errorMessage}\n\n${isNetworkError ? 'Please check your internet connection and API URL settings.' : 'Please try again.'}`,
+                    const msg = error?.message || String(error);
+                    const isNetwork = msg.toLowerCase().includes('fetch') || msg.toLowerCase().includes('network') || msg.toLowerCase().includes('aborted');
+
+                    post({
+                        type: 'error',
+                        value: `${msg}\n\n${isNetwork ? 'Check your connection and API URL.' : 'Please try again.'}`,
                         canRetry: true,
                         originalMessage: question
                     });
                     this._isProcessing = false;
-                    console.log('Processing ended, isProcessing:', this._isProcessing);
                     return;
                 }
-                
+
                 // Wait before retry
                 await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
             }
         }
     }
 
-    public sendContextToChat(ctx: string) {
-        if (this._view) { this._view.show?.(true); this._view.webview.postMessage({ type: 'addContext', value: ctx }); }
+    public sendContextToChat(context: string) {
+        if (this._view) {
+            this._view.show(true);
+            this._view.webview.postMessage({ type: 'addContext', value: context });
+        }
     }
 
-    private _getHtmlForWebview(): string {
-        // Dynamically build CSP with connect-src for the configured API URL
-        const config = vscode.workspace.getConfiguration('contextos');
-        const apiUrl = config.get<string>('apiUrl') || 'https://contextos-api-jxdr.onrender.com';
-        let apiOrigin = '';
-        try {
-            const url = new URL(apiUrl);
-            apiOrigin = url.origin;
-        } catch (e) {
-            // Fallback - use wildcard if URL is invalid to avoid CSP issues
-            apiOrigin = '*';
-        }
-        const csp = `default-src 'none'; style-src 'unsafe-inline' 'unsafe-eval'; script-src 'unsafe-inline' 'unsafe-eval'; connect-src ${apiOrigin} *; img-src data: blob: https:;`;
-
+    private _getHtmlForWebview(csp: string): string {
         return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -510,376 +516,434 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
     </button>
   </div>
   <div class="fmeta">
-    <span class="hint">Enter · Shift+Enter new line</span>
-    <span class="mtag"><svg width="9" height="9" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>GPT-4o</span>
+    <span class="hint">Enter · Shift+Enter for new line</span>
   </div>
 </div>
 
 <script>
-(function(){
-'use strict';
-var vscode = acquireVsCodeApi();
-console.log('VSCode API acquired:', vscode);
-var msgsEl = document.getElementById('msgs');
-var inp    = document.getElementById('inp');
-var sndBtn = document.getElementById('sndBtn');
-var sbar   = document.getElementById('sbar');
-var sbarIn = document.getElementById('sbar-in');
-var clearBtn = document.getElementById('clearBtn');
+(function() {
+  'use strict';
 
-// Debug: Check if elements exist
-console.log('DOM Elements Check:', {
-  msgsEl: !!msgsEl,
-  inp: !!inp,
-  sndBtn: !!sndBtn,
-  sbar: !!sbar,
-  sbarIn: !!sbarIn,
-  clearBtn: !!clearBtn
-});
+  const vscode = acquireVsCodeApi();
 
-if (!inp || !sndBtn) {
-  console.error('CRITICAL: Input or Send button not found!');
-  alert('Extension Error: Chat elements not found. Please reload VS Code.');
-}
+  // DOM Elements
+  const msgsEl = document.getElementById('msgs');
+  const inp = document.getElementById('inp');
+  const sndBtn = document.getElementById('sndBtn');
+  const sbar = document.getElementById('sbar');
+  const sbarIn = document.getElementById('sbar-in');
+  const clearBtn = document.getElementById('clearBtn');
+  const chips = document.querySelectorAll('.chip');
 
-var bot = null;     // current streaming bot: {group, mc, rawEl, cur}
-var busy = false;
-var codeIdx = 0;    // GLOBAL counter — never resets, prevents ID collisions
-var codeMap = {};   // id -> raw code string
+  // State
+  let bot = null;
+  let busy = false;
+  let codeIdx = 0;
+  const codeMap = {};
 
-/* ── helpers ── */
-function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
-function now(){ var d=new Date(); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0') }
-function scrollBot(force){
-  var near = msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight < 100;
-  if(force||near) msgsEl.scrollTop = msgsEl.scrollHeight;
-}
-function lock(v){ busy=v; sndBtn.disabled=v; inp.disabled=v; }
+  // Verify DOM is ready
+  if (!msgsEl || !inp || !sndBtn) {
+    console.error('[Webview] Missing required DOM elements');
+    return;
+  }
 
-/* ── status bar ── */
-function showStatus(phase, chip){
-  sbar.classList.add('on');
-  var icon = phase==='searching'
-    ? '<div class="spin"></div>'
-    : phase==='generating'
-    ? '<div class="dots"><span></span><span></span><span></span></div>'
-    : '<div class="spin"></div>';
-  var label = {thinking:'Thinking…',searching:'Searching context…',generating:'Generating response…'}[phase]||phase;
-  var chipHtml = chip ? '<span class="sbar-chip">'+esc(chip)+'</span>' : '';
-  sbarIn.innerHTML = icon + '<span style="font-style:italic">'+esc(label)+'</span>' + chipHtml;
-}
-function hideStatus(){ sbar.classList.remove('on'); sbarIn.innerHTML=''; }
+  console.log('[Webview] Initializing');
 
-/* ── markdown renderer ── */
-function renderMd(raw){
-  var localBlocks=[];
-  var text=raw;
+  // Helper Functions
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-  // extract fenced code blocks
-  text=text.replace(/\x60\x60\x60(\w*)\n?([\s\S]*?)\x60\x60\x60/g,function(_,lang,code){
-    var id='cb'+codeIdx++;
-    var trimmed=code.replace(/\n$/,'');
-    codeMap[id]=trimmed;
-    localBlocks.push({id:id,lang:lang||'code',code:trimmed});
-    return 'CBPH_'+(localBlocks.length-1)+'_END';
-  });
+  const now = () => {
+    const d = new Date();
+    return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+  };
 
-  // escape html
-  text=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const scrollBot = (force = false) => {
+    const near = msgsEl.scrollHeight - msgsEl.scrollTop - msgsEl.clientHeight < 100;
+    if (force || near) msgsEl.scrollTop = msgsEl.scrollHeight;
+  };
 
-  // block elements
-  text=text.replace(/^### (.+)$/gm,'<h3>$1</h3>');
-  text=text.replace(/^## (.+)$/gm,'<h2>$1</h2>');
-  text=text.replace(/^# (.+)$/gm,'<h1>$1</h1>');
-  text=text.replace(/^(-{3,}|={3,})$/gm,'<hr>');
-  text=text.replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>');
+  const lock = (v) => {
+    busy = v;
+    sndBtn.disabled = v;
+    inp.disabled = v;
+  };
 
-  // tables
-  text=text.replace(/((\|.+\|\n)+)/g,function(tbl){
-    var rows=tbl.trim().split('\n');
-    var hdrs=rows[0].split('|').filter(function(c){return c.trim();});
-    if(rows.length<2||!/^\|?[-| :]+\|?$/.test(rows[1]))return tbl;
-    var h='<table><thead><tr>';
-    hdrs.forEach(function(c){h+='<th>'+c.trim()+'</th>';});
-    h+='</tr></thead><tbody>';
-    for(var i=2;i<rows.length;i++){var cells=rows[i].split('|').slice(1);if(!cells.length)continue;h+='<tr>';cells.forEach(function(c){h+='<td>'+(c||'').trim()+'</td>';});h+='</tr>';}
-    return h+'</tbody></table>';
-  });
+  const showStatus = (label) => {
+    sbar.classList.add('on');
+    sbarIn.innerHTML = '<span style="font-style:italic">' + esc(label) + '</span>';
+  };
 
-  // lists
-  text=text.replace(/^[ \t]*[\*\-] (.+)$/gm,'<li>$1</li>');
-  text=text.replace(/^[ \t]*\d+\. (.+)$/gm,'<li class="ol">$1</li>');
-  text=text.replace(/(<li class="ol">[\s\S]*?<\/li>\n?)+/g,function(m){return'<ol>'+m+'</ol>';});
-  text=text.replace(/(<li>[\s\S]*?<\/li>\n?)+/g,function(m){return m.indexOf('class="ol"')===-1?'<ul>'+m+'</ul>':m;});
+  const hideStatus = () => {
+    sbar.classList.remove('on');
+    sbarIn.innerHTML = '';
+  };
 
-  // inline
-  text=text.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
-  text=text.replace(/\*(.+?)\*/g,'<em>$1</em>');
-  text=text.replace(/\x60([^\x60]+)\x60/g,'<code>$1</code>');
-  text=text.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2" target="_blank">$1</a>');
+  const clearWelcome = () => {
+    const welcome = document.getElementById('welcome');
+    if (welcome) welcome.remove();
+  };
 
-  // paragraphs
-  text=text.split(/\n\n+/).map(function(p){
-    p=p.trim(); if(!p)return'';
-    if(/^(<h[1-3]|<ul|<ol|<li|<table|<blockquote|<hr|CBPH_)/.test(p))return p;
-    return'<p>'+p.replace(/\n/g,'<br>')+'</p>';
-  }).join('');
-
-  // restore code blocks
-  text=text.replace(/CBPH_(\d+)_END/g,function(_,i){
-    var b=localBlocks[parseInt(i)];if(!b)return'';
-    var escaped=b.code.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    return'<div class="cb">'+
-      '<div class="cb-hdr"><span class="cb-lang">'+esc(b.lang)+'</span>'+
-      '<button class="cb-copy" data-id="'+b.id+'" onclick="copyCode(this)">&#x2398; Copy</button></div>'+
-      '<pre><code>'+escaped+'</code></pre></div>';
-  });
-  return text;
-}
-
-window.copyCode=function(btn){
-  var id=btn.getAttribute('data-id');
-  vscode.postMessage({type:'copyCode',id:id,value:codeMap[id]||''});
-};
-
-/* ── message builders ── */
-function clearWelcome(){ var w=document.getElementById('welcome'); if(w)w.remove(); }
-
-var BOT_AV = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="13" height="13"><defs><linearGradient id="ag" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#d97706"/></linearGradient></defs><path d="M28 14C16 14 10 21 10 32c0 11 6 18 18 18" fill="none" stroke="url(#ag)" stroke-width="6" stroke-linecap="round"/><circle cx="17" cy="32" r="4" fill="#f59e0b"/><g transform="translate(37,32)"><path d="M0,-13 L11,-6.5 L11,6.5 L0,13 L-11,6.5 L-11,-6.5Z" fill="none" stroke="url(#ag)" stroke-width="2.5" stroke-linejoin="round"/><line x1="-6" y1="-3.5" x2="6" y2="-3.5" stroke="url(#ag)" stroke-width="2" stroke-linecap="round"/><line x1="-6" y1="0" x2="6" y2="0" stroke="url(#ag)" stroke-width="2" stroke-linecap="round"/><line x1="-6" y1="3.5" x2="6" y2="3.5" stroke="url(#ag)" stroke-width="2" stroke-linecap="round"/></g></svg>';
-
-function addUser(text){
-  clearWelcome();
-  var g=document.createElement('div'); g.className='mg user';
-  var av=document.createElement('div'); av.className='av av-u'; av.textContent='U';
-  var mc=document.createElement('div'); mc.className='mc'; mc.textContent=text;
-  var cp=document.createElement('button'); cp.className='msg-copy'; cp.textContent='Copy';
-  cp.onclick=function(){ vscode.postMessage({type:'copyMsg',value:text}); cp.textContent='Copied!'; setTimeout(function(){cp.textContent='Copy';},1800); };
-  var ts=document.createElement('div'); ts.className='ts'; ts.textContent=now();
-  var right=document.createElement('div'); right.style.flex='1'; right.style.minWidth='0'; right.style.maxWidth='calc(100% - 33px)';
-  right.appendChild(mc); right.appendChild(ts);
-  g.appendChild(av); g.appendChild(right); g.appendChild(cp);
-  msgsEl.appendChild(g); scrollBot(true);
-}
-
-function startBot(){
-  clearWelcome();
-  var g=document.createElement('div'); g.className='mg bot';
-  var av=document.createElement('div'); av.className='av av-b'; av.innerHTML=BOT_AV;
-  var mc=document.createElement('div'); mc.className='mc md';
-  var raw=document.createElement('span'); raw.className='raw';
-  var cur=document.createElement('span'); cur.className='cur';
-  mc.appendChild(raw); mc.appendChild(cur);
-  g.appendChild(av); g.appendChild(mc);
-  msgsEl.appendChild(g); scrollBot(true);
-  return {group:g, mc:mc, rawEl:raw, cur:cur};
-}
-
-function addErr(text, canRetry, originalMessage){
-  var g=document.createElement('div'); g.className='mg err';
-  var av=document.createElement('div'); av.className='av av-b'; av.innerHTML=BOT_AV;
-  var mc=document.createElement('div'); mc.className='mc'; 
-  mc.innerHTML='<strong>Error</strong><br>'+esc(text);
-  
-  if(canRetry && originalMessage){
-    var retryBtn=document.createElement('button');
-    retryBtn.className='retry-btn';
-    retryBtn.textContent='🔄 Retry';
-    retryBtn.style.cssText='margin-top:8px;padding:4px 10px;background:var(--brand-dim);border:1px solid var(--brand-b);color:var(--brand);border-radius:6px;cursor:pointer;font-size:11px;font-family:var(--font);transition:all .14s';
-    retryBtn.onmouseover=function(){this.style.background='rgba(245,158,11,.15)'};
-    retryBtn.onmouseout=function(){this.style.background='var(--brand-dim)'};
-    retryBtn.onclick=function(){
-      vscode.postMessage({type:'retry',message:originalMessage});
-      g.remove();
+  const addUser = (text) => {
+    clearWelcome();
+    const g = document.createElement('div');
+    g.className = 'mg user';
+    const av = document.createElement('div');
+    av.className = 'av av-u';
+    av.textContent = 'U';
+    const mc = document.createElement('div');
+    mc.className = 'mc';
+    mc.textContent = text;
+    const cp = document.createElement('button');
+    cp.className = 'msg-copy';
+    cp.textContent = 'Copy';
+    cp.onclick = () => {
+      vscode.postMessage({ type: 'copyMsg', value: text });
+      cp.textContent = 'Copied!';
+      setTimeout(() => cp.textContent = 'Copy', 1800);
     };
-    mc.appendChild(retryBtn);
-  }
-  
-  g.appendChild(av); g.appendChild(mc); msgsEl.appendChild(g); scrollBot(true);
-}
+    const ts = document.createElement('div');
+    ts.className = 'ts';
+    ts.textContent = now();
+    const right = document.createElement('div');
+    right.style.flex = '1';
+    right.style.minWidth = '0';
+    right.style.maxWidth = 'calc(100% - 33px)';
+    right.appendChild(mc);
+    right.appendChild(ts);
+    g.appendChild(av);
+    g.appendChild(right);
+    g.appendChild(cp);
+    msgsEl.appendChild(g);
+    scrollBot(true);
+  };
 
-function addSources(sources, container){
-  if(!sources||!sources.length)return;
-  var w=document.createElement('div'); w.className='srcs';
-  sources.slice(0,8).forEach(function(s){
-    var p=document.createElement('span'); p.className='src-pill';
-    var lbl=s.source||s.title||s.id||'source';
-    p.textContent='📎 '+String(lbl).slice(0,36); p.title=String(lbl);
-    w.appendChild(p);
-  });
-  container.appendChild(w);
-}
+  const startBot = () => {
+    clearWelcome();
+    const g = document.createElement('div');
+    g.className = 'mg bot';
+    const av = document.createElement('div');
+    av.className = 'av av-b';
+    av.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="13" height="13"><defs><linearGradient id="ag" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#d97706"/></linearGradient></defs><path d="M28 14C16 14 10 21 10 32c0 11 6 18 18 18" fill="none" stroke="url(#ag)" stroke-width="6" stroke-linecap="round"/><circle cx="17" cy="32" r="4" fill="#f59e0b"/><g transform="translate(37,32)"><path d="M0,-13 L11,-6.5 L11,6.5 L0,13 L-11,6.5 L-11,-6.5Z" fill="none" stroke="url(#ag)" stroke-width="2.5" stroke-linejoin="round"/><line x1="-6" y1="-3.5" x2="6" y2="-3.5" stroke="url(#ag)" stroke-width="2" stroke-linecap="round"/><line x1="-6" y1="0" x2="6" y2="0" stroke="url(#ag)" stroke-width="2" stroke-linecap="round"/><line x1="-6" y1="3.5" x2="6" y2="3.5" stroke="url(#ag)" stroke-width="2" stroke-linecap="round"/></g></svg>';
+    const mc = document.createElement('div');
+    mc.className = 'mc';
+    const raw = document.createElement('span');
+    raw.className = 'raw';
+    const cur = document.createElement('span');
+    cur.className = 'cur';
+    cur.innerHTML = '▋';
+    mc.appendChild(raw);
+    mc.appendChild(cur);
+    g.appendChild(av);
+    g.appendChild(mc);
+    msgsEl.appendChild(g);
+    scrollBot(true);
+    return { group: g, mc: mc, rawEl: raw, cur: cur };
+  };
 
-function finishBot(){
-  if(!bot)return;
-  var raw=bot.rawEl.textContent||'';
-  bot.cur.remove(); bot.rawEl.remove();
-  bot.mc.innerHTML=renderMd(raw);
-  // add copy button
-  var cp=document.createElement('button'); cp.className='msg-copy'; cp.textContent='Copy';
-  cp.onclick=function(){ vscode.postMessage({type:'copyMsg',value:raw}); cp.textContent='Copied!'; setTimeout(function(){cp.textContent='Copy';},1800); };
-  bot.group.appendChild(cp);
-  // timestamp
-  var ts=document.createElement('div'); ts.className='ts'; ts.style.marginTop='4px'; ts.textContent=now();
-  bot.mc.appendChild(ts);
-  bot=null;
-}
+  const finishBot = () => {
+    if (!bot) return;
+    const raw = bot.rawEl.textContent || '';
+    bot.cur.remove();
+    bot.rawEl.remove();
+    bot.mc.innerHTML = renderMd(raw);
+    const cp = document.createElement('button');
+    cp.className = 'msg-copy';
+    cp.textContent = 'Copy';
+    cp.onclick = () => {
+      vscode.postMessage({ type: 'copyMsg', value: raw });
+      cp.textContent = 'Copied!';
+      setTimeout(() => cp.textContent = 'Copy', 1800);
+    };
+    bot.group.appendChild(cp);
+    const ts = document.createElement('div');
+    ts.className = 'ts';
+    ts.style.marginTop = '4px';
+    ts.textContent = now();
+    bot.mc.appendChild(ts);
+    bot = null;
+  };
 
-/* ── message receiver ── */
-window.addEventListener('message',function(ev){
-  var m=ev.data;
-  switch(m.type){
-    case 'thinking':
-      showStatus('thinking',null);
-      if(!bot)bot=startBot();
-      break;
-    case 'searching':
-      showStatus('searching', m.source?(m.source+(m.count?' ('+m.count+')':'')):null);
-      if(!bot)bot=startBot();
-      break;
-    case 'token':
-      hideStatus();
-      if(!bot)bot=startBot();
-      bot.rawEl.textContent+=m.value;
-      scrollBot(false);
-      break;
-    case 'sources':
-      if(bot) addSources(m.sources, bot.mc);
-      break;
-    case 'done':
-      hideStatus();
-      finishBot();
-      lock(false); inp.focus();
-      break;
-    case 'error':
-      hideStatus();
-      if(bot){ bot.cur.remove(); bot.group.remove(); bot=null; }
-      addErr(m.value||'Unknown error', m.canRetry, m.originalMessage);
-      lock(false); break;
-    case 'codeCopied':
-      var btn=msgsEl.querySelector('.cb-copy[data-id="'+m.id+'"]');
-      if(btn){ btn.textContent='✓ Copied'; btn.classList.add('ok'); setTimeout(function(){btn.textContent='⌘ Copy'; btn.classList.remove('ok');},2000); }
-      break;
-    case 'addContext':
-      var ban=document.createElement('div'); ban.className='ctxban';
-      ban.innerHTML='<span style="color:#a78bfa;font-size:12px">📌</span><span style="font-size:11px;color:#a78bfa">Context from editor attached</span>';
-      msgsEl.appendChild(ban);
-      inp.value=(inp.value?'[Context]\n'+m.value+'\n\n'+inp.value:'[Context]\n'+m.value+'\n\n');
-      autoSize(); inp.focus(); scrollBot(true);
-      break;
-    case 'restoreHistory':
-      clearWelcome();
-      if(m.messages && m.messages.length > 0){
-        m.messages.forEach(function(msg){
-          if(msg.role === 'user'){
-            addUser(msg.content);
-          } else if(msg.role === 'assistant'){
-            var b=startBot();
-            b.rawEl.textContent=msg.content;
-            finishBot();
-          }
-        });
+  const addErr = (text, canRetry, originalMessage) => {
+    const g = document.createElement('div');
+    g.className = 'mg err';
+    const av = document.createElement('div');
+    av.className = 'av av-b';
+    av.innerHTML = bot ? bot.group.querySelector('.av').innerHTML : '';
+    const mc = document.createElement('div');
+    mc.className = 'mc';
+    mc.innerHTML = '<strong>Error</strong><br>' + esc(text);
+
+    if (canRetry && originalMessage) {
+      const retryBtn = document.createElement('button');
+      retryBtn.className = 'retry-btn';
+      retryBtn.textContent = '🔄 Retry';
+      retryBtn.onclick = () => {
+        vscode.postMessage({ type: 'retry', message: originalMessage });
+        g.remove();
+      };
+      mc.appendChild(retryBtn);
+    }
+
+    g.appendChild(av);
+    g.appendChild(mc);
+    msgsEl.appendChild(g);
+    scrollBot(true);
+  };
+
+  const addSources = (sources, container) => {
+    if (!sources || !sources.length) return;
+    const w = document.createElement('div');
+    w.className = 'srcs';
+    sources.slice(0, 8).forEach((s) => {
+      const p = document.createElement('span');
+      p.className = 'src-pill';
+      const lbl = s.source || s.title || s.id || 'source';
+      p.textContent = '📎 ' + String(lbl).slice(0, 36);
+      p.title = String(lbl);
+      w.appendChild(p);
+    });
+    container.appendChild(w);
+  };
+
+  const renderMd = (raw) => {
+    const localBlocks = [];
+    let text = raw;
+
+    // Extract fenced code blocks
+    text = text.replace(/\x60\x60\x60(\w*)\n?([\s\S]*?)\x60\x60\x60/g, (_, lang, code) => {
+      const id = 'cb' + codeIdx++;
+      const trimmed = code.replace(/\n$/, '');
+      codeMap[id] = trimmed;
+      localBlocks.push({ id, lang: lang || 'code', code: trimmed });
+      return 'CBPH_' + (localBlocks.length - 1) + '_END';
+    });
+
+    // Escape HTML
+    text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    // Headers
+    text = text.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    text = text.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    text = text.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    text = text.replace(/^(-{3,}|={3,})$/gm, '<hr>');
+    text = text.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+
+    // Tables
+    text = text.replace(/((\|.+\|\n)+)/g, (tbl) => {
+      const rows = tbl.trim().split('\n');
+      const hdrs = rows[0].split('|').filter((c) => c.trim());
+      if (rows.length < 2 || !/^\|?[-| :]+\|?$/.test(rows[1])) return tbl;
+      let h = '<table><thead><tr>';
+      hdrs.forEach((c) => h += '<th>' + c.trim() + '</th>');
+      h += '</tr></thead><tbody>';
+      for (let i = 2; i < rows.length; i++) {
+        const cells = rows[i].split('|').slice(1);
+        if (!cells.length) continue;
+        h += '<tr>';
+        cells.forEach((c) => h += '<td>' + (c || '').trim() + '</td>');
+        h += '</tr>';
       }
-      break;
-  }
-});
+      return h + '</tbody></table>';
+    });
 
-// Notify extension that webview is ready
-vscode.postMessage({type:'ready'});
+    // Lists
+    text = text.replace(/^[ \t]*[\*\-] (.+)$/gm, '<li>$1</li>');
+    text = text.replace(/^[ \t]*\d+\. (.+)$/gm, '<li class="ol">$1</li>');
+    text = text.replace(/(<li class="ol">[\s\S]*?<\/li>\n?)+/g, (m) => '<ol>' + m + '</ol>');
+    text = text.replace(/(<li>[\s\S]*?<\/li>\n?)+/g, (m) => m.indexOf('class="ol"') === -1 ? '<ul>' + m + '</ul>' : m);
 
-/* ── send ── */
-function send(){
-  var text=inp.value.trim(); 
-  if(!text){
-    inp.focus();
-    return;
-  }
-  if(busy){
-    showStatus('thinking','Please wait...');
-    setTimeout(hideStatus, 2000);
-    return;
-  }
-  
-  console.log('Sending message:', text);
-  addUser(text); 
-  inp.value=''; 
-  autoSize(); 
-  lock(true); 
-  bot=null;
-  
-  // Send to extension
-  vscode.postMessage({type:'prompt',value:text});
-  console.log('Message sent to extension');
-}
-if (sndBtn) {
-  console.log('Attaching click listener to send button');
-  sndBtn.addEventListener('click',function(e){
-    console.log('Send button clicked!');
+    // Inline
+    text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    text = text.replace(/\x60([^\x60]+)\x60/g, '<code>$1</code>');
+    text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+    // Paragraphs
+    text = text.split(/\n\n+/).map((p) => {
+      p = p.trim();
+      if (!p) return '';
+      if (/^(<h[1-3]|<ul|<ol|<li|<table|<blockquote|<hr|CBPH_)/.test(p)) return p;
+      return '<p>' + p.replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+
+    // Restore code blocks
+    text = text.replace(/CBPH_(\d+)_END/g, (_, i) => {
+      const b = localBlocks[parseInt(i)];
+      if (!b) return '';
+      const escaped = b.code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return '<div class="cb"><div class="cb-hdr"><span class="cb-lang">' + esc(b.lang) + '</span><button class="cb-copy" data-id="' + b.id + '" onclick="window.copyCode(this)">\u2398 Copy</button></div><pre><code>' + escaped + '</code></pre></div>';
+    });
+
+    return text;
+  };
+
+  // Global function for copy buttons
+  window.copyCode = function(btn) {
+    const id = btn.getAttribute('data-id');
+    vscode.postMessage({ type: 'copyCode', id: id, value: codeMap[id] || '' });
+  };
+
+  // Send message
+  const send = () => {
+    const text = inp.value.trim();
+    if (!text) {
+      inp.focus();
+      return;
+    }
+    if (busy) {
+      showStatus('Please wait...');
+      setTimeout(hideStatus, 2000);
+      return;
+    }
+
+    console.log('[Webview] Sending:', text);
+    addUser(text);
+    inp.value = '';
+    autoSize();
+    lock(true);
+    bot = null;
+
+    vscode.postMessage({ type: 'prompt', value: text });
+  };
+
+  const autoSize = () => {
+    inp.style.height = 'auto';
+    inp.style.height = Math.min(inp.scrollHeight, 148) + 'px';
+  };
+
+  // Event Listeners
+  sndBtn.addEventListener('click', (e) => {
     e.preventDefault();
     send();
   });
-} else {
-  console.error('Send button not found, cannot attach listener');
-}
-if (inp) {
-  console.log('Attaching keydown listener to input');
-  inp.addEventListener('keydown',function(e){ 
-    if(e.key==='Enter'&&!e.shiftKey){
-      console.log('Enter key pressed!');
+
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       send();
-    } 
+    }
   });
-} else {
-  console.error('Input not found, cannot attach listener');
-}
-function autoSize(){ 
-  inp.style.height='auto'; 
-  inp.style.height=Math.min(inp.scrollHeight,148)+'px'; 
-}
-inp.addEventListener('input',autoSize);
 
-/* ── clear ── */
-clearBtn.addEventListener('click',function(){
-  msgsEl.innerHTML='<div class="welcome" id="welcome"><div class="wlogo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="44" height="44"><defs><linearGradient id="wc2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#d97706"/></linearGradient><linearGradient id="wh2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs><path d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50" fill="none" stroke="url(#wc2)" stroke-width="5.5" stroke-linecap="round"/><circle cx="17" cy="32" r="4.5" fill="#f59e0b"/><g transform="translate(37,32)"><path d="M0,-15 L13,-7.5 L13,7.5 L0,15 L-13,7.5 L-13,-7.5 Z" fill="none" stroke="url(#wh2)" stroke-width="2.5" stroke-linejoin="round"/><line x1="-7" y1="-4" x2="7" y2="-4" stroke="url(#wh2)" stroke-width="2" stroke-linecap="round"/><line x1="-7" y1="0" x2="7" y2="0" stroke="url(#wh2)" stroke-width="2" stroke-linecap="round"/><line x1="-7" y1="4" x2="7" y2="4" stroke="url(#wh2)" stroke-width="2" stroke-linecap="round"/></g></svg></div><h2>ContextOS Assistant</h2><p>Your project-aware AI. Ask about code, commits,<br>docs, or anything in your workspace.</p><div class="chips" id="chips"><span class="chip">What did I last commit?</span><span class="chip">Explain this codebase</span><span class="chip">What\'s in my Notion?</span><span class="chip">Review open PRs</span><span class="chip">Write a unit test</span><span class="chip">Find bugs in this file</span></div></div>';
-  bot=null; lock(false); hideStatus();
-  vscode.postMessage({type:'clearHistory'});
-  attachChips();
-});
+  inp.addEventListener('input', autoSize);
 
-/* ── chips ── */
-function attachChips(){
-  var chips = document.querySelectorAll('.chip');
-  chips.forEach(function(c){
-    c.addEventListener('click',function(){ 
-      inp.value=c.textContent.trim(); 
-      inp.focus(); 
-      autoSize();
+  clearBtn.addEventListener('click', () => {
+    msgsEl.innerHTML = '<div class="welcome" id="welcome"><div class="wlogo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="44" height="44"><defs><linearGradient id="wc2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#d97706"/></linearGradient><linearGradient id="wh2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#f59e0b"/></linearGradient></defs><path d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50" fill="none" stroke="url(#wc2)" stroke-width="5.5" stroke-linecap="round"/><circle cx="17" cy="32" r="4.5" fill="#f59e0b"/><g transform="translate(37,32)"><path d="M0,-15 L13,-7.5 L13,7.5 L0,15 L-13,7.5 L-13,-7.5 Z" fill="none" stroke="url(#wh2)" stroke-width="2.5" stroke-linejoin="round"/><line x1="-7" y1="-4" x2="7" y2="-4" stroke="url(#wh2)" stroke-width="2" stroke-linecap="round"/><line x1="-7" y1="0" x2="7" y2="0" stroke="url(#wh2)" stroke-width="2" stroke-linecap="round"/><line x1="-7" y1="4" x2="7" y2="4" stroke="url(#wh2)" stroke-width="2" stroke-linecap="round"/></g></svg></div><h2>ContextOS Assistant</h2><p>Your project-aware AI. Ask about code, commits,<br>docs, or anything in your workspace.</p><div class="chips" id="chips"><span class="chip">What did I last commit?</span><span class="chip">Explain this codebase</span><span class="chip">What\'s in my Notion?</span><span class="chip">Review open PRs</span><span class="chip">Write a unit test</span><span class="chip">Find bugs in this file</span></div></div>';
+    bot = null;
+    lock(false);
+    hideStatus();
+    vscode.postMessage({ type: 'clearHistory' });
+    attachChips();
+  });
+
+  const attachChips = () => {
+    chips.forEach((chip) => {
+      chip.addEventListener('click', () => {
+        inp.value = chip.textContent.trim();
+        inp.focus();
+        autoSize();
+      });
     });
+  };
+
+  // Use event delegation for dynamic chips
+  msgsEl.addEventListener('click', (e) => {
+    if (e.target && e.target.classList.contains('chip')) {
+      inp.value = e.target.textContent.trim();
+      inp.focus();
+      autoSize();
+    }
   });
-}
 
-// Use event delegation for chips that might be added dynamically
-msgsEl.addEventListener('click', function(e){
-  if(e.target && e.target.classList.contains('chip')){
-    inp.value=e.target.textContent.trim();
-    inp.focus();
-    autoSize();
-  }
-});
+  // Message handler from extension
+  window.addEventListener('message', (event) => {
+    const m = event.data;
 
-// Initial attach
-attachChips();
+    switch (m.type) {
+      case 'thinking':
+        showStatus('Thinking...');
+        if (!bot) bot = startBot();
+        break;
+      case 'searching':
+        showStatus('Searching...');
+        if (!bot) bot = startBot();
+        break;
+      case 'token':
+        hideStatus();
+        if (!bot) bot = startBot();
+        bot.rawEl.textContent += m.content;
+        scrollBot(false);
+        break;
+      case 'sources':
+        if (bot) addSources(m.sources, bot.mc);
+        break;
+      case 'done':
+        hideStatus();
+        finishBot();
+        lock(false);
+        inp.focus();
+        break;
+      case 'error':
+        hideStatus();
+        if (bot) {
+          bot.cur.remove();
+          bot.group.remove();
+          bot = null;
+        }
+        addErr(m.value, m.canRetry, m.originalMessage);
+        lock(false);
+        break;
+      case 'codeCopied':
+        const btn = document.querySelector('.cb-copy[data-id="' + m.id + '"]');
+        if (btn) {
+          btn.textContent = '✓ Copied';
+          btn.classList.add('ok');
+          setTimeout(() => {
+            btn.textContent = '\u2398 Copy';
+            btn.classList.remove('ok');
+          }, 2000);
+        }
+        break;
+      case 'addContext':
+        const ban = document.createElement('div');
+        ban.className = 'ctxban';
+        ban.innerHTML = '<span style="color:#a78bfa;font-size:12px">\uD83D\uDCC4</span><span style="font-size:11px;color:#a78bfa">Context attached</span>';
+        msgsEl.appendChild(ban);
+        inp.value = (inp.value ? '[Context]\\n' + m.value + '\\n\\n' + inp.value : '[Context]\\n' + m.value + '\\n\\n');
+        autoSize();
+        inp.focus();
+        scrollBot(true);
+        break;
+      case 'restoreHistory':
+        clearWelcome();
+        if (m.messages && m.messages.length > 0) {
+          m.messages.forEach((msg) => {
+            if (msg.role === 'user') {
+              addUser(msg.content);
+            } else if (msg.role === 'assistant') {
+              const b = startBot();
+              b.rawEl.textContent = msg.content;
+              finishBot();
+            }
+          });
+        }
+        break;
+      case 'historyCleared':
+        clearWelcome();
+        break;
+    }
+  });
 
-// Focus input on load
-if (inp) {
+  // Notify extension that webview is ready
+  vscode.postMessage({ type: 'ready' });
+
+  // Initial setup
+  attachChips();
   inp.focus();
-}
 
-console.log('ContextOS Chat UI initialized successfully');
-console.log('Ready to send messages!');
-
+  console.log('[Webview] Chat UI initialized');
 })();
 </script>
+
 </body>
 </html>`;
     }
