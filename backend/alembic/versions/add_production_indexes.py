@@ -17,7 +17,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_production_indexes'
-down_revision = 'add_is_admin_to_users'
+down_revision = 'add_is_admin_001'
 branch_labels = None
 depends_on = None
 
