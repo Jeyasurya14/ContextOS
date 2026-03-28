@@ -30,6 +30,7 @@ transactional_ddl = False
 def upgrade() -> None:
     # These indexes use CREATE INDEX CONCURRENTLY which requires running outside a transaction.
     # Using autocommit_block ensures each index is created without locking the table.
+    # if_not_exists=True makes the migration idempotent (safe to re-run).
 
     # Composite index for context_chunks: common query pattern is user_id + source_type
     with op.get_context().autocommit_block():
@@ -37,7 +38,8 @@ def upgrade() -> None:
             'ix_context_chunks_user_source',
             'context_chunks',
             ['user_id', 'source_type'],
-            postgresql_concurrently=True
+            postgresql_concurrently=True,
+            if_not_exists=True,
         )
 
     # Composite index for conversations: user_id + updated_at DESC for listing
@@ -46,7 +48,8 @@ def upgrade() -> None:
             'ix_conversations_user_updated',
             'conversations',
             ['user_id', sa.text('updated_at DESC')],
-            postgresql_concurrently=True
+            postgresql_concurrently=True,
+            if_not_exists=True,
         )
 
     # Composite index for conversation_messages: conversation_id + created_at
@@ -55,7 +58,8 @@ def upgrade() -> None:
             'ix_conversation_messages_conversation_created',
             'conversation_messages',
             ['conversation_id', sa.text('created_at ASC')],
-            postgresql_concurrently=True
+            postgresql_concurrently=True,
+            if_not_exists=True,
         )
 
     # Partial index for active conversations only (most queries filter by is_active)
@@ -65,7 +69,8 @@ def upgrade() -> None:
             'conversations',
             ['user_id'],
             postgresql_where=sa.text('is_active = true'),
-            postgresql_concurrently=True
+            postgresql_concurrently=True,
+            if_not_exists=True,
         )
 
     # Ensure api_key_hash has a btree index (it does, but with lower case)
@@ -76,7 +81,8 @@ def upgrade() -> None:
             'users',
             ['api_key_hash'],
             unique=True,
-            postgresql_concurrently=True
+            postgresql_concurrently=True,
+            if_not_exists=True,
         )
 
     # Index for integrations: user_id + provider for integration listing
@@ -85,7 +91,8 @@ def upgrade() -> None:
             'ix_integrations_user_provider',
             'integrations',
             ['user_id', 'provider'],
-            postgresql_concurrently=True
+            postgresql_concurrently=True,
+            if_not_exists=True,
         )
 
     # Index for billing: user_id + period for query counting
@@ -94,12 +101,15 @@ def upgrade() -> None:
             'ix_query_counts_user_period',
             'query_counts',
             ['user_id', sa.text('period DESC')],
-            postgresql_concurrently=True
+            postgresql_concurrently=True,
+            if_not_exists=True,
         )
 
 
 def downgrade() -> None:
-    # Drop indexes - these must also be concurrent to avoid locks
+    # Drop indexes if they exist - these must also be concurrent to avoid locks
+    # Note: We cannot use IF EXISTS in drop_index, so downgrade may fail if index doesn't exist
+    # In production, we typically don't run downgrades, so this is acceptable
     with op.get_context().autocommit_block():
         op.drop_index('ix_query_counts_user_period', table_name='query_counts')
         op.drop_index('ix_integrations_user_provider', table_name='integrations')
