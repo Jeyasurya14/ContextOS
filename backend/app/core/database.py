@@ -23,8 +23,6 @@ engine = create_async_engine(
     pool_pre_ping=True,  # Detect stale connections
     pool_recycle=1800,   # Recycle connections every 30 minutes
     echo=settings.DEBUG,
-    # Performance optimizations
-    max_overflow=-1,  # Allow unlimited overflow in burst scenarios (cloud environments)
     pool_use_lifo=True,  # Use LIFO to reduce connection acquisition time
 )
 
