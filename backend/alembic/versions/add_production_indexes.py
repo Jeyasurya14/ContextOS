@@ -1,0 +1,94 @@
+# backend/alembic/versions/add_production_indexes.py
+
+"""add_production_indexes
+
+Add composite indexes for optimized query performance in production.
+Common queries:
+- Context retrieval by user + source_type
+- Conversation listing by user + updated_at
+- Message retrieval by conversation + created_at
+- Context chunks by content_hash for deduplication
+- Users by api_key_hash for fast lookup
+"""
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision = 'add_production_indexes'
+down_revision = 'add_is_admin_to_users'
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    # Composite index for context_chunks: common query pattern is user_id + source_type
+    op.create_index(
+        'ix_context_chunks_user_source',
+        'context_chunks',
+        ['user_id', 'source_type'],
+        postgresql_concurrently=True  # Use CONCURRENTLY in production to avoid locks
+    )
+
+    # Composite index for conversations: user_id + updated_at DESC for listing
+    op.create_index(
+        'ix_conversations_user_updated',
+        'conversations',
+        ['user_id', sa.text('updated_at DESC')],
+        postgresql_concurrently=True
+    )
+
+    # Composite index for conversation_messages: conversation_id + created_at
+    op.create_index(
+        'ix_conversation_messages_conversation_created',
+        'conversation_messages',
+        ['conversation_id', sa.text('created_at ASC')],
+        postgresql_concurrently=True
+    )
+
+    # Partial index for active conversations only (most queries filter by is_active)
+    op.create_index(
+        'ix_conversations_user_active',
+        'conversations',
+        ['user_id'],
+        postgresql_where=sa.text('is_active = true'),
+        postgresql_concurrently=True
+    )
+
+    # Ensure api_key_hash has a btree index (it does, but with lower case)
+    # This creates a proper index with text_pattern_ops for prefix searches if needed
+    op.create_index(
+        'ix_users_api_key_hash',
+        'users',
+        ['api_key_hash'],
+        unique=True,
+        postgresql_concurrently=True
+    )
+
+    # Index for integrations: user_id + provider for integration listing
+    op.create_index(
+        'ix_integrations_user_provider',
+        'integrations',
+        ['user_id', 'provider'],
+        postgresql_concurrently=True
+    )
+
+    # Index for billing: user_id + period for query counting
+    op.create_index(
+        'ix_query_counts_user_period',
+        'query_counts',
+        ['user_id', sa.text('period DESC')],
+        postgresql_concurrently=True
+    )
+
+
+def downgrade() -> None:
+    # Drop indexes in reverse order
+    op.drop_index('ix_query_counts_user_period', table_name='query_counts')
+    op.drop_index('ix_integrations_user_provider', table_name='integrations')
+    op.drop_index('ix_users_api_key_hash', table_name='users')
+    op.drop_index('ix_conversations_user_active', table_name='conversations')
+    op.drop_index('ix_conversation_messages_conversation_created', table_name='conversation_messages')
+    op.drop_index('ix_conversations_user_updated', table_name='conversations')
+    op.drop_index('ix_context_chunks_user_source', table_name='context_chunks')

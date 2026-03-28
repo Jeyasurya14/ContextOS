@@ -19,12 +19,15 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "production"
 
     DATABASE_URL: str = ""
-    DATABASE_POOL_SIZE: int = 10
-    DATABASE_MAX_OVERFLOW: int = 20
-    DATABASE_POOL_TIMEOUT: int = 30
+    DATABASE_POOL_SIZE: int = 20  # Increased for production
+    DATABASE_MAX_OVERFLOW: int = 30  # Increased for burst handling
+    DATABASE_POOL_TIMEOUT: int = 60  # Increased for slow queries
+    DATABASE_POOL_RECYCLE: int = 1800  # Recycle connections every 30 minutes
 
     REDIS_URL: str = "redis://localhost:6379/0"
-    REDIS_MAX_CONNECTIONS: int = 10
+    REDIS_MAX_CONNECTIONS: int = 20  # Increased for caching
+    REDIS_SOCKET_TIMEOUT: int = 10
+    REDIS_SOCKET_CONNECT_TIMEOUT: int = 10
 
     QDRANT_HOST: str = "localhost"
     QDRANT_PORT: int = 6333

@@ -14,14 +14,18 @@ Base = declarative_base()
 import app.models  # noqa: E402,F401 - register model metadata after Base exists
 
 # ── Async engine — FastAPI routes ──────────────────────────────
+# Production-optimized connection pool settings
 engine = create_async_engine(
     settings.DATABASE_URL,
-    pool_size=10,
-    max_overflow=20,
-    pool_timeout=30,
-    pool_pre_ping=True,
-    pool_recycle=1800,
+    pool_size=settings.DATABASE_POOL_SIZE,
+    max_overflow=settings.DATABASE_MAX_OVERFLOW,
+    pool_timeout=settings.DATABASE_POOL_TIMEOUT,
+    pool_pre_ping=True,  # Detect stale connections
+    pool_recycle=1800,   # Recycle connections every 30 minutes
     echo=settings.DEBUG,
+    # Performance optimizations
+    max_overflow=-1,  # Allow unlimited overflow in burst scenarios (cloud environments)
+    pool_use_lifo=True,  # Use LIFO to reduce connection acquisition time
 )
 
 AsyncSessionLocal = async_sessionmaker(

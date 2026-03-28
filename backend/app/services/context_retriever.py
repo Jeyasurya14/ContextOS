@@ -1,5 +1,6 @@
 # backend/app/services/context_retriever.py
 
+import hashlib
 from loguru import logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -17,6 +18,8 @@ class ContextRetriever:
         """Initialize the context retriever."""
         self.max_results = 15
         self.score_threshold = 0.1  # Lowered to retrieve more results
+        from app.services.cache_service import cache_service
+        self.cache = cache_service
 
     async def retrieve(
         self,
@@ -43,11 +46,24 @@ class ContextRetriever:
 
         effective_limit = limit or self.max_results
 
+        # Cache intent classification to avoid repeated ML inference
         if source_types is None:
-            classification = intent_classifier.classify(query)
-            source_types = classification.get("sources")
+            cache_key = f"intent:{hashlib.md5(query.encode()).hexdigest()[:12]}"
+            cached_intent = await self.cache.get_json(cache_key)
+            if cached_intent:
+                source_types = cached_intent.get("sources")
+            else:
+                classification = intent_classifier.classify(query)
+                source_types = classification.get("sources")
+                await self.cache.set_json(cache_key, classification, ttl=3600)  # Cache for 1 hour
 
-        query_embedding = await embedding_service.embed_text(query)
+        # Cache query embedding (embeddings are deterministic for same input)
+        query_hash = hashlib.md5(query.encode()).hexdigest()[:16]
+        embedding_cache_key = f"embed:{query_hash}"
+        query_embedding = await self.cache.get_json(embedding_cache_key)
+        if query_embedding is None:
+            query_embedding = await embedding_service.embed_text(query)
+            await self.cache.set_json(embedding_cache_key, query_embedding, ttl=86400)  # Cache for 24 hours
 
         qdrant_results = await search_vectors(
             query_vector=query_embedding,

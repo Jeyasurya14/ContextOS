@@ -2,6 +2,8 @@
 
 import type { Config } from 'tailwindcss';
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 const config: Config = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
@@ -9,6 +11,15 @@ const config: Config = {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   darkMode: 'class',
+  // Production optimizations
+  safelist: [
+    // Keep critical utility classes that might be dynamically generated
+    'bg-brand',
+    'text-brand',
+    'border-brand',
+    'hover:bg-brand',
+    'focus:ring-brand',
+  ],
   theme: {
     extend: {
       colors: {

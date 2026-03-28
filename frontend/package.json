@@ -2,16 +2,22 @@
   "name": "contextos-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "",
+  "description": "ContextOS AI-powered developer assistant",
   "license": "ISC",
   "author": "",
   "type": "commonjs",
   "main": "postcss.config.js",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
+    "dev:no-turbo": "next dev",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "build:analyze": "cross-env ANALYZE=true next build",
+    "start": "next start -p $PORT || 3000",
+    "start:prod": "next start",
+    "lint": "next lint",
+    "lint:fix": "next lint --fix",
+    "type-check": "tsc --noEmit",
+    "postinstall": "next telemetry disable"
   },
   "dependencies": {
     "axios": "^1.6.8",
@@ -25,14 +31,20 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.1.0",
+    "@next/bundle-analyzer": "^14.2.35",
     "@types/node": "^20.12.7",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
+    "cross-env": "^7.0.3",
     "eslint": "^9.1.0",
     "eslint-config-next": "^16.2.1",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.3",
     "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18.17.0",
+    "npm": ">=10.0.0"
   }
 }
