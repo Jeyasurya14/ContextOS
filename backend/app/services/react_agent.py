@@ -183,7 +183,7 @@ PROJECT CONTEXT (use this when relevant):
                 yield {
                     "event": "token",
                     "content": "I found relevant context but the API key is not configured. "
-                    "Please set OPENAI_API_KEY or OPENROUTER_API_KEY in your environment to enable AI responses.\n\n"
+                    "Please set OPENAI_API_KEY in your environment to enable AI responses.\n\n"
                     "Here's what I found in your context:\n\n"
                 }
                 for chunk in retrieved_chunks[:5]:

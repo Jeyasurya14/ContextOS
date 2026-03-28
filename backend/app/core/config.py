@@ -39,33 +39,26 @@ class Settings(BaseSettings):
 
     ENCRYPTION_KEY: str = "change-me-in-production-32-bytes"
 
-    OPENAI_API_KEY: str = ""           # Used ONLY for embeddings (text-embedding-3-small)
+    OPENAI_API_KEY: str = ""
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
-
-    # ── OpenRouter (LLM chat completions) ──────────────────────────────
-    OPENROUTER_API_KEY: str = ""
-    OPENROUTER_BASE_URL: str = "https://openrouter.ai/api/v1"
-    # Best free model for RAG: 1M context, fast, capable
-    OPENROUTER_MODEL: str = "google/gemini-2.0-flash-exp:free"
-    # Fallback if primary model is rate-limited
-    OPENROUTER_FALLBACK_MODEL: str = "meta-llama/llama-3.3-70b-instruct:free"
+    OPENAI_MODEL: str = "gpt-4o"
     OPENAI_MAX_TOKENS: int = 2000
     OPENAI_TEMPERATURE: float = 0.1
 
     @property
     def llm_api_key(self) -> str:
-        """Return OpenRouter key if set, otherwise fall back to OpenAI."""
-        return self.OPENROUTER_API_KEY or self.OPENAI_API_KEY
+        """Return OpenAI API key."""
+        return self.OPENAI_API_KEY
 
     @property
     def llm_base_url(self) -> str | None:
-        """Return OpenRouter base URL if using OpenRouter, else None (default OpenAI)."""
-        return self.OPENROUTER_BASE_URL if self.OPENROUTER_API_KEY else None
+        """Return None to use default OpenAI base URL."""
+        return None
 
     @property
     def llm_model(self) -> str:
-        """Return the active LLM model name."""
-        return self.OPENROUTER_MODEL if self.OPENROUTER_API_KEY else "gpt-4o"
+        """Return the configured OpenAI model name."""
+        return self.OPENAI_MODEL
 
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
