@@ -398,12 +398,13 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
         // Secure webview configuration
         webviewView.webview.options = {
-            enableScripts: true
+            enableScripts: true,
+            localResourceRoots: [this._extensionUri]
         };
 
-        // Build secure CSP
-        const csp = this._buildCSP();
-        webviewView.webview.html = this._getHtmlForWebview(csp);
+        // Load simple HTML
+        const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'webview.html');
+        webviewView.webview.html = htmlPath.with({ scheme: 'vscode-resource' }).toString();
 
         // Message handling with error boundaries
         this._setupMessageHandlers(webviewView);
