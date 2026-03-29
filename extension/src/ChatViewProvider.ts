@@ -655,34 +655,19 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
 (function() {
   'use strict';
 
-  try {
   const vscode = acquireVsCodeApi();
+  console.log('[Webview] VSCode API loaded');
 
   // DOM Elements
   const msgsEl = document.getElementById('msgs');
   const inp = document.getElementById('inp');
   const sndBtn = document.getElementById('sndBtn');
-  const sbar = document.getElementById('sbar');
-  const sbarIn = document.getElementById('sbar-in');
-  const clearBtn = document.getElementById('clearBtn');
-  const chips = document.querySelectorAll('.chip');
+  console.log('[Webview] Elements:', {msgsEl: !!msgsEl, inp: !!inp, sndBtn: !!sndBtn});
 
-  // State
-  let bot = null;
-  let busy = false;
-  let codeIdx = 0;
-  const codeMap = {};
-
-  // Verify DOM is ready
   if (!msgsEl || !inp || !sndBtn) {
-    console.error('[Webview] Missing required DOM elements');
+    console.error('[Webview] Missing DOM elements');
     return;
   }
-
-  // Global error handler
-  window.onerror = function(msg, src, line, col, error) {
-    console.error('[Webview Error]', msg, 'at line', line);
-    return false;
   };
 
   console.log('[Webview] Initializing');
@@ -1079,11 +1064,7 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
   inp.focus();
 
   console.log('[Webview] Chat UI initialized');
-  } catch (e) {
-    console.error('[Webview] Initialization error:', e);
-  }
 })();
-</script>
 
 </body>
 </html>`;
