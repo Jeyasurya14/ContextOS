@@ -679,6 +679,12 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
     return;
   }
 
+  // Global error handler
+  window.onerror = function(msg, src, line, col, error) {
+    console.error('[Webview Error]', msg, 'at line', line);
+    return false;
+  };
+
   console.log('[Webview] Initializing');
 
   // Helper Functions
