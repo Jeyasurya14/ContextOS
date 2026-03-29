@@ -65,7 +65,9 @@ async def health_check(response: Response) -> dict:
     system_info = {
         "cpu_percent": psutil.cpu_percent(interval=0.1),
         "memory_percent": psutil.virtual_memory().percent,
-        "disk_percent": psutil.disk_usage('/').percent if os.name != 'nt' else psutil.disk_usage('C:').percent,
+        "disk_percent": psutil.disk_usage("/").percent
+        if os.name != "nt"
+        else psutil.disk_usage("C:").percent,
     }
 
     all_ok = db_ok and redis_ok and qdrant_ok
@@ -89,21 +91,24 @@ async def health_check(response: Response) -> dict:
 @router.get("/health/ready")
 async def readiness_check() -> dict:
     """Lightweight readiness check for Kubernetes/Render."""
-    # Quick checks - should not query external services
+    from sqlalchemy import text
+
     try:
-        # Test database connection quickly
         async with engine.connect() as conn:
-            await conn.execute("SELECT 1")
+            await conn.execute(text("SELECT 1"))
         return {"ready": True}
     except Exception as e:
-        logger.error("Readiness check failed: {}", e)
+        logger.error(f"Readiness check failed: {e}")
         return {"ready": False, "error": str(e)}
 
 
 @router.get("/health/live")
 async def liveness_check() -> dict:
     """Lightweight liveness check."""
-    return {"alive": True, "uptime": time.time() - metrics._start_time if 'metrics' in globals() else 0}
+    return {
+        "alive": True,
+        "uptime": time.time() - metrics._start_time if "metrics" in globals() else 0,
+    }
 
 
 @router.get("/metrics")
