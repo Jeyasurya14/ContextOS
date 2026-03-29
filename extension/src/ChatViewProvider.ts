@@ -398,8 +398,7 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
         // Secure webview configuration
         webviewView.webview.options = {
-            enableScripts: true,
-            localResourceRoots: [this._extensionUri]
+            enableScripts: true
         };
 
         // Build secure CSP
@@ -656,6 +655,7 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
 (function() {
   'use strict';
 
+  try {
   const vscode = acquireVsCodeApi();
 
   // DOM Elements
@@ -1079,6 +1079,9 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
   inp.focus();
 
   console.log('[Webview] Chat UI initialized');
+  } catch (e) {
+    console.error('[Webview] Initialization error:', e);
+  }
 })();
 </script>
 
