@@ -16,8 +16,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = 'add_production_indexes'
-down_revision = 'add_is_admin_001'
+revision = "add_production_indexes"
+down_revision = "create_query_counts_table"
 branch_labels = None
 depends_on = None
 
@@ -35,9 +35,9 @@ def upgrade() -> None:
     # Composite index for context_chunks: common query pattern is user_id + source_type
     with op.get_context().autocommit_block():
         op.create_index(
-            'ix_context_chunks_user_source',
-            'context_chunks',
-            ['user_id', 'source_type'],
+            "ix_context_chunks_user_source",
+            "context_chunks",
+            ["user_id", "source_type"],
             postgresql_concurrently=True,
             if_not_exists=True,
         )
@@ -45,9 +45,9 @@ def upgrade() -> None:
     # Composite index for conversations: user_id + updated_at DESC for listing
     with op.get_context().autocommit_block():
         op.create_index(
-            'ix_conversations_user_updated',
-            'conversations',
-            ['user_id', sa.text('updated_at DESC')],
+            "ix_conversations_user_updated",
+            "conversations",
+            ["user_id", sa.text("updated_at DESC")],
             postgresql_concurrently=True,
             if_not_exists=True,
         )
@@ -55,9 +55,9 @@ def upgrade() -> None:
     # Composite index for conversation_messages: conversation_id + created_at
     with op.get_context().autocommit_block():
         op.create_index(
-            'ix_conversation_messages_conversation_created',
-            'conversation_messages',
-            ['conversation_id', sa.text('created_at ASC')],
+            "ix_conversation_messages_conversation_created",
+            "conversation_messages",
+            ["conversation_id", sa.text("created_at ASC")],
             postgresql_concurrently=True,
             if_not_exists=True,
         )
@@ -65,10 +65,10 @@ def upgrade() -> None:
     # Partial index for active conversations only (most queries filter by is_active)
     with op.get_context().autocommit_block():
         op.create_index(
-            'ix_conversations_user_active',
-            'conversations',
-            ['user_id'],
-            postgresql_where=sa.text('is_active = true'),
+            "ix_conversations_user_active",
+            "conversations",
+            ["user_id"],
+            postgresql_where=sa.text("is_active = true"),
             postgresql_concurrently=True,
             if_not_exists=True,
         )
@@ -77,9 +77,9 @@ def upgrade() -> None:
     # This creates a proper index with text_pattern_ops for prefix searches if needed
     with op.get_context().autocommit_block():
         op.create_index(
-            'ix_users_api_key_hash',
-            'users',
-            ['api_key_hash'],
+            "ix_users_api_key_hash",
+            "users",
+            ["api_key_hash"],
             unique=True,
             postgresql_concurrently=True,
             if_not_exists=True,
@@ -88,19 +88,19 @@ def upgrade() -> None:
     # Index for integrations: user_id + provider for integration listing
     with op.get_context().autocommit_block():
         op.create_index(
-            'ix_integrations_user_provider',
-            'integrations',
-            ['user_id', 'provider'],
+            "ix_integrations_user_provider",
+            "integrations",
+            ["user_id", "provider"],
             postgresql_concurrently=True,
             if_not_exists=True,
         )
 
-    # Index for billing: user_id + period for query counting
+    # Index for usage_records: user_id + date for query counting and analytics
     with op.get_context().autocommit_block():
         op.create_index(
-            'ix_query_counts_user_period',
-            'query_counts',
-            ['user_id', sa.text('period DESC')],
+            "ix_usage_records_user_date",
+            "usage_records",
+            ["user_id", sa.text("date DESC")],
             postgresql_concurrently=True,
             if_not_exists=True,
         )
@@ -111,10 +111,13 @@ def downgrade() -> None:
     # Note: We cannot use IF EXISTS in drop_index, so downgrade may fail if index doesn't exist
     # In production, we typically don't run downgrades, so this is acceptable
     with op.get_context().autocommit_block():
-        op.drop_index('ix_query_counts_user_period', table_name='query_counts')
-        op.drop_index('ix_integrations_user_provider', table_name='integrations')
-        op.drop_index('ix_users_api_key_hash', table_name='users')
-        op.drop_index('ix_conversations_user_active', table_name='conversations')
-        op.drop_index('ix_conversation_messages_conversation_created', table_name='conversation_messages')
-        op.drop_index('ix_conversations_user_updated', table_name='conversations')
-        op.drop_index('ix_context_chunks_user_source', table_name='context_chunks')
+        op.drop_index("ix_usage_records_user_date", table_name="usage_records")
+        op.drop_index("ix_integrations_user_provider", table_name="integrations")
+        op.drop_index("ix_users_api_key_hash", table_name="users")
+        op.drop_index("ix_conversations_user_active", table_name="conversations")
+        op.drop_index(
+            "ix_conversation_messages_conversation_created",
+            table_name="conversation_messages",
+        )
+        op.drop_index("ix_conversations_user_updated", table_name="conversations")
+        op.drop_index("ix_context_chunks_user_source", table_name="context_chunks")
