@@ -398,7 +398,8 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
 
         // Secure webview configuration
         webviewView.webview.options = {
-            enableScripts: true
+            enableScripts: true,
+            localResourceRoots: [this._extensionUri]
         };
 
         // Build secure CSP
@@ -1092,11 +1093,12 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
         }
 
         // Production-grade CSP
+        const connectSrc = apiOrigin === '*' ? '*' : `${apiOrigin} *`;
         return [
             "default-src 'none'",
             "script-src 'unsafe-inline'",
             "style-src 'unsafe-inline'",
-            "connect-src " + apiOrigin + " *", // Allow API + any for fallback
+            "connect-src " + connectSrc,
             "img-src data: blob: https:",
             "font-src 'none'",
             "media-src 'none'",
