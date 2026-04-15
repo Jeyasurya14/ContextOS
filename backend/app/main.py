@@ -47,8 +47,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         settings.DATABASE_POOL_TIMEOUT,
     )
 
-    await init_db()
-    qdrant_initialized = await init_collection()
+    try:
+        await init_db()
+    except Exception as e:
+        logger.error("Database init error (non-fatal): {}", e)
+
+    try:
+        qdrant_initialized = await init_collection()
+    except Exception as e:
+        logger.error("Qdrant init error (non-fatal): {}", e)
+        qdrant_initialized = False
 
     db_ok = await check_database_health()
     qdrant_ok = await check_qdrant_health()
