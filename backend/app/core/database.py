@@ -52,15 +52,22 @@ _async_url = _strip_ssl_params(_db_url)
 # (i.e. we're NOT on Render, or the internal transform didn't match)
 _async_connect_args: dict = {"ssl": "require"} if _needs_ssl(_async_url) else {}
 
+# Render PostgreSQL plans allow 25–97 connections total.
+# With 4 gunicorn workers, keep pool small: 5 per worker = 20 max baseline.
+# max_overflow=5 adds burst capacity without exhausting the server limit.
+_POOL_SIZE = min(settings.DATABASE_POOL_SIZE, 5)        # cap at 5 per worker
+_MAX_OVERFLOW = min(settings.DATABASE_MAX_OVERFLOW, 5)  # cap at 5 burst
+
 engine = create_async_engine(
     _async_url,
-    pool_size=settings.DATABASE_POOL_SIZE,
-    max_overflow=settings.DATABASE_MAX_OVERFLOW,
+    pool_size=_POOL_SIZE,
+    max_overflow=_MAX_OVERFLOW,
     pool_timeout=settings.DATABASE_POOL_TIMEOUT,
-    pool_pre_ping=True,    # Detect stale connections
-    pool_recycle=1800,     # Recycle every 30 min
+    pool_pre_ping=True,     # Detect stale connections before use
+    pool_recycle=1800,      # Recycle connections every 30 min
+    pool_reset_on_return="rollback",  # Clean state on return to pool
     echo=settings.DEBUG,
-    pool_use_lifo=True,
+    pool_use_lifo=True,     # Prefer recently-used connections (warmer)
     connect_args=_async_connect_args,
 )
 
