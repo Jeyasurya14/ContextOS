@@ -92,36 +92,29 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # Middleware order matters!
-# 1. Security headers first
-app.add_middleware(SecurityHeadersMiddleware)
+# ── Middleware stack ────────────────────────────────────────────────────────
+# Starlette builds middleware in LIFO order: the LAST add_middleware call
+# becomes the OUTERMOST wrapper (executes first on request, last on response).
+# CORS MUST be outermost so it adds Access-Control-Allow-Origin to ALL
+# responses — including 500 errors and early-exit responses.
+#
+# Execution order (outermost → innermost):
+#   CORS → TrustedHost → Security → GZip → Timeout → validate_request → endpoint
+# ────────────────────────────────────────────────────────────────────────────
 
-# 2. CORS early
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_origin_regex=r"http://localhost:\d+" if settings.DEBUG else None,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    max_age=600,  # Cache preflight for 10 minutes
-)
+# 1. Request logging (innermost — runs closest to the endpoint)
+app.add_middleware(RequestLoggingMiddleware)
 
-# 3. Trusted hosts in production
-if settings.ENVIRONMENT == "production":
-    allowed_hosts = [
-        "contextos-api.onrender.com",
-        "*.onrender.com",
-        "contextos.learnmade.in",
-        "api.contextos.learnmade.in",
-        "localhost",
-        "127.0.0.1",
-    ]
-    app.add_middleware(
-        TrustedHostMiddleware,
-        allowed_hosts=allowed_hosts,
-    )
+# 2. Timeout
+app.add_middleware(TimeoutMiddleware)
 
-# 4. Request size validation (allow webhooks and multipart to pass through)
+# 3. GZip compression
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# 4. Request size / content-type guard
+# NOTE: @app.middleware decorator is applied outside of add_middleware stack;
+# it always runs before add_middleware wrappers, so it is effectively
+# innermost relative to the add_middleware chain below.
 @app.middleware("http")
 async def validate_request(request: Request, call_next):
     """Validate request size. Webhooks and multipart are exempt from JSON-only check."""
@@ -135,10 +128,12 @@ async def validate_request(request: Request, call_next):
             content={"detail": "Request too large. Maximum size is 10 MB."}
         )
 
-    # Webhook endpoints and multipart uploads are exempt from JSON-only enforcement
+    # Webhook/callback paths and multipart uploads skip JSON-only enforcement
     EXEMPT_PATHS = ("/webhook", "/callback", "/integrations", "/billing/webhook")
-    is_webhook = any(request.url.path.startswith(p) or request.url.path.endswith(p)
-                     for p in EXEMPT_PATHS)
+    is_webhook = any(
+        request.url.path.startswith(p) or request.url.path.endswith(p)
+        for p in EXEMPT_PATHS
+    )
     is_api_path = request.url.path.startswith("/api/v1")
 
     if not is_webhook and is_api_path and request.method in ("POST", "PUT", "PATCH"):
@@ -153,17 +148,38 @@ async def validate_request(request: Request, call_next):
                 content={"detail": "Unsupported media type."}
             )
 
-    response = await call_next(request)
-    return response
+    return await call_next(request)
 
-# 5. GZip compression
-app.add_middleware(GZipMiddleware, minimum_size=1000)
+# 5. Security headers
+app.add_middleware(SecurityHeadersMiddleware)
 
-# 6. Timeout middleware
-app.add_middleware(TimeoutMiddleware)
+# 6. Trusted hosts (production only)
+if settings.ENVIRONMENT == "production":
+    app.add_middleware(
+        TrustedHostMiddleware,
+        allowed_hosts=[
+            "contextos-api-jxdr.onrender.com",
+            "contextos-api.onrender.com",
+            "*.onrender.com",
+            "contextos.learnmade.in",
+            "api.contextos.learnmade.in",
+            "localhost",
+            "127.0.0.1",
+        ],
+    )
 
-# 7. Request logging last
-app.add_middleware(RequestLoggingMiddleware)
+# 7. CORS — added LAST = OUTERMOST. Runs first on every request/response,
+#    guaranteeing Access-Control-Allow-Origin is on ALL responses (even 500s).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=600,
+)
 
 # Include routers
 app.include_router(health_router, tags=["health"])
