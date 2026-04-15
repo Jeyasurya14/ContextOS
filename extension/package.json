@@ -2,7 +2,7 @@
   "name": "contextos-copilot",
   "displayName": "ContextOS",
   "description": "The AI Copilot that knows everything about your workspace.",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "publisher": "JeyaSuryaM",
   "icon": "images/icon.png",
   "repository": {
@@ -35,21 +35,78 @@
     "commands": [
       {
         "command": "contextos.setApiKey",
-        "title": "ContextOS: Set API Key"
+        "title": "ContextOS: Set API Key",
+        "category": "ContextOS",
+        "icon": "$(key)"
       },
       {
         "command": "contextos.ask",
-        "title": "ContextOS: Send Code to Chat"
+        "title": "ContextOS: Send Code to Chat",
+        "category": "ContextOS",
+        "icon": "$(comment-discussion)"
       },
       {
         "command": "contextos.explainFile",
-        "title": "ContextOS: Explain Current File"
+        "title": "ContextOS: Explain Current File",
+        "category": "ContextOS",
+        "icon": "$(book)"
       },
       {
         "command": "contextos.findBugs",
-        "title": "ContextOS: Find Bugs in Code"
+        "title": "ContextOS: Find Bugs in Code",
+        "category": "ContextOS",
+        "icon": "$(bug)"
+      },
+      {
+        "command": "contextos.clearCache",
+        "title": "ContextOS: Clear Cache",
+        "category": "ContextOS",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "contextos.showStats",
+        "title": "ContextOS: Show Stats",
+        "category": "ContextOS",
+        "icon": "$(pulse)"
+      },
+      {
+        "command": "contextos.openSettings",
+        "title": "ContextOS: Open Settings",
+        "category": "ContextOS",
+        "icon": "$(gear)"
       }
     ],
+    "menus": {
+      "editor/context": [
+        {
+          "group": "contextos@1",
+          "when": "editorHasSelection",
+          "command": "contextos.ask"
+        },
+        {
+          "group": "contextos@2",
+          "when": "editorHasSelection",
+          "command": "contextos.findBugs"
+        },
+        {
+          "group": "contextos@3",
+          "when": "!editorHasSelection",
+          "command": "contextos.explainFile"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "contextos.clearCache",
+          "when": "view == contextos.chatView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "contextos.openSettings",
+          "when": "view == contextos.chatView",
+          "group": "navigation@2"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {
@@ -99,14 +156,14 @@
         "contextos.debugMode": {
           "type": "boolean",
           "default": false,
-          "description": "Enable debug mode for detailed logging."
+          "description": "Enable debug mode for detailed logging in the Developer Tools console."
         },
         "contextos.rateLimitMaxRequests": {
           "type": "number",
           "default": 30,
           "minimum": 1,
           "maximum": 100,
-          "description": "Maximum requests allowed per time window."
+          "description": "Maximum requests allowed per rate-limit window."
         },
         "contextos.rateLimitWindowMs": {
           "type": "number",
@@ -120,7 +177,7 @@
           "default": 300000,
           "minimum": 0,
           "maximum": 3600000,
-          "description": "Cache time-to-live in milliseconds (default: 300000 = 5 minutes)."
+          "description": "Cache time-to-live in milliseconds (default: 300000 = 5 minutes). Set to 0 to disable caching."
         }
       }
     }
@@ -129,7 +186,8 @@
     "vscode:prepublish": "npm run package",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
+    "package": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "package:dev": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node",
     "esbuild-watch": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --watch"
   },
   "devDependencies": {

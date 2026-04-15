@@ -1,5 +1,6 @@
 # backend/app/api/routes/auth.py
 
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +26,7 @@ from app.schemas.auth import (
     TokenRefresh,
     UserResponse,
     APIKeyResponse,
+    APIKeyStatusResponse,
     MessageResponse,
 )
 from app.api.deps import get_current_user
@@ -37,6 +39,12 @@ class ProfileUpdateRequest(BaseModel):
     """Schema for updating the current user's profile."""
 
     full_name: str = Field(min_length=1, max_length=255)
+
+
+class GenerateApiKeyRequest(BaseModel):
+    """Optional name for the generated API key."""
+
+    name: str | None = Field(default=None, max_length=255)
 
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
@@ -101,9 +109,9 @@ async def login(
 
     # Include user data in response
     user_data = UserResponse.model_validate(user)
-    
+
     await db.commit()
-    
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
@@ -174,49 +182,86 @@ async def logout(
     return MessageResponse(message="Logged out successfully")
 
 
-@router.post("/api-key", response_model=APIKeyResponse)
-async def generate_user_api_key(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+# ─────────────────────────────────────────────────────────────────────────────
+# API Key management
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def _generate_key_for_user(
+    db: AsyncSession,
+    current_user: User,
+    name: str | None = None,
 ) -> APIKeyResponse:
-    """Generate a new API key for the current user."""
+    """Core logic to rotate a user's API key."""
     api_key = generate_api_key()
     prefix = api_key[:8]
     hashed = hash_api_key(api_key)
+    key_name = name or "Default Key"
 
     current_user.api_key_hash = hashed
     current_user.api_key_prefix = prefix
+    current_user.api_key_name = key_name
+    current_user.api_key_created_at = datetime.now(timezone.utc)
     await db.flush()
 
-    logger.info("API key generated for user_id={}", current_user.id)
+    logger.info("API key generated for user_id={} name={}", current_user.id, key_name)
 
     return APIKeyResponse(
         api_key=api_key,
         prefix=prefix,
+        name=key_name,
     )
+
+
+@router.post("/api-key", response_model=APIKeyResponse)
+async def generate_user_api_key(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    data: GenerateApiKeyRequest = GenerateApiKeyRequest(),
+) -> APIKeyResponse:
+    """Generate a new API key for the current user."""
+    return await _generate_key_for_user(db, current_user, data.name)
 
 
 @router.post("/api-keys", response_model=APIKeyResponse)
 async def generate_user_api_key_compat(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    data: GenerateApiKeyRequest = GenerateApiKeyRequest(),
 ) -> APIKeyResponse:
     """Compatibility alias for frontend clients expecting plural API key routes."""
-    return await generate_user_api_key(db=db, current_user=current_user)
+    return await _generate_key_for_user(db, current_user, data.name)
+
+
+@router.get("/api-key/status", response_model=APIKeyStatusResponse)
+async def get_api_key_status(
+    current_user: User = Depends(get_current_user),
+) -> APIKeyStatusResponse:
+    """Return metadata about the current user's active API key (never the raw key)."""
+    return APIKeyStatusResponse(
+        has_key=bool(current_user.api_key_prefix),
+        prefix=current_user.api_key_prefix,
+        name=getattr(current_user, "api_key_name", None),
+        created_at=getattr(current_user, "api_key_created_at", None),
+    )
 
 
 @router.get("/api-keys")
 async def list_api_keys(
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    """Return the current user's API key metadata."""
+    """Return the current user's API key metadata (no raw keys exposed)."""
     keys = []
     if current_user.api_key_prefix:
         keys.append(
             {
                 "id": "default",
-                "name": "Default Key",
+                "name": getattr(current_user, "api_key_name", None) or "Default Key",
                 "prefix": current_user.api_key_prefix,
+                "created_at": (
+                    getattr(current_user, "api_key_created_at", None).isoformat()
+                    if getattr(current_user, "api_key_created_at", None)
+                    else None
+                ),
             }
         )
     return {"api_keys": keys}
@@ -230,6 +275,8 @@ async def revoke_api_key(
     """Revoke the current user's API key."""
     current_user.api_key_hash = None
     current_user.api_key_prefix = None
+    current_user.api_key_name = None
+    current_user.api_key_created_at = None
     await db.flush()
 
     logger.info("API key revoked for user_id={}", current_user.id)
@@ -246,6 +293,10 @@ async def revoke_api_key_compat(
     """Compatibility alias for frontend clients expecting plural API key routes."""
     return await revoke_api_key(db=db, current_user=current_user)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Account deletion
+# ─────────────────────────────────────────────────────────────────────────────
 
 @router.delete("/me", response_model=MessageResponse)
 async def delete_me(

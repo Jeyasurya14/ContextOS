@@ -49,6 +49,12 @@ class User(Base):
     api_key_prefix: Mapped[str | None] = mapped_column(
         String(10), nullable=True
     )
+    api_key_name: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+    api_key_created_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     query_count_today: Mapped[int] = mapped_column(default=0, nullable=False)
     query_count_reset_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

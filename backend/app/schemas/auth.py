@@ -59,7 +59,17 @@ class APIKeyResponse(BaseModel):
 
     api_key: str
     prefix: str
+    name: str | None = None
     message: str = "Save this key now. It will not be shown again."
+
+
+class APIKeyStatusResponse(BaseModel):
+    """Schema for API key status query."""
+
+    has_key: bool
+    prefix: str | None = None
+    name: str | None = None
+    created_at: datetime | None = None
 
 
 class MessageResponse(BaseModel):

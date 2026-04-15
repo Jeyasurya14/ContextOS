@@ -54,9 +54,11 @@ export const authApi = {
   updateProfile: (name: string) =>
     api.put('/api/v1/auth/me', { full_name: name }),
   logout: () => api.post('/api/v1/auth/logout'),
-  generateApiKey: (name: string) =>
-    api.post('/api/v1/auth/api-keys', { name }),
+  generateApiKey: (name?: string) =>
+    api.post('/api/v1/auth/api-keys', { name: name || 'Default Key' }),
   getApiKeys: () => api.get('/api/v1/auth/api-keys'),
+  getApiKeyStatus: () => api.get('/api/v1/auth/api-key/status'),
+  revokeApiKey: () => api.delete('/api/v1/auth/api-key'),
   deleteApiKey: (id: string) =>
     api.delete(`/api/v1/auth/api-keys/${id}`),
   deleteAccount: () => api.delete('/api/v1/auth/me'),
