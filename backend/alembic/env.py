@@ -30,12 +30,16 @@ from app.models.billing import BillingEvent, UsageRecord
 
 def _sync_db_url(url: str) -> str:
     """Convert any asyncpg URL to a psycopg2 URL for Alembic's sync engine.
-    Also strip query-string SSL params — psycopg2 uses connect_args instead."""
+    Also strip query-string SSL/connection params — psycopg2 uses connect_args instead.
+    NeonDB pooler URLs may include channel_binding=require which is unsupported."""
     url = url.replace("postgresql+asyncpg://", "postgresql+psycopg2://")
     url = url.replace("postgresql+asyncpg:", "postgresql+psycopg2:")
-    # Strip ?ssl=...  and ?sslmode=... — psycopg2 uses connect_args
+    # Plain postgresql:// → psycopg2
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+psycopg2://", 1)
     url = re.sub(r"[?&]ssl=[^&]*", "", url)
     url = re.sub(r"[?&]sslmode=[^&]*", "", url)
+    url = re.sub(r"[?&]channel_binding=[^&]*", "", url)  # NeonDB pooler param
     url = re.sub(r"\?$", "", url)
     url = re.sub(r"\?&", "?", url)
     return url

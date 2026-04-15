@@ -18,12 +18,15 @@ import app.models  # noqa: E402,F401 - register model metadata after Base exists
 # ── Helpers ────────────────────────────────────────────────────────────────
 
 def _strip_ssl_params(url: str) -> str:
-    """Remove ?ssl=... and ?sslmode=... from URL.
-    asyncpg on Render internal connections does not need these — SSL is
-    configured via connect_args or not at all for internal hosts.
+    """Remove SSL/connection params that asyncpg does not accept in the DSN.
+    SSL is configured via connect_args instead.
+    - ssl / sslmode  — asyncpg uses connect_args={"ssl": "require"}
+    - channel_binding — not supported by asyncpg or psycopg2; NeonDB
+      sometimes appends this to its pooler URLs.
     Removing them prevents DSN parse errors."""
     url = re.sub(r"[?&]ssl=[^&]*", "", url)
     url = re.sub(r"[?&]sslmode=[^&]*", "", url)
+    url = re.sub(r"[?&]channel_binding=[^&]*", "", url)  # NeonDB pooler param
     url = re.sub(r"\?$", "", url)    # dangling ?
     url = re.sub(r"\?&", "?", url)  # ?&foo → ?foo
     return url
