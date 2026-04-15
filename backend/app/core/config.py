@@ -155,8 +155,8 @@ class Settings(BaseSettings):
     RAZORPAY_PRO_AMOUNT: int = 166700
     RAZORPAY_TEAM_AMOUNT: int = 828200
 
-    FRONTEND_URL: str = "http://localhost:3000"
-    BACKEND_URL: str = "http://localhost:8000"
+    FRONTEND_URL: str = "https://contextos.learnmade.in"
+    BACKEND_URL: str = "https://contextos-api-jxdr.onrender.com"
 
     RATE_LIMIT_FREE: int = 50
     RATE_LIMIT_PRO: int = 500
@@ -231,12 +231,18 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
         return [
             self.FRONTEND_URL,
+            # Production domains
+            "https://contextos.learnmade.in",
+            "https://api.contextos.learnmade.in",
+            "https://context-os-admin.vercel.app",
+            # Vercel preview deployments
+            "https://contextos.vercel.app",
+            "https://*.vercel.app",
+            # Local development
             "http://localhost:3000",
             "http://localhost:3001",
             "http://localhost:3002",
-            "https://contextos.vercel.app",
-            "https://context-os-admin.vercel.app",
-            "https://*.vercel.app",
+            "http://localhost:8000",
         ]
 
     model_config = SettingsConfigDict(

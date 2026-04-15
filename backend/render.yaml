@@ -16,4 +16,13 @@ services:
         value: "false"
       - key: PYTHONUNBUFFERED
         value: "1"
-      # Set DATABASE_URL, REDIS_URL, JWT_SECRET_KEY, OPENAI_API_KEY etc. in Render dashboard
+      - key: FRONTEND_URL
+        value: "https://contextos.learnmade.in"
+      - key: BACKEND_URL
+        value: "https://contextos-api-jxdr.onrender.com"
+      - key: CORS_ORIGINS
+        value: "https://contextos.learnmade.in,https://context-os-admin.vercel.app,http://localhost:3000,http://localhost:3001,http://localhost:3002"
+      # Secrets — set these manually in Render dashboard (do NOT commit actual values):
+      # DATABASE_URL, REDIS_URL, JWT_SECRET_KEY, ENCRYPTION_KEY,
+      # OPENAI_API_KEY, GITHUB_CLIENT_SECRET, NOTION_CLIENT_SECRET,
+      # SLACK_CLIENT_SECRET, RAZORPAY_KEY_SECRET, QDRANT_API_KEY
