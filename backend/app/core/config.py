@@ -1,21 +1,46 @@
 # backend/app/core/config.py
 
+import os
+import re
 from pathlib import Path
-from urllib.parse import urlsplit, urlparse, urlencode, parse_qs, urlunparse
+from urllib.parse import urlparse, urlencode, parse_qs, urlunparse, urlsplit
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-def _inject_ssl(url: str) -> str:
-    """Ensure external PostgreSQL URLs contain ssl=require for asyncpg.
-    Render, AWS RDS, Supabase, and Neon all require SSL on their external hosts.
-    This modifies the URL in-place only when the host is an external managed service.
+# ── Database URL helpers ────────────────────────────────────────────────────
+
+def _to_render_internal_url(url: str) -> str:
+    """When running inside Render's infrastructure (RENDER=true), convert
+    the external PostgreSQL hostname to the internal one.
+
+    External: dpg-xxx.singapore-postgres.render.com  (needs SSL, goes via proxy)
+    Internal: dpg-xxx                                (no SSL, direct private network)
+
+    Internal connections bypass the proxy entirely — no SSL required,
+    no handshake drops, faster cold-start.
     """
+    if not os.environ.get("RENDER"):
+        return url  # Not on Render — keep URL as-is
+
+    # dpg-xxxx.<region>-postgres.render.com  →  dpg-xxxx
+    return re.sub(
+        r'(dpg-[a-z0-9-]+)\.[a-z0-9-]+-postgres\.render\.com',
+        r'\1',
+        url,
+    )
+
+
+def _inject_ssl_for_external(url: str) -> str:
+    """For non-Render external managed PostgreSQL hosts, ensure ssl=require
+    is appended to the URL query string.  This is a safety net for
+    AWS RDS, Supabase, Neon, etc. when hosted outside of Render."""
     if not url:
         return url
+
     external_markers = (
-        ".render.com",
+        ".render.com",    # only reached if not running on Render
         ".onrender.com",
         "amazonaws.com",
         "supabase.co",
@@ -24,10 +49,10 @@ def _inject_ssl(url: str) -> str:
         "cockroachlabs.cloud",
     )
     parsed = urlparse(url)
-    if not any(m in (parsed.hostname or "") for m in external_markers):
-        return url  # Local / internal — no SSL needed
+    host = parsed.hostname or ""
+    if not any(m in host for m in external_markers):
+        return url  # Internal / local — no SSL injection
 
-    # Parse existing query string and add/overwrite ssl=require
     qs = parse_qs(parsed.query, keep_blank_values=True)
     qs["ssl"] = ["require"]
     new_query = urlencode({k: v[0] for k, v in qs.items()})
@@ -49,19 +74,21 @@ class Settings(BaseSettings):
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
-    def ensure_ssl_for_external_db(cls, v: object) -> object:
-        """Auto-inject ssl=require into external PostgreSQL URLs."""
+    def normalise_database_url(cls, v: object) -> object:
+        """On Render: rewrite external hostname → internal (no SSL needed).
+        Elsewhere: inject ssl=require for known external managed DB hosts."""
         if isinstance(v, str):
-            return _inject_ssl(v)
+            v = _to_render_internal_url(v)   # Step 1: internal hostname (Render)
+            v = _inject_ssl_for_external(v)  # Step 2: SSL for other managed hosts
         return v
 
-    DATABASE_POOL_SIZE: int = 20  # Increased for production
-    DATABASE_MAX_OVERFLOW: int = 30  # Increased for burst handling
-    DATABASE_POOL_TIMEOUT: int = 60  # Increased for slow queries
-    DATABASE_POOL_RECYCLE: int = 1800  # Recycle connections every 30 minutes
+    DATABASE_POOL_SIZE: int = 20
+    DATABASE_MAX_OVERFLOW: int = 30
+    DATABASE_POOL_TIMEOUT: int = 60
+    DATABASE_POOL_RECYCLE: int = 1800
 
     REDIS_URL: str = "redis://localhost:6379/0"
-    REDIS_MAX_CONNECTIONS: int = 20  # Increased for caching
+    REDIS_MAX_CONNECTIONS: int = 20
     REDIS_SOCKET_TIMEOUT: int = 10
     REDIS_SOCKET_CONNECT_TIMEOUT: int = 10
 
@@ -86,17 +113,14 @@ class Settings(BaseSettings):
 
     @property
     def llm_api_key(self) -> str:
-        """Return OpenAI API key."""
         return self.OPENAI_API_KEY
 
     @property
     def llm_base_url(self) -> str | None:
-        """Return None to use default OpenAI base URL."""
         return None
 
     @property
     def llm_model(self) -> str:
-        """Return the configured OpenAI model name."""
         return self.OPENAI_MODEL
 
     GITHUB_CLIENT_ID: str = ""

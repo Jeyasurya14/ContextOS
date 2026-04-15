@@ -17,8 +17,21 @@ import app.models  # noqa: E402,F401 - register model metadata after Base exists
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
-def _is_external_db(url: str) -> bool:
-    """Detect external managed PostgreSQL hosts that mandate SSL."""
+def _strip_ssl_params(url: str) -> str:
+    """Remove ?ssl=... and ?sslmode=... from URL.
+    asyncpg on Render internal connections does not need these — SSL is
+    configured via connect_args or not at all for internal hosts.
+    Removing them prevents DSN parse errors."""
+    url = re.sub(r"[?&]ssl=[^&]*", "", url)
+    url = re.sub(r"[?&]sslmode=[^&]*", "", url)
+    url = re.sub(r"\?$", "", url)    # dangling ?
+    url = re.sub(r"\?&", "?", url)  # ?&foo → ?foo
+    return url
+
+
+def _needs_ssl(url: str) -> bool:
+    """Return True for external managed PostgreSQL hosts.
+    Render internal hostnames are just 'dpg-xxx' with no domain — they never need SSL."""
     external = (
         ".render.com", ".onrender.com", "amazonaws.com",
         "supabase.co", "supabase.com", "neon.tech", "cockroachlabs.cloud",
@@ -26,27 +39,18 @@ def _is_external_db(url: str) -> bool:
     return any(m in url for m in external)
 
 
-def _strip_ssl_params(url: str) -> str:
-    """Remove ?ssl=... &ssl=... &sslmode=... from the URL.
-    asyncpg does not reliably parse these from the DSN string when used
-    through SQLAlchemy; pass SSL via connect_args instead."""
-    url = re.sub(r"[?&]ssl=[^&]*", "", url)
-    url = re.sub(r"[?&]sslmode=[^&]*", "", url)
-    url = re.sub(r"\?$", "", url)      # dangling ?
-    url = re.sub(r"\?&", "?", url)    # ?&foo → ?foo
-    return url
-
-
-# ── Async engine — FastAPI routes ──────────────────────────────────────────
+# ── Async engine ────────────────────────────────────────────────────────────
+# By the time we reach here, settings.DATABASE_URL has already been
+# transformed by config.py's normalise_database_url validator:
+#   - On Render: external hostname → internal (no SSL)
+#   - Elsewhere: ssl=require injected into external URLs
 
 _db_url = settings.DATABASE_URL
 _async_url = _strip_ssl_params(_db_url)
-_is_external = _is_external_db(_db_url)
 
-# asyncpg accepts the string literals "require", "disable", "prefer" etc.
-# directly as the `ssl` parameter in connect(). This is the most compatible
-# approach for Render-hosted PostgreSQL — no SSLContext construction needed.
-_async_connect_args: dict = {"ssl": "require"} if _is_external else {}
+# Only add SSL connect_args if the URL still points at an external host
+# (i.e. we're NOT on Render, or the internal transform didn't match)
+_async_connect_args: dict = {"ssl": "require"} if _needs_ssl(_async_url) else {}
 
 engine = create_async_engine(
     _async_url,
@@ -54,9 +58,9 @@ engine = create_async_engine(
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
     pool_timeout=settings.DATABASE_POOL_TIMEOUT,
     pool_pre_ping=True,    # Detect stale connections
-    pool_recycle=1800,     # Recycle connections every 30 minutes
+    pool_recycle=1800,     # Recycle every 30 min
     echo=settings.DEBUG,
-    pool_use_lifo=True,    # Use LIFO to reduce connection acquisition time
+    pool_use_lifo=True,
     connect_args=_async_connect_args,
 )
 
@@ -69,9 +73,7 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 # ── Sync engine — Celery workers ONLY ─────────────────────────────────────
-# CRITICAL: Do NOT create sync_engine at module level.
-# psycopg2 crashes on Python 3.14 if imported at module level.
-# Use lazy initialization — only create when first called.
+# Use lazy initialisation — only create when first called (psycopg2 import safety).
 
 _sync_engine = None
 _sync_session_factory = None
@@ -83,7 +85,7 @@ def _get_sync_engine():
         sync_url = _strip_ssl_params(_db_url).replace(
             "postgresql+asyncpg://", "postgresql+psycopg2://"
         )
-        sync_connect_args: dict = {"sslmode": "require"} if _is_external else {}
+        sync_connect_args: dict = {"sslmode": "require"} if _needs_ssl(sync_url) else {}
         _sync_engine = create_engine(
             sync_url,
             pool_size=5,
@@ -107,18 +109,8 @@ def _get_sync_session_factory():
 
 
 def get_sync_db():
-    """
-    Get a synchronous DB session for use in Celery workers.
-    Always use in try/finally:
-        db = get_sync_db()
-        try:
-            # do work
-            db.commit()
-        finally:
-            db.close()
-    """
-    factory = _get_sync_session_factory()
-    return factory()
+    """Synchronous DB session for Celery workers. Use in try/finally."""
+    return _get_sync_session_factory()()
 
 
 # ── FastAPI dependency ─────────────────────────────────────────────────────
@@ -141,43 +133,40 @@ async def check_database_health() -> bool:
             await session.execute(text("SELECT 1"))
             return True
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.error("Database health check failed: {}", e)
         return False
 
 
 async def init_db() -> None:
-    """Verify the database connection during application startup.
-
-    This uses retry logic so transient network blips during cold-start
-    do not crash the entire application."""
+    """Verify DB reachability on startup with exponential-backoff retries.
+    Logs a warning (does not raise) if all attempts fail, so the process
+    stays alive and the health endpoint can still respond."""
     import asyncio
     last_exc: Exception | None = None
-    for attempt in range(1, 6):  # 5 attempts
+    for attempt in range(1, 6):
         try:
             async with engine.begin() as conn:
                 await conn.execute(text("SELECT 1"))
-            logger.info("Database connection initialized (attempt {})", attempt)
+            logger.info("Database connection verified (attempt {})", attempt)
             return
         except Exception as exc:
             last_exc = exc
-            wait = min(2 ** attempt, 16)  # 2s, 4s, 8s, 16s, 16s
+            wait = min(2 ** attempt, 16)
             logger.warning(
-                "Database connection attempt {}/{} failed: {} — retrying in {}s",
-                attempt, 5, exc, wait,
+                "DB connect attempt {}/5 failed: {} — retrying in {}s",
+                attempt, exc, wait,
             )
             await asyncio.sleep(wait)
 
-    # All retries exhausted — log and continue. The health endpoint will
-    # reveal the unhealthy state; do NOT raise (would crash the process).
     logger.error(
-        "Database connection FAILED after 5 attempts: {}. "
-        "Running in degraded mode — check DATABASE_URL and network.",
+        "Database UNREACHABLE after 5 attempts: {}. "
+        "Verify DATABASE_URL and network. Running in degraded mode.",
         last_exc,
     )
 
 
 async def close_db() -> None:
-    """Dispose the async engine during shutdown."""
+    """Dispose the async engine on shutdown."""
     await engine.dispose()
     logger.info("Database engine disposed")
 
