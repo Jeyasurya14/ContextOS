@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: contextos-api
+    runtime: python
+    buildCommand: "./render-build.sh"
+    startCommand: "gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 2 -b 0.0.0.0:$PORT --timeout 120 --keep-alive 5 --max-requests 1000 --max-requests-jitter 100"
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: RENDER
+        value: "true"
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      # Set DATABASE_URL, REDIS_URL, JWT_SECRET_KEY, OPENAI_API_KEY etc. in Render dashboard

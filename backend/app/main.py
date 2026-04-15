@@ -86,10 +86,6 @@ app = FastAPI(
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
     openapi_url="/openapi.json" if settings.DEBUG else None,
-    # Production optimizations
-    http_options={
-        "timeout": 60.0,  # Global timeout for HTTP requests
-    },
 )
 
 app.state.limiter = limiter
@@ -125,26 +121,36 @@ if settings.ENVIRONMENT == "production":
         allowed_hosts=allowed_hosts,
     )
 
-# 4. Request size and content validation
+# 4. Request size validation (allow webhooks and multipart to pass through)
 @app.middleware("http")
 async def validate_request(request: Request, call_next):
-    """Validate request size and content."""
+    """Validate request size. Webhooks and multipart are exempt from JSON-only check."""
+    from fastapi.responses import JSONResponse
+
     MAX_SIZE = 10 * 1024 * 1024  # 10 MB
     content_length = request.headers.get("content-length")
     if content_length and int(content_length) > MAX_SIZE:
-        from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=413,
             content={"detail": "Request too large. Maximum size is 10 MB."}
         )
 
-    # Validate Content-Type for POST/PUT requests
-    if request.method in ("POST", "PUT", "PATCH"):
+    # Webhook endpoints and multipart uploads are exempt from JSON-only enforcement
+    EXEMPT_PATHS = ("/webhook", "/callback", "/integrations", "/billing/webhook")
+    is_webhook = any(request.url.path.startswith(p) or request.url.path.endswith(p)
+                     for p in EXEMPT_PATHS)
+    is_api_path = request.url.path.startswith("/api/v1")
+
+    if not is_webhook and is_api_path and request.method in ("POST", "PUT", "PATCH"):
         content_type = request.headers.get("content-type", "")
-        if not content_type.startswith("application/json"):
+        if content_type and not (
+            content_type.startswith("application/json")
+            or content_type.startswith("multipart/form-data")
+            or content_type.startswith("application/x-www-form-urlencoded")
+        ):
             return JSONResponse(
                 status_code=415,
-                content={"detail": "Unsupported media type. Only application/json is accepted."}
+                content={"detail": "Unsupported media type."}
             )
 
     response = await call_next(request)

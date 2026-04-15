@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
-# Render build script - does nothing since we use Docker
-# This prevents Render from auto-detecting Python and creating a venv
+# Render build script — native Python runtime (no Docker)
+set -e
 
-echo "Using Docker build - skipping Render's Python auto-detection"
-exit 0
+echo "==> Upgrading pip..."
+pip install --upgrade pip --quiet
+
+echo "==> Installing Python dependencies..."
+pip install -r requirements.txt
+
+echo "==> Running database migrations..."
+python -m alembic upgrade head
+
+echo "==> Build complete ✓"
