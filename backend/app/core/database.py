@@ -1,5 +1,6 @@
 # backend/app/core/database.py
 
+import ssl
 from sqlalchemy.ext.asyncio import (
     create_async_engine, async_sessionmaker, AsyncSession
 )
@@ -16,47 +17,50 @@ import app.models  # noqa: E402,F401 - register model metadata after Base exists
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
-def _clean_url(url: str) -> str:
-    """Strip any existing ?ssl=... query params to avoid conflicts with
-    connect_args-based SSL configuration."""
-    if "?" in url:
-        base, _ = url.split("?", 1)
-        return base
-    return url
-
-
-def _needs_ssl(url: str) -> bool:
-    """Return True when the URL points at an external host that requires SSL."""
-    return (
-        ".render.com" in url
-        or ".onrender.com" in url
-        or "amazonaws.com" in url
-        or "supabase" in url
-        or "neon.tech" in url
+def _is_external_db(url: str) -> bool:
+    """Detect external managed PostgreSQL hosts that mandate SSL."""
+    external = (
+        ".render.com", ".onrender.com", "amazonaws.com",
+        "supabase.co", "supabase.com", "neon.tech", "cockroachlabs.cloud",
     )
+    return any(m in url for m in external)
+
+
+def _strip_ssl_param(url: str) -> str:
+    """Remove ?ssl=... or &ssl=... from URL — supplied via connect_args instead."""
+    import re
+    # Remove ssl query param entirely; asyncpg ignores it in the URL anyway
+    url = re.sub(r"[?&]ssl=[^&]*", "", url)
+    # Clean up dangling ? or &
+    url = re.sub(r"\?$", "", url)
+    return url
 
 
 # ── Async engine — FastAPI routes ──────────────────────────────────────────
 
-_async_url = _clean_url(settings.DATABASE_URL)
-
+_db_url = settings.DATABASE_URL
 _async_connect_args: dict = {}
-if _needs_ssl(_async_url):
-    import ssl as _ssl
-    _ssl_ctx = _ssl.create_default_context()
+
+if _is_external_db(_db_url):
+    # asyncpg requires an ssl.SSLContext (or True) via connect_args.
+    # It does NOT reliably parse ?ssl=require from the DSN.
+    _ssl_ctx = ssl.create_default_context()
     _ssl_ctx.check_hostname = False
-    _ssl_ctx.verify_mode = _ssl.CERT_NONE  # Render uses self-signed certs
+    _ssl_ctx.verify_mode = ssl.CERT_NONE  # Render uses managed certs; allow flexible verification
     _async_connect_args = {"ssl": _ssl_ctx}
+
+# Strip ?ssl= from URL to avoid asyncpg DSN parse errors
+_async_url = _strip_ssl_param(_db_url)
 
 engine = create_async_engine(
     _async_url,
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
     pool_timeout=settings.DATABASE_POOL_TIMEOUT,
-    pool_pre_ping=True,   # Detect stale connections
-    pool_recycle=1800,    # Recycle connections every 30 minutes
+    pool_pre_ping=True,    # Detect stale connections
+    pool_recycle=1800,     # Recycle connections every 30 minutes
     echo=settings.DEBUG,
-    pool_use_lifo=True,   # Use LIFO to reduce connection acquisition time
+    pool_use_lifo=True,    # Use LIFO to reduce connection acquisition time
     connect_args=_async_connect_args,
 )
 
@@ -80,19 +84,19 @@ _sync_session_factory = None
 def _get_sync_engine():
     global _sync_engine
     if _sync_engine is None:
-        SYNC_URL = _clean_url(settings.DATABASE_URL).replace(
+        sync_url = _strip_ssl_param(_db_url).replace(
             "postgresql+asyncpg://", "postgresql+psycopg2://"
         )
-        _sync_connect_args: dict = {}
-        if _needs_ssl(SYNC_URL):
-            _sync_connect_args = {"sslmode": "require"}
+        sync_connect_args: dict = {}
+        if _is_external_db(sync_url):
+            sync_connect_args = {"sslmode": "require"}
         _sync_engine = create_engine(
-            SYNC_URL,
+            sync_url,
             pool_size=5,
             max_overflow=10,
             pool_pre_ping=True,
             pool_recycle=1800,
-            connect_args=_sync_connect_args,
+            connect_args=sync_connect_args,
         )
     return _sync_engine
 

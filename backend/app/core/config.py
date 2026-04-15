@@ -1,10 +1,37 @@
 # backend/app/core/config.py
 
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlparse, urlencode, parse_qs, urlunparse
 
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _inject_ssl(url: str) -> str:
+    """Ensure external PostgreSQL URLs contain ssl=require for asyncpg.
+    Render, AWS RDS, Supabase, and Neon all require SSL on their external hosts.
+    This modifies the URL in-place only when the host is an external managed service.
+    """
+    if not url:
+        return url
+    external_markers = (
+        ".render.com",
+        ".onrender.com",
+        "amazonaws.com",
+        "supabase.co",
+        "supabase.com",
+        "neon.tech",
+        "cockroachlabs.cloud",
+    )
+    parsed = urlparse(url)
+    if not any(m in (parsed.hostname or "") for m in external_markers):
+        return url  # Local / internal — no SSL needed
+
+    # Parse existing query string and add/overwrite ssl=require
+    qs = parse_qs(parsed.query, keep_blank_values=True)
+    qs["ssl"] = ["require"]
+    new_query = urlencode({k: v[0] for k, v in qs.items()})
+    return urlunparse(parsed._replace(query=new_query))
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -19,6 +46,15 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "production"
 
     DATABASE_URL: str = ""
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def ensure_ssl_for_external_db(cls, v: object) -> object:
+        """Auto-inject ssl=require into external PostgreSQL URLs."""
+        if isinstance(v, str):
+            return _inject_ssl(v)
+        return v
+
     DATABASE_POOL_SIZE: int = 20  # Increased for production
     DATABASE_MAX_OVERFLOW: int = 30  # Increased for burst handling
     DATABASE_POOL_TIMEOUT: int = 60  # Increased for slow queries
