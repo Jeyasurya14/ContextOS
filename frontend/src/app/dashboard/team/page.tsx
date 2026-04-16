@@ -153,29 +153,29 @@ export default function TeamPage() {
             <div style={{ width: 44, height: 44, borderRadius: 'var(--r-md)', background: 'var(--brand-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand)' }}>
                <Fingerprint size={20} />
             </div>
-            <div>
-               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Workspace Hub</div>
-               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{team.name}</div>
-            </div>
+          <div>
+             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Workspace Hub</div>
+             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{team.name}</div>
+          </div>
          </div>
          <div className="card" style={{ padding: 20, display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{ width: 44, height: 44, borderRadius: 'var(--r-md)', background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--success)' }}>
                <Activity size={20} />
             </div>
-            <div>
-               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase' }}>Active Operators</div>
-               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{members.length} Ready</div>
-            </div>
+          <div>
+             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Active Operators</div>
+             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{members.length} Ready</div>
+          </div>
          </div>
       </div>
 
       {/* ── Invite Pipeline ── */}
       <div className="card">
          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-base)', background: 'var(--bg-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-               <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>Operator Provisioning</h3>
-               <p style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Provision new access grants for workspace collaborators.</p>
-            </div>
+          <div>
+             <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Operator Provisioning</h3>
+             <p style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Provision new access grants for workspace collaborators.</p>
+          </div>
          </div>
          <div style={{ padding: 24 }}>
             <div style={{ display: 'flex', gap: 12 }}>
@@ -201,7 +201,7 @@ export default function TeamPage() {
          <div style={{ 
            display: 'grid', gridTemplateColumns: 'minmax(240px, 2fr) 1fr 1fr 120px 40px',
            padding: '10px 24px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-base)',
-           fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase'
+           fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.065em'
          }}>
             <span>Operator Identity</span>
             <span>Grant Level</span>

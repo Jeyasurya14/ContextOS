@@ -242,7 +242,14 @@ export default function ChatPage() {
         .chat-prose pre code { display: block; padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow-x: auto; color: var(--text-primary); }
       `}</style>
       
-      <div style={{ display: 'flex', height: 'calc(100vh - 120px)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-lg)', background: 'var(--bg-base)', overflow: 'hidden' }}>
+      <div style={{ 
+        display: 'flex', 
+        height: 'calc(100vh - 104px)', /* 52px header + 52px (24*2) padding offset approx */
+        border: '1px solid var(--border-subtle)', 
+        borderRadius: 'var(--r-lg)', 
+        background: 'var(--bg-base)', 
+        overflow: 'hidden' 
+      }}>
         
         {/* Thread Sidebar (Industrial Style) */}
         <div style={{ width: 280, borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', display: 'flex', flexDirection: 'column' }}>
@@ -258,11 +265,12 @@ export default function ChatPage() {
                   key={c.id} 
                   onClick={() => { setCurrentChatId(c.id); setMessages(c.messages) }}
                   style={{
-                    width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: 'var(--r-md)',
+                    width: '100%', textAlign: 'left', padding: '9px 12px', borderRadius: 'var(--r-md)',
                     background: currentChatId === c.id ? 'var(--bg-surface)' : 'transparent',
                     border: currentChatId === c.id ? '1px solid var(--border-base)' : '1px solid transparent',
                     color: currentChatId === c.id ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontSize: 12, marginBottom: 4, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10
+                    fontSize: '12px', marginBottom: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px',
+                    transition: 'all var(--t-fast)'
                   }}
                 >
                    <History size={13} style={{ opacity: 0.5 }} />

@@ -142,7 +142,7 @@ export default function DashboardPage() {
         <div style={{ 
           display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 1fr 1fr 1fr 120px 40px',
           padding: '10px 24px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-base)',
-          fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em'
+          fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.065em'
         }}>
           <span>Source Name</span>
           <span>Type</span>
@@ -184,10 +184,10 @@ export default function DashboardPage() {
 
       {/* ── Low-Level Activity Log (Timeline) ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-        <div className="card" style={{ padding: 20 }}>
+        <div className="card" style={{ padding: '20px 24px' }}>
            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <Terminal size={14} style={{ color: 'var(--brand)' }} />
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>Recent Events</h3>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Recent Events</h3>
            </div>
            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {[
@@ -207,10 +207,10 @@ export default function DashboardPage() {
            </div>
         </div>
 
-        <div className="card" style={{ padding: 20 }}>
+        <div className="card" style={{ padding: '20px 24px' }}>
            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
               <Activity size={14} style={{ color: 'var(--success)' }} />
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>Intelligence Health</h3>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Intelligence Health</h3>
            </div>
            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ height: 40, borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

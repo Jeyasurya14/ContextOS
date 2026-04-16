@@ -141,10 +141,10 @@ export default function BillingPage() {
       {/* ── Resource Allocation ── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 24 }}>
         
-        <div className="card" style={{ padding: 24 }}>
+        <div className="card" style={{ padding: '24px 32px' }}>
            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
              <Cpu size={14} style={{ color: 'var(--brand)' }} />
-             <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>Operational Quotas</h3>
+             <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Operational Quotas</h3>
            </div>
 
            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -170,10 +170,10 @@ export default function BillingPage() {
            </div>
         </div>
 
-        <div className="card" style={{ padding: 24 }}>
+        <div className="card" style={{ padding: '24px 32px' }}>
            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
              <History size={14} style={{ color: 'var(--text-tertiary)' }} />
-             <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>Invoices</h3>
+             <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Invoices</h3>
            </div>
            
            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

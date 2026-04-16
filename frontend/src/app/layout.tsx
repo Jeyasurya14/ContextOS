@@ -60,20 +60,9 @@ function NavItem({ href, icon: Icon, label, isActive, onClick }: {
   href: string; icon: any; label: string; isActive: boolean; onClick?: () => void
 }) {
   return (
-    <Link href={href} onClick={onClick} style={{ textDecoration: 'none' }}>
-      <div 
-        className={`nav-item ${isActive ? 'active' : ''}`}
-        style={{ 
-          margin: '0 4px',
-          padding: '6px 12px',
-          borderRadius: 'var(--r-md)',
-          fontSize: '13px',
-          gap: '10px'
-        }}
-      >
-        <Icon style={{ width: 15, height: 15, color: isActive ? 'var(--brand)' : 'inherit' }} />
-        <span>{label}</span>
-      </div>
+    <Link href={href} onClick={onClick} className={`nav-item ${isActive ? 'active' : ''}`}>
+      <Icon style={{ width: 14, height: 14, color: isActive ? 'var(--brand)' : 'inherit' }} />
+      <span>{label}</span>
     </Link>
   )
 }
@@ -110,16 +99,16 @@ function Sidebar({ user, pathname, onNavClick }: {
       </div>
 
       {/* Grouped Navigation */}
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto', padding: '0 8px' }}>
         {NAV_GROUPS.map(group => (
-          <div key={group.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div key={group.label} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <span style={{ 
               fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', 
-              padding: '0 24px', textTransform: 'uppercase', letterSpacing: '0.08em' 
+              padding: '0 16px 6px', textTransform: 'uppercase', letterSpacing: '0.08em' 
             }}>
               {group.label}
             </span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {group.items.map(item => (
                 <NavItem
                   key={item.href}
@@ -239,14 +228,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {isDashboard ? (
             <div style={{ display: 'flex', height: '100dvh', background: 'var(--bg-base)', overflow: 'hidden' }}>
 
+              {/* Mobile Sidebar Backdrop */}
+              {mobileOpen && (
+                <div className="sidebar-backdrop lg:hidden" onClick={() => setMobileOpen(false)} />
+              )}
+
               {/* Sidebar */}
               <aside style={{
-                width: 250, flexShrink: 0, height: '100%',
+                width: 240, flexShrink: 0, height: '100%',
                 background: 'var(--bg-subtle)', borderRight: '1px solid var(--border-subtle)',
-                zIndex: 50, position: 'relative',
+                zIndex: 50, position: 'fixed', left: 0, top: 0,
                 transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
                 transition: 'transform 0.25s cubic-bezier(.16,1,.3,1)',
-              }} className="lg:translate-x-0">
+              }} className="lg:relative lg:translate-x-0">
                 <Sidebar user={user} pathname={pathname} onNavClick={() => setMobileOpen(false)} />
               </aside>
 
@@ -265,7 +259,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
                 {/* Main Content Scrollable */}
                 <main style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-base)' }}>
-                  <div style={{ padding: '32px 48px' }}>
+                  <div style={{ padding: '24px 32px' }}>
                     {children}
                   </div>
                 </main>
