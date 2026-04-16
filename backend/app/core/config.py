@@ -226,24 +226,29 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        """Get CORS origins. If CORS_ORIGINS env var is set, use it; otherwise use defaults."""
-        if self.CORS_ORIGINS:
-            return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
-        return [
-            self.FRONTEND_URL,
-            # Production domains
+        """Get CORS origins.
+        Production domains are ALWAYS included.
+        CORS_ORIGINS env var adds extra origins on top (e.g. for staging).
+        """
+        # These are always allowed — no env var can accidentally remove them
+        always_allowed = [
             "https://contextos.learnmade.in",
             "https://api.contextos.learnmade.in",
             "https://context-os-admin.vercel.app",
-            # Vercel preview deployments
-            "https://contextos.vercel.app",
-            "https://*.vercel.app",
-            # Local development
             "http://localhost:3000",
             "http://localhost:3001",
             "http://localhost:3002",
             "http://localhost:8000",
         ]
+        if self.CORS_ORIGINS:
+            extra = [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+            # Merge without duplicates, keeping always_allowed first
+            seen = set(always_allowed)
+            for o in extra:
+                if o not in seen:
+                    always_allowed.append(o)
+                    seen.add(o)
+        return always_allowed
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",

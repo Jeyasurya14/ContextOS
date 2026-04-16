@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Render start script — runs migrations THEN starts the server.
-# Migrations run here (not in build) so DATABASE_URL is always available.
+# Render start script — runs migrations then starts the server.
 set -e
 
 echo "==> Running database migrations..."
-python -m alembic upgrade head
-echo "==> Migrations complete ✓"
+# Run migrations but don't crash the server if they fail —
+# the app has its own retry logic in lifespan and will log the error.
+python -m alembic upgrade head && echo "==> Migrations complete ✓" \
+    || echo "WARNING: Migrations failed (check DATABASE_URL env var). Continuing startup..."
 
 echo "==> Starting gunicorn server..."
 exec gunicorn app.main:app \
