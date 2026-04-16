@@ -62,7 +62,7 @@ function MemberRow({ member, isMe, onRemove }: any) {
          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Operator Active</span>
       </div>
 
-      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'right' }}>{new Date().toLocaleDateString()}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'right' }}>{new Date(member.created_at).toLocaleDateString()}</div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
          {!isMe && (

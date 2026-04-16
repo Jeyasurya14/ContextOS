@@ -7,7 +7,7 @@ import {
   ChevronRight, Terminal, History, Maximize2, Layers, Globe
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
-import { integrationsApi } from '@/lib/api'
+import { integrationsApi, queryApi } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 
 /* ─── Types ─────────────────────────────────────────── */
@@ -158,24 +158,43 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY)
-      if (raw) {
-        const parsed: Chat[] = JSON.parse(raw)
-        if (parsed.length > 0) {
-          setChats(parsed); chatsRef.current = parsed
-          setCurrentChatId(parsed[0].id)
-          setMessages(parsed[0].messages || [])
-        }
-      }
-    } catch {}
+    loadConversations()
   }, [])
 
-  const saveMessages = useCallback((msgs: Message[], chatId: string) => {
-    const updated = chatsRef.current.map(c => c.id === chatId ? { ...c, messages: msgs, updatedAt: new Date() } : c)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-    setChats(updated); chatsRef.current = updated
-  }, [])
+  const loadConversations = async () => {
+    try {
+      const res = await queryApi.listConversations()
+      setChats(res.data.map((c: any) => ({
+        id: c.id,
+        title: c.title,
+        messages: [], // messages will be fetched when selected
+        createdAt: new Date(c.created_at),
+        updatedAt: new Date(c.updated_at)
+      })))
+    } catch {}
+  }
+
+  const loadConversationDetails = async (id: string) => {
+    try {
+      const res = await queryApi.getConversation(id)
+      const mappedMsgs = res.data.messages.map((m: any) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        sources: m.sources,
+        timestamp: new Date(m.created_at)
+      }))
+      setMessages(mappedMsgs)
+    } catch {
+      toast.error('Failed to load transmission history.')
+    }
+  }
+
+  useEffect(() => {
+    if (currentChatId) {
+       loadConversationDetails(currentChatId)
+    }
+  }, [currentChatId])
 
   const handleSend = async () => {
     if (!input.trim() || isStreaming) return
@@ -192,16 +211,11 @@ export default function ChatPage() {
     const userMsg: Message = { id: Date.now(), role: 'user', content: text, timestamp: new Date() }
     const assistantMsg: Message = { id: Date.now() + 1, role: 'assistant', content: '', isStreaming: true, thinkingSteps: [], timestamp: new Date() }
     
-    const newMsgs = [...messages, userMsg, assistantMsg]
-    setMessages(newMsgs); setIsStreaming(true)
+    setMessages(prev => [...prev, userMsg, assistantMsg]); setIsStreaming(true)
 
-    const token = useAuthStore.getState().token
+    const token = useAuthStore.getState().token || ''
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-      const resp = await fetch(`${apiUrl}/api/v1/query`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ question: text })
-      })
-      if (!resp.ok) throw new Error()
+      const resp = await queryApi.stream(text, token, { conversation_id: currentChatId || undefined })
       
       const reader = resp.body?.getReader()
       if (!reader) throw new Error()
@@ -211,23 +225,46 @@ export default function ChatPage() {
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        const lines = decoder.decode(value).split('\n')
+        const raw = decoder.decode(value)
+        const lines = raw.split('\n')
+        
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue
-          const data = JSON.parse(line.slice(6))
-          if (data.event === 'token') accumulated += data.content
-          setMessages(prev => {
-            const u = [...prev]
-            if (data.event === 'thinking') u[u.length-1].thinkingSteps = [...(u[u.length-1].thinkingSteps || []), { type: 'thinking', message: data.message }]
-            else if (data.event === 'token') u[u.length - 1].content = accumulated
-            else if (data.event === 'done') u[u.length - 1].isStreaming = false
-            return u
-          })
+          if (!line.trim() || !line.startsWith('data: ')) continue
+          try {
+            const data = JSON.parse(line.slice(6))
+            if (data.event === 'token') {
+              accumulated += data.content
+            }
+            
+            setMessages(prev => {
+              const u = [...prev]
+              const last = u[u.length-1]
+              if (!last || last.role !== 'assistant') return prev
+
+              if (data.event === 'thinking') {
+                last.thinkingSteps = [...(last.thinkingSteps || []), { type: 'thinking', message: data.message, done: true }]
+              } else if (data.event === 'searching') {
+                last.thinkingSteps = [...(last.thinkingSteps || []), { type: 'searching', message: `Searching ${data.source}...`, done: true }]
+              } else if (data.event === 'token') {
+                last.content = accumulated
+              } else if (data.event === 'sources') {
+                last.sources = data.sources
+              } else if (data.event === 'done') {
+                last.isStreaming = false
+                if (!currentChatId && data.conversation_id) {
+                  setCurrentChatId(data.conversation_id)
+                  loadConversations()
+                }
+              }
+              return u
+            })
+          } catch (e) {
+            console.error('SSE parse error', e)
+          }
         }
       }
-      saveMessages(newMsgs, chatId)
     } catch {
-       toast.error('Query pipeline failed.')
+       toast.error('Intelligence sync failed.')
     } finally { setIsStreaming(false) }
   }
 

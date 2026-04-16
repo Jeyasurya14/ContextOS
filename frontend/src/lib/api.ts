@@ -130,11 +130,17 @@ export const billingApi = {
   }) => api.post('/api/v1/billing/verify-payment', data),
 }
 
+export const healthApi = {
+  getHealth: () => api.get('/api/v1/health'),
+}
+
 export const queryApi = {
+  listConversations: () => api.get('/api/v1/query/conversations'),
+  getConversation: (id: string) => api.get(`/api/v1/query/conversations/${id}`),
   stream: (
     question: string,
     token: string,
-    options?: { project_id?: string; team_id?: string }
+    options?: { project_id?: string; team_id?: string; conversation_id?: string }
   ): Promise<Response> => {
     return fetch(
       `${typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'https://contextos-api-jxdr.onrender.com')}/api/v1/query`,
