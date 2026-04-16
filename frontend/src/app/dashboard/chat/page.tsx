@@ -92,11 +92,11 @@ function MessageBubble({ msg, onCopy, copiedId }: { msg: Message; onCopy: (c: st
         <div style={{
           width: 28, height: 28, flexShrink: 0, marginTop: 2,
           borderRadius: '50%',
-          background: isUser ? 'var(--bg-raised)' : 'var(--brand)',
+          background: isUser ? 'var(--bg-raised)' : 'linear-gradient(135deg, #fbbf24, #d97706)',
           border: isUser ? '1px solid var(--border-base)' : 'none',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 11, fontWeight: 700,
-          color: isUser ? 'var(--text-secondary)' : '#08201a',
+          color: isUser ? 'var(--text-secondary)' : '#0a0a0f',
           letterSpacing: '-0.02em',
         }}>
           {isUser ? 'U' : 'C'}
@@ -486,11 +486,12 @@ export default function ChatPage() {
                 <div style={{ maxWidth: 720, width: '100%', textAlign: 'center' }}>
                   <div style={{
                     width: 52, height: 52, borderRadius: 14,
-                    background: 'var(--brand)',
+                    background: 'linear-gradient(135deg, #fbbf24, #d97706)',
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     marginBottom: 20,
+                    boxShadow: '0 6px 24px rgba(245,158,11,0.3)',
                   }}>
-                    <Sparkles size={24} style={{ color: '#08201a' }} />
+                    <Sparkles size={24} style={{ color: '#0a0a0f' }} />
                   </div>
                   <h1 style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.025em', marginBottom: 8 }}>
                     How can I help today?
@@ -582,7 +583,7 @@ export default function ChatPage() {
                     width: 32, height: 32,
                     borderRadius: 8,
                     background: input.trim() && !isStreaming ? 'var(--brand)' : 'var(--bg-raised)',
-                    color: input.trim() && !isStreaming ? '#08201a' : 'var(--text-disabled)',
+                    color: input.trim() && !isStreaming ? '#0a0a0f' : 'var(--text-disabled)',
                     border: 'none',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     cursor: input.trim() && !isStreaming ? 'pointer' : 'not-allowed',

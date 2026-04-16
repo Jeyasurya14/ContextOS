@@ -6,7 +6,7 @@ import { projectsApi } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
-const PROJECT_COLORS = ['#46e3b7', '#a78bfa', '#60a5fa', '#34d399', '#fb923c', '#f472b6', '#22d3ee', '#c084fc']
+const PROJECT_COLORS = ['#fbbf24', '#a78bfa', '#60a5fa', '#34d399', '#fb923c', '#f472b6', '#22d3ee', '#c084fc']
 const getColor = (name: string) => PROJECT_COLORS[(name?.charCodeAt(0) ?? 0) % PROJECT_COLORS.length]
 
 function relTime(iso: string) {

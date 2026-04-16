@@ -9,30 +9,30 @@
    DESIGN TOKENS
    ============================================================ */
 :root {
-  /* Backgrounds — warm slate (Render.com) */
-  --bg-base:    #0e1012;
-  --bg-subtle:  #141619;
-  --bg-surface: #16181c;
-  --bg-raised:  #1c1f23;
-  --bg-overlay: #23262b;
+  /* Backgrounds — cool blue-black slate (matches home page dark-* palette) */
+  --bg-base:    #080812;
+  --bg-subtle:  #0f0f1c;
+  --bg-surface: #1a1a28;
+  --bg-raised:  #2e2e3e;
+  --bg-overlay: #44445a;
 
   /* Borders */
-  --border-subtle: rgba(255,255,255,0.04);
-  --border-base:   rgba(255,255,255,0.07);
-  --border-strong: rgba(255,255,255,0.11);
+  --border-subtle: rgba(255,255,255,0.05);
+  --border-base:   rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.12);
 
-  /* Text */
-  --text-primary:   #f4f5f7;
-  --text-secondary: #a1a6b0;
-  --text-tertiary:  #6b7280;
-  --text-disabled:  #4b5563;
+  /* Text — matches home page dark-* scale */
+  --text-primary:   #f4f4f6;
+  --text-secondary: #a8a8ba;
+  --text-tertiary:  #787890;
+  --text-disabled:  #5a5a72;
 
-  /* Brand — Render mint */
-  --brand:           #46e3b7;
-  --brand-hover:     #2dd4a5;
-  --brand-muted:     rgba(70,227,183,0.08);
-  --brand-border:    rgba(70,227,183,0.20);
-  --brand-text:      #5fe9c0;
+  /* Brand — amber (matches home page) */
+  --brand:           #f59e0b;
+  --brand-hover:     #d97706;
+  --brand-muted:     rgba(245,158,11,0.08);
+  --brand-border:    rgba(245,158,11,0.22);
+  --brand-text:      #fbbf24;
 
   /* Danger */
   --danger:          #ef4444;
@@ -202,10 +202,10 @@ body {
 .btn-xl  { height: 48px; padding: 0 28px; font-size: 15px; font-weight: 600; }
 .btn-full { width: 100%; }
 
-/* Primary — Render mint pill */
+/* Primary — amber pill (matches home page) */
 .btn-primary {
   background: var(--brand);
-  color: #08201a;
+  color: #0a0a0f;
   border-color: var(--brand);
   font-weight: 600;
 }
@@ -691,13 +691,13 @@ body {
   flex-shrink: 0;
 }
 .status-live {
-  background: rgba(70,227,183,0.08);
-  color: #5fe9c0;
-  border-color: rgba(70,227,183,0.22);
+  background: rgba(16,185,129,0.10);
+  color: #34d399;
+  border-color: rgba(16,185,129,0.22);
 }
 .status-live .status-pill-dot {
-  background: #46e3b7;
-  box-shadow: 0 0 0 2px rgba(70,227,183,0.18);
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.22);
 }
 .status-building {
   background: rgba(251,191,36,0.08);

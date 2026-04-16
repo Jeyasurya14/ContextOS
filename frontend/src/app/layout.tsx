@@ -88,11 +88,12 @@ function Sidebar({ user, pathname, onNavClick }: {
         >
           <div style={{
             width: 26, height: 26, borderRadius: 6,
-            background: '#46e3b7',
-            color: '#08201a',
+            background: 'linear-gradient(135deg, #fbbf24, #d97706)',
+            color: '#0a0a0f',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
             fontSize: 13, fontWeight: 700, letterSpacing: '-0.02em',
+            boxShadow: '0 2px 8px rgba(245,158,11,0.25)',
           }}>
             C
           </div>
