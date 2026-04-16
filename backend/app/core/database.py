@@ -43,44 +43,51 @@ def _needs_ssl(url: str) -> bool:
 
 
 # ── Async engine ────────────────────────────────────────────────────────────
-# By the time we reach here, settings.DATABASE_URL has already been
-# transformed by config.py's normalise_database_url validator:
-#   - On Render: external hostname → internal (no SSL)
-#   - Elsewhere: ssl=require injected into external URLs
+# IMPORTANT: engine creation is wrapped in try/except so this module always
+# imports cleanly even if DATABASE_URL is missing or malformed.
+# Without this guard, any bad URL crashes the import → gunicorn can't load
+# the FastAPI app → all requests return bare 500s from gunicorn itself
+# (no middleware runs, no CORS headers) → browser sees "CORS blocked + 500".
 
 _db_url = settings.DATABASE_URL
-_async_url = _strip_ssl_params(_db_url)
+_async_url = _strip_ssl_params(_db_url) if _db_url else ""
 
-# Only add SSL connect_args if the URL still points at an external host
-# (i.e. we're NOT on Render, or the internal transform didn't match)
 _async_connect_args: dict = {"ssl": "require"} if _needs_ssl(_async_url) else {}
 
-# Render PostgreSQL plans allow 25–97 connections total.
-# With 4 gunicorn workers, keep pool small: 5 per worker = 20 max baseline.
-# max_overflow=5 adds burst capacity without exhausting the server limit.
-_POOL_SIZE = min(settings.DATABASE_POOL_SIZE, 5)        # cap at 5 per worker
-_MAX_OVERFLOW = min(settings.DATABASE_MAX_OVERFLOW, 5)  # cap at 5 burst
+_POOL_SIZE = min(settings.DATABASE_POOL_SIZE, 5)
+_MAX_OVERFLOW = min(settings.DATABASE_MAX_OVERFLOW, 5)
 
-engine = create_async_engine(
-    _async_url,
-    pool_size=_POOL_SIZE,
-    max_overflow=_MAX_OVERFLOW,
-    pool_timeout=settings.DATABASE_POOL_TIMEOUT,
-    pool_pre_ping=True,     # Detect stale connections before use
-    pool_recycle=1800,      # Recycle connections every 30 min
-    pool_reset_on_return="rollback",  # Clean state on return to pool
-    echo=settings.DEBUG,
-    pool_use_lifo=True,     # Prefer recently-used connections (warmer)
-    connect_args=_async_connect_args,
-)
-
-AsyncSessionLocal = async_sessionmaker(
-    engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
+try:
+    if not _async_url:
+        raise ValueError("DATABASE_URL is not set. Set it in Render's Environment dashboard.")
+    engine = create_async_engine(
+        _async_url,
+        pool_size=_POOL_SIZE,
+        max_overflow=_MAX_OVERFLOW,
+        pool_timeout=settings.DATABASE_POOL_TIMEOUT,
+        pool_pre_ping=True,
+        pool_recycle=1800,
+        pool_reset_on_return="rollback",
+        echo=settings.DEBUG,
+        pool_use_lifo=True,
+        connect_args=_async_connect_args,
+    )
+    AsyncSessionLocal = async_sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autocommit=False,
+        autoflush=False,
+    )
+    logger.info("Database engine created (URL: {}...)", _async_url[:40])
+except Exception as _engine_init_error:
+    logger.error(
+        "FATAL: Could not create database engine: {}. "
+        "App will start in degraded mode — all DB calls will fail.",
+        _engine_init_error,
+    )
+    engine = None  # type: ignore[assignment]
+    AsyncSessionLocal = None  # type: ignore[assignment]
 
 # ── Sync engine — Celery workers ONLY ─────────────────────────────────────
 # Use lazy initialisation — only create when first called (psycopg2 import safety).
@@ -125,6 +132,9 @@ def get_sync_db():
 
 # ── FastAPI dependency ─────────────────────────────────────────────────────
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
+    if AsyncSessionLocal is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=503, detail="Database not configured. Set DATABASE_URL on Render.")
     async with AsyncSessionLocal() as session:
         try:
             yield session
@@ -138,6 +148,9 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 # ── Health check ───────────────────────────────────────────────────────────
 async def check_database_health() -> bool:
+    if AsyncSessionLocal is None:
+        logger.error("Database health check: engine not initialized")
+        return False
     try:
         async with AsyncSessionLocal() as session:
             await session.execute(text("SELECT 1"))
@@ -149,8 +162,14 @@ async def check_database_health() -> bool:
 
 async def init_db() -> None:
     """Verify DB reachability on startup with exponential-backoff retries.
-    Logs a warning (does not raise) if all attempts fail, so the process
+    Logs a warning (does not raise) if all attempts fail so the process
     stays alive and the health endpoint can still respond."""
+    if engine is None:
+        logger.error(
+            "init_db: engine is None — DATABASE_URL was not set or was invalid. "
+            "Set DATABASE_URL in Render's Environment dashboard and redeploy."
+        )
+        return
     import asyncio
     last_exc: Exception | None = None
     for attempt in range(1, 6):
@@ -177,8 +196,9 @@ async def init_db() -> None:
 
 async def close_db() -> None:
     """Dispose the async engine on shutdown."""
-    await engine.dispose()
-    logger.info("Database engine disposed")
+    if engine is not None:
+        await engine.dispose()
+        logger.info("Database engine disposed")
 
 
 async_session_factory = AsyncSessionLocal
