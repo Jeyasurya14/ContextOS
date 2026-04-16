@@ -9,12 +9,12 @@
    DESIGN TOKENS
    ============================================================ */
 :root {
-  /* Backgrounds */
-  --bg-base:    #0a0a0b;
-  --bg-subtle:  #0f0f11;
-  --bg-surface: #141416;
-  --bg-raised:  #1a1a1d;
-  --bg-overlay: #222226;
+  /* Backgrounds — warm slate (Render.com) */
+  --bg-base:    #0e1012;
+  --bg-subtle:  #141619;
+  --bg-surface: #16181c;
+  --bg-raised:  #1c1f23;
+  --bg-overlay: #23262b;
 
   /* Borders */
   --border-subtle: rgba(255,255,255,0.04);
@@ -22,17 +22,17 @@
   --border-strong: rgba(255,255,255,0.11);
 
   /* Text */
-  --text-primary:   #f5f5f7;
-  --text-secondary: #9ca3af;
+  --text-primary:   #f4f5f7;
+  --text-secondary: #a1a6b0;
   --text-tertiary:  #6b7280;
   --text-disabled:  #4b5563;
 
-  /* Brand */
-  --brand:           #f59e0b;
-  --brand-hover:     #d97706;
-  --brand-muted:     rgba(245,158,11,0.06);
-  --brand-border:    rgba(245,158,11,0.12);
-  --brand-text:      #fbbf24;
+  /* Brand — Render mint */
+  --brand:           #46e3b7;
+  --brand-hover:     #2dd4a5;
+  --brand-muted:     rgba(70,227,183,0.08);
+  --brand-border:    rgba(70,227,183,0.20);
+  --brand-text:      #5fe9c0;
 
   /* Danger */
   --danger:          #ef4444;
@@ -202,10 +202,10 @@ body {
 .btn-xl  { height: 48px; padding: 0 28px; font-size: 15px; font-weight: 600; }
 .btn-full { width: 100%; }
 
-/* Primary — filled amber */
+/* Primary — Render mint pill */
 .btn-primary {
   background: var(--brand);
-  color: #000;
+  color: #08201a;
   border-color: var(--brand);
   font-weight: 600;
 }
@@ -620,23 +620,186 @@ body {
   color: var(--success-text);
 }
 
-/* Shine on hover (for primary buttons) */
-.btn-primary {
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 1px 2px rgba(0,0,0,0.3);
+/* ============================================================
+   RENDER-STYLE SURFACES
+   ============================================================ */
+
+/* Flat surface (primary building block — Render uses these everywhere) */
+.surface {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  transition: border-color var(--t-fast);
 }
-.btn-primary::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%);
-  transform: translateX(-100%);
-  transition: transform 600ms ease;
-  pointer-events: none;
+.surface:hover { border-color: var(--border-base); }
+
+/* Page header (breadcrumb + title + actions) */
+.page-header {
+  padding: 24px 0 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 28px;
 }
-.btn-primary:hover::after {
-  transform: translateX(100%);
+
+/* Data table (Render's signature service list) */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table th {
+  text-align: left;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  background: transparent;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.data-table td {
+  padding: 14px 16px;
+  font-size: 13.5px;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+.data-table tbody tr {
+  transition: background var(--t-fast);
+}
+.data-table tbody tr:hover {
+  background: rgba(255,255,255,0.02);
+}
+.data-table tbody tr:last-child td { border-bottom: none; }
+
+/* Status pill — Render's live/building/suspended indicators */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 10px 3px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.status-pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-live {
+  background: rgba(70,227,183,0.08);
+  color: #5fe9c0;
+  border-color: rgba(70,227,183,0.22);
+}
+.status-live .status-pill-dot {
+  background: #46e3b7;
+  box-shadow: 0 0 0 2px rgba(70,227,183,0.18);
+}
+.status-building {
+  background: rgba(251,191,36,0.08);
+  color: #fbbf24;
+  border-color: rgba(251,191,36,0.22);
+}
+.status-building .status-pill-dot {
+  background: #fbbf24;
+  box-shadow: 0 0 0 2px rgba(251,191,36,0.18);
+  animation: dot-pulse 1.2s ease-in-out infinite;
+}
+.status-suspended {
+  background: rgba(161,166,176,0.06);
+  color: var(--text-secondary);
+  border-color: var(--border-base);
+}
+.status-suspended .status-pill-dot {
+  background: var(--text-tertiary);
+}
+.status-failed {
+  background: rgba(239,68,68,0.08);
+  color: var(--danger-text);
+  border-color: rgba(239,68,68,0.22);
+}
+.status-failed .status-pill-dot {
+  background: var(--danger);
+  box-shadow: 0 0 0 2px rgba(239,68,68,0.18);
+}
+
+/* Compact stat tile (Render's top strip) */
+.stat-tile {
+  padding: 16px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color var(--t-fast);
+}
+.stat-tile:hover { border-color: var(--border-base); }
+.stat-tile-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+.stat-tile-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.stat-tile-sub {
+  font-size: 11.5px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+/* Tabs (Render's section navigation) */
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 20px;
+}
+.tab {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: all var(--t-fast);
+  letter-spacing: -0.005em;
+}
+.tab:hover { color: var(--text-secondary); }
+.tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--brand);
+}
+
+/* Label/key-value (metadata rows) */
+.kv {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.kv-key {
+  color: var(--text-tertiary);
+  font-weight: 500;
+  min-width: 80px;
+}
+.kv-val {
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
 }
 
 /* ============================================================
