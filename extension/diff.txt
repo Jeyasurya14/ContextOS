@@ -1,0 +1,928 @@
+diff --git a/extension/package-lock.json b/extension/package-lock.json
+index cc889b6..6370150 100644
+--- a/extension/package-lock.json
++++ b/extension/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "contextos-copilot",
+-  "version": "1.3.7",
++  "version": "2.0.2",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "contextos-copilot",
+-      "version": "1.3.7",
++      "version": "2.0.2",
+       "license": "MIT",
+       "dependencies": {
+         "vsce": "^2.15.0"
+diff --git a/extension/package.json b/extension/package.json
+index d51989d..973caaf 100644
+--- a/extension/package.json
++++ b/extension/package.json
+@@ -2,7 +2,7 @@
+   "name": "contextos-copilot",
+   "displayName": "ContextOS",
+   "description": "The AI Copilot that knows everything about your workspace.",
+-  "version": "2.0.0",
++  "version": "2.0.3",
+   "publisher": "JeyaSuryaM",
+   "icon": "images/icon.png",
+   "repository": {
+diff --git a/extension/src/ChatViewProvider.ts b/extension/src/ChatViewProvider.ts
+index 2cc3a04..b52d8a2 100644
+--- a/extension/src/ChatViewProvider.ts
++++ b/extension/src/ChatViewProvider.ts
+@@ -402,9 +402,9 @@ export class ChatViewProvider implements vscode.WebviewViewProvider {
+             localResourceRoots: [this._extensionUri]
+         };
+ 
+-        // Load simple HTML
+-        const htmlPath = vscode.Uri.joinPath(this._extensionUri, 'webview.html');
+-        webviewView.webview.html = htmlPath.with({ scheme: 'vscode-resource' }).toString();
++        // Load HTML using built-in method
++        const csp = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:;";
++        webviewView.webview.html = this._getHtmlForWebview(csp);
+ 
+         // Message handling with error boundaries
+         this._setupMessageHandlers(webviewView);
+@@ -669,7 +669,14 @@ textarea:disabled{opacity:.3;cursor:not-allowed}
+     console.error('[Webview] Missing DOM elements');
+     return;
+   }
+-  };
++  let busy = false;
++  let bot = null;
++  let codeIdx = 0;
++  const codeMap = {};
++  const sbar = document.getElementById('sbar');
++  const sbarIn = document.getElementById('sbar-in');
++  const clearBtn = document.getElementById('clearBtn');
++  const chips = document.querySelectorAll('.chip');
+ 
+   console.log('[Webview] Initializing');
+ 
+diff --git a/extension/webview.html b/extension/webview.html
+index e02b4d0..dd417e3 100644
+--- a/extension/webview.html
++++ b/extension/webview.html
+@@ -1,116 +1,17 @@
+ <!DOCTYPE html>
+-<html lang="en">
++<html>
+ <head>
+ <meta charset="UTF-8">
+-<meta name="viewport" content="width=device-width,initial-scale=1">
+-<title>ContextOS</title>
+-<style>
+-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+-:root{
+-  --brand:#f59e0b;--brand-l:#fbbf24;--brand-dim:rgba(245,158,11,.09);--brand-b:rgba(245,158,11,.2);
+-  --bg:#0b0b0e;--s1:#111115;--s2:#18181d;--s3:#222229;
+-  --fg:#e0e0d8;--fg2:#888890;--fg3:#3a3a42;
+-  --bd:rgba(255,255,255,.06);--bd2:rgba(255,255,255,.11);
+-  --err:#f87171;--ok:#34d399;--pu:#8b5cf6;
+-  --r:11px;--r2:7px;
+-  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+-  --mono:'Cascadia Code','Fira Code','Consolas',monospace;
+-}
+-html,body{height:100%;overflow:hidden}
+-body{font-family:var(--font);font-size:13px;line-height:1.6;color:var(--fg);background:var(--bg);display:flex;flex-direction:column;height:100vh}
+-#hdr,#msgs,#sbar,#ftr{position:relative;z-index:1}
+-#hdr{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:9px 11px;border-bottom:1px solid var(--bd);background:rgba(11,11,14,.95)}
+-.hdr-l{display:flex;align-items:center;gap:7px}
+-.logo-name{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;background:linear-gradient(135deg,#f59e0b,#fbbf24 60%,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+-#clearBtn{background:transparent;border:1px solid var(--bd);color:var(--fg2);border-radius:var(--r2);padding:3px 8px;font-size:10px;font-family:var(--font);cursor:pointer}
+-#msgs{flex:1;overflow-y:auto;padding:12px 0 4px;display:flex;flex-direction:column}
+-.mg{padding:10px 12px;display:flex;gap:8px;align-items:flex-start}
+-.mg.user{flex-direction:row-reverse}
+-.mc{flex:1;min-width:0;max-width:calc(100% - 33px)}
+-.mg.user .mc{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.16);border-radius:10px 2px 10px 10px;padding:8px 11px}
+-#sbar{display:none}
+-#sbar.on{display:block;padding:7px 12px;font-size:10.5px;color:var(--fg2);background:rgba(11,11,14,.97);border-top:1px solid var(--bd)}
+-#ftr{flex-shrink:0;padding:8px 10px 10px;border-top:1px solid var(--bd);background:rgba(11,11,14,.97)}
+-.irow{position:relative;display:flex;align-items:flex-end;background:var(--s2);border:1px solid var(--bd);border-radius:var(--r)}
+-textarea{flex:1;background:transparent;color:var(--fg);border:none;padding:9px 42px 9px 11px;font-family:var(--font);font-size:12.5px;resize:none;min-height:42px;max-height:148px;outline:none}
+-#sndBtn{position:absolute;right:6px;bottom:6px;width:28px;height:28px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#000;border:none;border-radius:7px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+-#sndBtn:disabled{opacity:.2;cursor:not-allowed}
+-.welcome{padding:20px 14px 10px;text-align:center}
+-.welcome h2{font-size:14.5px;font-weight:700;color:#fff;margin-bottom:5px}
+-.welcome p{font-size:11.5px;color:var(--fg2)}
+-</style>
++<title>Test</title>
+ </head>
+ <body>
+-<div id="hdr">
+-  <div class="hdr-l"><span class="logo-name">ContextOS</span></div>
+-  <button id="clearBtn">New chat</button>
+-</div>
+-<div id="msgs">
+-  <div class="welcome" id="welcome">
+-    <h2>ContextOS Assistant</h2>
+-    <p>Your project-aware AI assistant.</p>
+-  </div>
+-</div>
+-<div id="sbar"><div id="sbar-in"></div></div>
+-<div id="ftr">
+-  <div class="irow">
+-    <textarea id="inp" placeholder="Ask anything..." rows="1"></textarea>
+-    <button id="sndBtn">&#10148;</button>
+-  </div>
+-</div>
++<h1>ContextOS Chat</h1>
++<p>Loading...</p>
+ <script>
+-const vscode=acquireVsCodeApi();
+-const msgsEl=document.getElementById('msgs');
+-const inp=document.getElementById('inp');
+-const sndBtn=document.getElementById('sndBtn');
+-const sbar=document.getElementById('sbar');
+-const sbarIn=document.getElementById('sbar-in');
+-const clearBtn=document.getElementById('clearBtn');
+-let busy=false;
+-const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+-const scrollBot=()=>msgsEl.scrollTop=msgsEl.scrollHeight;
+-const lock=v=>{busy=v;sndBtn.disabled=v;inp.disabled=v};
+-const showStatus=label=>{sbar.classList.add('on');sbarIn.textContent=label};
+-const hideStatus=()=>{sbar.classList.remove('on');sbarIn.textContent=''};
+-const addUser=text=>{
+-  document.getElementById('welcome')?.remove();
+-  const g=document.createElement('div');
+-  g.className='mg user';
+-  g.innerHTML='<div class="mc">'+esc(text)+'</div>';
+-  msgsEl.appendChild(g);
+-  scrollBot();
+-};
+-const startBot=()=>{
+-  document.getElementById('welcome')?.remove();
+-  const g=document.createElement('div');
+-  g.className='mg bot';
+-  g.innerHTML='<div class="mc"><span class="cur">&#9614;</span></div>';
+-  msgsEl.appendChild(g);
+-  scrollBot();
+-  return g;
+-};
+-const finishBot=bot=>{
+-  if(bot){bot.innerHTML='<div class="mc">'+bot.innerText+'</div>';}
+-  scrollBot();
+-};
+-const send=()=>{
+-  const text=inp.value.trim();
+-  if(!text||busy)return;
+-  addUser(text);
+-  inp.value='';
+-  lock(true);
+-  vscode.postMessage({type:'prompt',value:text});
+-};
+-sndBtn.onclick=send;
+-inp.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}};
+-clearBtn.onclick=()=>{msgsEl.innerHTML='<div class="welcome" id="welcome"><h2>ContextOS Assistant</h2><p>Your project-aware AI assistant.</p></div>';lock(false);vscode.postMessage({type:'clearHistory'});};
+-window.onmessage=m=>{
+-  if(m.data.type==='done'){lock(false);finishBot(document.querySelector('.mg.bot'));}
+-  if(m.data.type==='error'){lock(false);msgsEl.innerHTML+='<div class="mg err"><div class="mc">'+esc(m.data.value)+'</div></div>';}
+-  if(m.data.type==='token'){if(!document.querySelector('.mg.bot'))startBot();msgsEl.lastChild.innerHTML+=esc(m.data.content);}
+-};
+-vscode.postMessage({type:'ready'});
+-console.log('[Webview] Chat UI initialized');
++console.log('Script started');
++const vscode = acquireVsCodeApi();
++console.log('Got VSCode API');
++document.body.innerHTML = '<p>Ready!</p>';
+ </script>
+ </body>
+ </html>
+diff --git a/vscode-extension/package.json b/vscode-extension/package.json
+index 0d3fa24..922a8c0 100644
+--- a/vscode-extension/package.json
++++ b/vscode-extension/package.json
+@@ -2,7 +2,7 @@
+   "name": "contextos",
+   "displayName": "ContextOS",
+   "description": "AI assistant that understands your entire project context",
+-  "version": "0.0.1",
++  "version": "1.3.7",
+   "publisher": "contextos",
+   "engines": {
+     "vscode": "^1.85.0"
+@@ -45,6 +45,10 @@
+       {
+         "command": "contextos.clearChat",
+         "title": "ContextOS: Clear Chat"
++      },
++      {
++        "command": "contextos.openLogs",
++        "title": "ContextOS: Open Logs"
+       }
+     ],
+     "configuration": {
+@@ -52,7 +56,7 @@
+       "properties": {
+         "contextos.apiUrl": {
+           "type": "string",
+-          "default": "http://localhost:8000",
++          "default": "https://contextos-api-jxdr.onrender.com",
+           "description": "ContextOS API server URL"
+         }
+       }
+diff --git a/vscode-extension/src/apiClient.ts b/vscode-extension/src/apiClient.ts
+index 0ee727c..eb1fcb2 100644
+--- a/vscode-extension/src/apiClient.ts
++++ b/vscode-extension/src/apiClient.ts
+@@ -23,7 +23,7 @@ export class APIClient {
+ 
+     private getApiUrl(): string {
+         const config = vscode.workspace.getConfiguration('contextos');
+-        return config.get<string>('apiUrl', 'http://localhost:8000');
++        return config.get<string>('apiUrl', 'https://contextos-api-jxdr.onrender.com');
+     }
+ 
+     async saveApiKey(key: string): Promise<void> {
+diff --git a/vscode-extension/src/extension.ts b/vscode-extension/src/extension.ts
+index ceb5825..da359bb 100644
+--- a/vscode-extension/src/extension.ts
++++ b/vscode-extension/src/extension.ts
+@@ -5,91 +5,149 @@ import { APIClient } from './apiClient';
+ import { WorkspaceContextCollector } from './contextCollector';
+ import { SidebarProvider } from './sidebarProvider';
+ 
++const EXTENSION_VERSION = '1.3.7';
++
+ let statusBarItem: vscode.StatusBarItem;
++let outputChannel: vscode.OutputChannel;
++
++function log(message: string, level: 'info' | 'error' | 'warn' = 'info'): void {
++    const timestamp = new Date().toISOString();
++    const formatted = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
++    outputChannel.appendLine(formatted);
++    if (level === 'error') {
++        console.error(formatted);
++    } else if (level === 'warn') {
++        console.warn(formatted);
++    } else {
++        console.log(formatted);
++    }
++}
+ 
+ export function activate(context: vscode.ExtensionContext): void {
+-    const apiClient = new APIClient(context);
+-    const contextCollector = new WorkspaceContextCollector();
+-    const sidebarProvider = new SidebarProvider(context.extensionUri, apiClient, contextCollector);
+-
+-    context.subscriptions.push(
+-        vscode.window.registerWebviewViewProvider(
+-            SidebarProvider.viewType,
+-            sidebarProvider
+-        )
+-    );
+-
+-    statusBarItem = vscode.window.createStatusBarItem(
+-        vscode.StatusBarAlignment.Right,
+-        100
+-    );
+-    statusBarItem.command = 'contextos.connect';
+-    context.subscriptions.push(statusBarItem);
+-
+-    const connectCmd = vscode.commands.registerCommand('contextos.connect', async () => {
+-        const apiKey = await vscode.window.showInputBox({
+-            prompt: 'Enter your ContextOS API Key',
+-            placeHolder: 'ctx_xxxxxxxxxxxxxxxxxxxxxxxx',
+-            password: true,
+-            validateInput: (value: string) => {
+-                if (!value || !value.startsWith('ctx_')) {
+-                    return 'API key must start with "ctx_"';
++    outputChannel = vscode.window.createOutputChannel('ContextOS');
++    outputChannel.show();
++    
++    log(`ContextOS v${EXTENSION_VERSION} activating...`, 'info');
++
++    try {
++        const config = vscode.workspace.getConfiguration('contextos');
++        const apiUrl = config.get<string>('apiUrl', 'https://contextos-api-jxdr.onrender.com');
++        log(`API URL configured: ${apiUrl}`, 'info');
++
++        const apiClient = new APIClient(context);
++        const contextCollector = new WorkspaceContextCollector();
++        const sidebarProvider = new SidebarProvider(context.extensionUri, apiClient, contextCollector);
++
++        context.subscriptions.push(
++            vscode.window.registerWebviewViewProvider(
++                SidebarProvider.viewType,
++                sidebarProvider,
++                { webviewOptions: { retainContextWhenHidden: true } }
++            )
++        );
++
++        statusBarItem = vscode.window.createStatusBarItem(
++            vscode.StatusBarAlignment.Right,
++            100
++        );
++        statusBarItem.command = 'contextos.connect';
++        context.subscriptions.push(statusBarItem);
++
++        const connectCmd = vscode.commands.registerCommand('contextos.connect', async () => {
++            log('Connect command invoked', 'info');
++            const apiKey = await vscode.window.showInputBox({
++                prompt: 'Enter your ContextOS API Key',
++                placeHolder: 'ctx_xxxxxxxxxxxxxxxxxxxxxxxx',
++                password: true,
++                validateInput: (value: string) => {
++                    if (!value || !value.startsWith('ctx_')) {
++                        return 'API key must start with "ctx_"';
++                    }
++                    return null;
++                },
++            });
++
++            if (apiKey) {
++                try {
++                    await apiClient.saveApiKey(apiKey);
++                    await updateStatusBar(apiClient);
++                    await sidebarProvider.refresh();
++                    vscode.window.showInformationMessage('ContextOS: API key saved successfully.');
++                    log('API key saved successfully', 'info');
++                } catch (error) {
++                    log(`Failed to save API key: ${error}`, 'error');
++                    vscode.window.showErrorMessage('ContextOS: Failed to save API key.');
+                 }
+-                return null;
+-            },
++            }
+         });
+ 
+-        if (apiKey) {
+-            await apiClient.saveApiKey(apiKey);
+-            await updateStatusBar(apiClient);
+-            await sidebarProvider.refresh();
+-            vscode.window.showInformationMessage('ContextOS: API key saved successfully.');
+-        }
+-    });
++        const syncCmd = vscode.commands.registerCommand('contextos.sync', async () => {
++            log('Sync command invoked', 'info');
++            const connected = await apiClient.isConnected();
++            if (!connected) {
++                vscode.window.showWarningMessage('ContextOS: Connect your API key first.');
++                return;
++            }
+ 
+-    const syncCmd = vscode.commands.registerCommand('contextos.sync', async () => {
+-        const connected = await apiClient.isConnected();
+-        if (!connected) {
+-            vscode.window.showWarningMessage('ContextOS: Connect your API key first.');
+-            return;
+-        }
++            try {
++                vscode.window.showInformationMessage('ContextOS: Syncing workspace...');
++                const wsContext = contextCollector.collectAll();
++                log(`Collected context: ${wsContext.files.length} files`, 'info');
++                const result = await apiClient.syncWorkspace(wsContext);
++                vscode.window.showInformationMessage(
++                    `ContextOS: Synced ${result.chunks_added} chunks from your workspace.`
++                );
++                log(`Sync completed: ${result.chunks_added} chunks`, 'info');
++            } catch (error) {
++                log(`Sync failed: ${error}`, 'error');
++                vscode.window.showErrorMessage('ContextOS: Failed to sync workspace context.');
++            }
++        });
+ 
+-        try {
+-            const wsContext = contextCollector.collectAll();
+-            const result = await apiClient.syncWorkspace(wsContext);
+-            vscode.window.showInformationMessage(
+-                `ContextOS: Synced ${result.chunks_added} chunks from your workspace.`
+-            );
+-        } catch {
+-            vscode.window.showErrorMessage('ContextOS: Failed to sync workspace context.');
+-        }
+-    });
++        const clearChatCmd = vscode.commands.registerCommand('contextos.clearChat', async () => {
++            log('Clear chat command invoked', 'info');
++            await sidebarProvider.sendClearChat();
++        });
+ 
+-    const clearChatCmd = vscode.commands.registerCommand('contextos.clearChat', async () => {
+-        await sidebarProvider.sendClearChat();
+-    });
++        const openLogsCmd = vscode.commands.registerCommand('contextos.openLogs', () => {
++            outputChannel.show();
++        });
+ 
+-    context.subscriptions.push(connectCmd, syncCmd, clearChatCmd);
++        context.subscriptions.push(connectCmd, syncCmd, clearChatCmd, openLogsCmd);
+ 
+-    updateStatusBar(apiClient);
++        updateStatusBar(apiClient);
++        log('ContextOS activated successfully', 'info');
++    } catch (error) {
++        log(`Activation failed: ${error}`, 'error');
++        vscode.window.showErrorMessage(`ContextOS: Failed to activate - ${error}`);
++    }
+ }
+ 
+ async function updateStatusBar(apiClient: APIClient): Promise<void> {
+-    const connected = await apiClient.isConnected();
+-    if (connected) {
+-        statusBarItem.text = '$(circle-filled) ContextOS';
+-        statusBarItem.color = '#3fb950';
+-        statusBarItem.tooltip = 'ContextOS: Connected';
+-    } else {
+-        statusBarItem.text = '$(circle-outline) ContextOS: Not Connected';
+-        statusBarItem.color = '#8b949e';
+-        statusBarItem.tooltip = 'Click to connect ContextOS API key';
++    try {
++        const connected = await apiClient.isConnected();
++        if (connected) {
++            statusBarItem.text = '$(circle-filled) ContextOS';
++            statusBarItem.color = '#3fb950';
++            statusBarItem.tooltip = 'ContextOS: Connected';
++        } else {
++            statusBarItem.text = '$(circle-outline) ContextOS: Not Connected';
++            statusBarItem.color = '#8b949e';
++            statusBarItem.tooltip = 'Click to connect ContextOS API key';
++        }
++        statusBarItem.show();
++    } catch (error) {
++        log(`Failed to update status bar: ${error}`, 'error');
+     }
+-    statusBarItem.show();
+ }
+ 
+ export function deactivate(): void {
++    log('ContextOS deactivating...', 'info');
+     if (statusBarItem) {
+         statusBarItem.dispose();
+     }
++    if (outputChannel) {
++        outputChannel.dispose();
++    }
++    log('ContextOS deactivated', 'info');
+ }
+diff --git a/vscode-extension/src/sidebarProvider.ts b/vscode-extension/src/sidebarProvider.ts
+index fd9252e..a5655ae 100644
+--- a/vscode-extension/src/sidebarProvider.ts
++++ b/vscode-extension/src/sidebarProvider.ts
+@@ -35,7 +35,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
+         webviewView.webview.html = this._getHtmlContent();
+ 
+         webviewView.webview.onDidReceiveMessage(async (message: { type: string; question?: string }) => {
+-            await this._handleMessage(message);
++            try {
++                await this._handleMessage(message);
++            } catch (error) {
++                console.error('Error handling message:', error);
++                this._view?.webview.postMessage({ 
++                    type: 'streamEvent', 
++                    event: { 
++                        event: 'error', 
++                        message: 'Failed to process message' 
++                    } 
++                });
++            }
+         });
+ 
+         this._updateConnectionStatus();
+@@ -78,10 +89,20 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
+         if (!question.trim()) { return; }
+         if (!this._view) { return; }
+ 
+-        const context = this.contextCollector.collectAll();
++        try {
++            const context = this.contextCollector.collectAll();
+ 
+-        for await (const event of this.apiClient.sendQuery(question, context)) {
+-            this._view.webview.postMessage({ type: 'streamEvent', event });
++            for await (const event of this.apiClient.sendQuery(question, context)) {
++                this._view?.webview.postMessage({ type: 'streamEvent', event });
++            }
++        } catch (error) {
++            this._view?.webview.postMessage({ 
++                type: 'streamEvent', 
++                event: { 
++                    event: 'error', 
++                    message: error instanceof Error ? error.message : 'An error occurred' 
++                } 
++            });
+         }
+     }
+ 
+@@ -371,214 +392,228 @@ body {
+ </div>
+ 
+ <script>
+-const vscode = acquireVsCodeApi();
+-const messagesArea = document.getElementById('messagesArea');
+-const emptyState = document.getElementById('emptyState');
+-const inputBox = document.getElementById('inputBox');
+-const sendBtn = document.getElementById('sendBtn');
+-const statusDot = document.getElementById('statusDot');
+-const syncBtn = document.getElementById('syncBtn');
+-const connectBtn = document.getElementById('connectBtn');
+-
+-let currentAssistantEl = null;
+-let currentAssistantContent = '';
+-let thinkingEl = null;
+-let isStreaming = false;
+-
+-function hideEmpty() {
+-    if (emptyState) emptyState.style.display = 'none';
+-}
++(function() {
++    try {
++        const vscode = acquireVsCodeApi();
++        const messagesArea = document.getElementById('messagesArea');
++        const emptyState = document.getElementById('emptyState');
++        const inputBox = document.getElementById('inputBox');
++        const sendBtn = document.getElementById('sendBtn');
++        const statusDot = document.getElementById('statusDot');
++        const syncBtn = document.getElementById('syncBtn');
++        const connectBtn = document.getElementById('connectBtn');
++
++        if (!vscode || !messagesArea || !inputBox || !sendBtn) {
++            console.error('Required elements not found');
++            return;
++        }
+ 
+-function scrollToBottom() {
+-    messagesArea.scrollTop = messagesArea.scrollHeight;
+-}
++        let currentAssistantEl = null;
++        let currentAssistantContent = '';
++        let thinkingEl = null;
++        let isStreaming = false;
+ 
+-function addUserMessage(text) {
+-    hideEmpty();
+-    const div = document.createElement('div');
+-    div.className = 'message user';
+-    div.textContent = text;
+-    messagesArea.appendChild(div);
+-    scrollToBottom();
+-}
++        function hideEmpty() {
++            if (emptyState) emptyState.style.display = 'none';
++        }
+ 
+-function showThinking(text) {
+-    if (thinkingEl) { thinkingEl.remove(); }
+-    thinkingEl = document.createElement('div');
+-    thinkingEl.className = 'thinking';
+-    thinkingEl.innerHTML =
+-        '<div class="thinking-dots"><span></span><span></span><span></span></div>' +
+-        '<span>' + escapeHtml(text) + '</span>';
+-    messagesArea.appendChild(thinkingEl);
+-    scrollToBottom();
+-}
++        function scrollToBottom() {
++            messagesArea.scrollTop = messagesArea.scrollHeight;
++        }
+ 
+-function removeThinking() {
+-    if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+-}
++        function addUserMessage(text) {
++            hideEmpty();
++            const div = document.createElement('div');
++            div.className = 'message user';
++            div.textContent = text;
++            messagesArea.appendChild(div);
++            scrollToBottom();
++        }
+ 
+-function startAssistantMessage() {
+-    hideEmpty();
+-    removeThinking();
+-    currentAssistantContent = '';
+-    currentAssistantEl = document.createElement('div');
+-    currentAssistantEl.className = 'message assistant';
+-    messagesArea.appendChild(currentAssistantEl);
+-    scrollToBottom();
+-}
++        function showThinking(text) {
++            if (thinkingEl) { thinkingEl.remove(); }
++            thinkingEl = document.createElement('div');
++            thinkingEl.className = 'thinking';
++            thinkingEl.innerHTML =
++                '<div class="thinking-dots"><span></span><span></span><span></span></div>' +
++                '<span>' + escapeHtml(text) + '</span>';
++            messagesArea.appendChild(thinkingEl);
++            scrollToBottom();
++        }
+ 
+-function appendToken(text) {
+-    if (!currentAssistantEl) { startAssistantMessage(); }
+-    currentAssistantContent += text;
+-    currentAssistantEl.innerHTML = renderMarkdown(currentAssistantContent);
+-    scrollToBottom();
+-}
++        function removeThinking() {
++            if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
++        }
+ 
+-function addSources(sources) {
+-    if (!sources || !sources.length || !currentAssistantEl) return;
+-    const container = document.createElement('div');
+-    container.className = 'sources';
+-    for (const s of sources) {
+-        const chip = document.createElement('span');
+-        chip.className = 'source-chip';
+-        const label = s.url.length > 40 ? s.url.substring(s.url.length - 40) : s.url;
+-        chip.innerHTML = '<span class="type">' + escapeHtml(s.type) + '</span> ' + escapeHtml(label);
+-        container.appendChild(chip);
+-    }
+-    currentAssistantEl.appendChild(container);
+-    scrollToBottom();
+-}
++        function startAssistantMessage() {
++            hideEmpty();
++            removeThinking();
++            currentAssistantContent = '';
++            currentAssistantEl = document.createElement('div');
++            currentAssistantEl.className = 'message assistant';
++            messagesArea.appendChild(currentAssistantEl);
++            scrollToBottom();
++        }
+ 
+-function finishStream() {
+-    removeThinking();
+-    currentAssistantEl = null;
+-    currentAssistantContent = '';
+-    isStreaming = false;
+-    sendBtn.disabled = false;
+-    inputBox.disabled = false;
+-}
++        function appendToken(text) {
++            if (!currentAssistantEl) { startAssistantMessage(); }
++            currentAssistantContent += text;
++            currentAssistantEl.innerHTML = renderMarkdown(currentAssistantContent);
++            scrollToBottom();
++        }
+ 
+-function renderMarkdown(text) {
+-    let html = text
+-        .replace(/&/g, '&amp;')
+-        .replace(/</g, '&lt;')
+-        .replace(/>/g, '&gt;');
+-
+-    html = html.replace(/\`\`\`(\\w*)?\\n([\\s\\S]*?)\`\`\`/g, function(m, lang, code) {
+-        return '<pre><code>' + code + '</code></pre>';
+-    });
+-    html = html.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
+-    html = html.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
+-    html = html.replace(/\\*(.+?)\\*/g, '<em>$1</em>');
+-    html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+-    html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+-    html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+-    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+-    html = html.replace(/(<li>.*<\\/li>)/s, '<ul>$1</ul>');
+-    html = html.replace(/\\n/g, '<br>');
+-    return html;
+-}
++        function addSources(sources) {
++            if (!sources || !sources.length || !currentAssistantEl) return;
++            const container = document.createElement('div');
++            container.className = 'sources';
++            for (const s of sources) {
++                const chip = document.createElement('span');
++                chip.className = 'source-chip';
++                const label = s.url.length > 40 ? s.url.substring(s.url.length - 40) : s.url;
++                chip.innerHTML = '<span class="type">' + escapeHtml(s.type) + '</span> ' + escapeHtml(label);
++                container.appendChild(chip);
++            }
++            currentAssistantEl.appendChild(container);
++            scrollToBottom();
++        }
+ 
+-function escapeHtml(text) {
+-    const div = document.createElement('div');
+-    div.textContent = text;
+-    return div.innerHTML;
+-}
++        function finishStream() {
++            removeThinking();
++            currentAssistantEl = null;
++            currentAssistantContent = '';
++            isStreaming = false;
++            sendBtn.disabled = false;
++            inputBox.disabled = false;
++        }
++
++        function renderMarkdown(text) {
++            let html = text
++                .replace(/&/g, '&amp;')
++                .replace(/</g, '&lt;')
++                .replace(/>/g, '&gt;');
++
++            html = html.replace(/\`\`\`(\\w*)?\\n([\\s\\S]*?)\`\`\`/g, function(m, lang, code) {
++                return '<pre><code>' + code + '</code></pre>';
++            });
++            html = html.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
++            html = html.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
++            html = html.replace(/\\*(.+?)\\*/g, '<em>$1</em>');
++            html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
++            html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
++            html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
++            html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
++            html = html.replace(/(<li>.*<\\/li>)/s, '<ul>$1</ul>');
++            html = html.replace(/\\n/g, '<br>');
++            return html;
++        }
+ 
+-function sendMessage() {
+-    const text = inputBox.value.trim();
+-    if (!text || isStreaming) return;
++        function escapeHtml(text) {
++            const div = document.createElement('div');
++            div.textContent = text;
++            return div.innerHTML;
++        }
+ 
+-    addUserMessage(text);
+-    inputBox.value = '';
+-    inputBox.style.height = 'auto';
+-    isStreaming = true;
+-    sendBtn.disabled = true;
++        function sendMessage() {
++            console.log('sendMessage called');
++            const text = inputBox.value.trim();
++            console.log('text:', text, 'isStreaming:', isStreaming);
++            if (!text || isStreaming) return;
+ 
+-    vscode.postMessage({ type: 'sendMessage', question: text });
+-}
++            addUserMessage(text);
++            inputBox.value = '';
++            inputBox.style.height = 'auto';
++            isStreaming = true;
++            sendBtn.disabled = true;
+ 
+-sendBtn.addEventListener('click', sendMessage);
++            vscode.postMessage({ type: 'sendMessage', question: text });
++            console.log('Message sent to extension');
++        }
+ 
+-inputBox.addEventListener('keydown', function(e) {
+-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+-        e.preventDefault();
+-        sendMessage();
+-    }
+-});
+-
+-inputBox.addEventListener('input', function() {
+-    this.style.height = 'auto';
+-    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+-});
+-
+-syncBtn.addEventListener('click', function() {
+-    vscode.postMessage({ type: 'sync' });
+-});
+-
+-connectBtn.addEventListener('click', function() {
+-    vscode.postMessage({ type: 'connect' });
+-});
+-
+-window.addEventListener('message', function(e) {
+-    const msg = e.data;
+-
+-    switch (msg.type) {
+-        case 'streamEvent':
+-            handleStreamEvent(msg.event);
+-            break;
+-        case 'connectionStatus':
+-            statusDot.classList.toggle('connected', msg.connected);
+-            break;
+-        case 'connected':
+-            statusDot.classList.add('connected');
+-            break;
+-        case 'clearChat':
+-            messagesArea.innerHTML = '';
+-            if (emptyState) {
+-                messagesArea.appendChild(emptyState);
+-                emptyState.style.display = 'flex';
++        sendBtn.addEventListener('click', sendMessage);
++
++        inputBox.addEventListener('keydown', function(e) {
++            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
++                e.preventDefault();
++                sendMessage();
+             }
+-            finishStream();
+-            break;
+-        case 'syncStarted':
+-            showThinking('Syncing workspace...');
+-            break;
+-        case 'synced':
+-            removeThinking();
+-            break;
+-        case 'syncError':
+-            removeThinking();
+-            break;
+-    }
+-});
+-
+-function handleStreamEvent(event) {
+-    switch (event.event) {
+-        case 'thinking':
+-            showThinking(event.message || 'Thinking...');
+-            break;
+-        case 'searching':
+-            showThinking('Searching ' + (event.source || '') + ' (' + (event.count || 0) + ' results)');
+-            break;
+-        case 'token':
+-            if (!currentAssistantEl) { startAssistantMessage(); }
+-            appendToken(event.content || '');
+-            break;
+-        case 'sources':
+-            addSources(event.sources);
+-            break;
+-        case 'done':
+-            finishStream();
+-            break;
+-        case 'error':
+-            removeThinking();
+-            if (!currentAssistantEl) { startAssistantMessage(); }
+-            currentAssistantEl.innerHTML = '<span style="color:#f85149;">' + escapeHtml(event.message || 'An error occurred.') + '</span>';
+-            finishStream();
+-            break;
++        });
++
++        inputBox.addEventListener('input', function() {
++            this.style.height = 'auto';
++            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
++        });
++
++        syncBtn.addEventListener('click', function() {
++            vscode.postMessage({ type: 'sync' });
++        });
++
++        connectBtn.addEventListener('click', function() {
++            vscode.postMessage({ type: 'connect' });
++        });
++
++        window.addEventListener('message', function(e) {
++            const msg = e.data;
++
++            switch (msg.type) {
++                case 'streamEvent':
++                    handleStreamEvent(msg.event);
++                    break;
++                case 'connectionStatus':
++                    statusDot.classList.toggle('connected', msg.connected);
++                    break;
++                case 'connected':
++                    statusDot.classList.add('connected');
++                    break;
++                case 'clearChat':
++                    messagesArea.innerHTML = '';
++                    if (emptyState) {
++                        messagesArea.appendChild(emptyState);
++                        emptyState.style.display = 'flex';
++                    }
++                    finishStream();
++                    break;
++                case 'syncStarted':
++                    showThinking('Syncing workspace...');
++                    break;
++                case 'synced':
++                    removeThinking();
++                    break;
++                case 'syncError':
++                    removeThinking();
++                    break;
++            }
++        });
++
++        function handleStreamEvent(event) {
++            switch (event.event) {
++                case 'thinking':
++                    showThinking(event.message || 'Thinking...');
++                    break;
++                case 'searching':
++                    showThinking('Searching ' + (event.source || '') + ' (' + (event.count || 0) + ' results)');
++                    break;
++                case 'token':
++                    if (!currentAssistantEl) { startAssistantMessage(); }
++                    appendToken(event.content || '');
++                    break;
++                case 'sources':
++                    addSources(event.sources);
++                    break;
++                case 'done':
++                    finishStream();
++                    break;
++                case 'error':
++                    removeThinking();
++                    if (!currentAssistantEl) { startAssistantMessage(); }
++                    currentAssistantEl.innerHTML = '<span style="color:#f85149;">' + escapeHtml(event.message || 'An error occurred.') + '</span>';
++                    finishStream();
++                    break;
++            }
++        }
++    } catch (e) {
++        console.error('Error initializing webview:', e);
+     }
+-}
++})();
+ </script>
+ </body>
+ </html>`;

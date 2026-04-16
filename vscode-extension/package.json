@@ -2,7 +2,7 @@
   "name": "contextos",
   "displayName": "ContextOS",
   "description": "AI assistant that understands your entire project context",
-  "version": "0.0.1",
+  "version": "1.3.7",
   "publisher": "contextos",
   "engines": {
     "vscode": "^1.85.0"
@@ -45,6 +45,10 @@
       {
         "command": "contextos.clearChat",
         "title": "ContextOS: Clear Chat"
+      },
+      {
+        "command": "contextos.openLogs",
+        "title": "ContextOS: Open Logs"
       }
     ],
     "configuration": {
@@ -52,7 +56,7 @@
       "properties": {
         "contextos.apiUrl": {
           "type": "string",
-          "default": "http://localhost:8000",
+          "default": "https://contextos-api-jxdr.onrender.com",
           "description": "ContextOS API server URL"
         }
       }

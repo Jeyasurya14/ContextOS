@@ -35,7 +35,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         webviewView.webview.html = this._getHtmlContent();
 
         webviewView.webview.onDidReceiveMessage(async (message: { type: string; question?: string }) => {
-            await this._handleMessage(message);
+            try {
+                await this._handleMessage(message);
+            } catch (error) {
+                console.error('Error handling message:', error);
+                this._view?.webview.postMessage({ 
+                    type: 'streamEvent', 
+                    event: { 
+                        event: 'error', 
+                        message: 'Failed to process message' 
+                    } 
+                });
+            }
         });
 
         this._updateConnectionStatus();
@@ -78,10 +89,20 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         if (!question.trim()) { return; }
         if (!this._view) { return; }
 
-        const context = this.contextCollector.collectAll();
+        try {
+            const context = this.contextCollector.collectAll();
 
-        for await (const event of this.apiClient.sendQuery(question, context)) {
-            this._view.webview.postMessage({ type: 'streamEvent', event });
+            for await (const event of this.apiClient.sendQuery(question, context)) {
+                this._view?.webview.postMessage({ type: 'streamEvent', event });
+            }
+        } catch (error) {
+            this._view?.webview.postMessage({ 
+                type: 'streamEvent', 
+                event: { 
+                    event: 'error', 
+                    message: error instanceof Error ? error.message : 'An error occurred' 
+                } 
+            });
         }
     }
 
@@ -371,214 +392,228 @@ body {
 </div>
 
 <script>
-const vscode = acquireVsCodeApi();
-const messagesArea = document.getElementById('messagesArea');
-const emptyState = document.getElementById('emptyState');
-const inputBox = document.getElementById('inputBox');
-const sendBtn = document.getElementById('sendBtn');
-const statusDot = document.getElementById('statusDot');
-const syncBtn = document.getElementById('syncBtn');
-const connectBtn = document.getElementById('connectBtn');
+(function() {
+    try {
+        const vscode = acquireVsCodeApi();
+        const messagesArea = document.getElementById('messagesArea');
+        const emptyState = document.getElementById('emptyState');
+        const inputBox = document.getElementById('inputBox');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusDot = document.getElementById('statusDot');
+        const syncBtn = document.getElementById('syncBtn');
+        const connectBtn = document.getElementById('connectBtn');
 
-let currentAssistantEl = null;
-let currentAssistantContent = '';
-let thinkingEl = null;
-let isStreaming = false;
+        if (!vscode || !messagesArea || !inputBox || !sendBtn) {
+            console.error('Required elements not found');
+            return;
+        }
 
-function hideEmpty() {
-    if (emptyState) emptyState.style.display = 'none';
-}
+        let currentAssistantEl = null;
+        let currentAssistantContent = '';
+        let thinkingEl = null;
+        let isStreaming = false;
 
-function scrollToBottom() {
-    messagesArea.scrollTop = messagesArea.scrollHeight;
-}
+        function hideEmpty() {
+            if (emptyState) emptyState.style.display = 'none';
+        }
 
-function addUserMessage(text) {
-    hideEmpty();
-    const div = document.createElement('div');
-    div.className = 'message user';
-    div.textContent = text;
-    messagesArea.appendChild(div);
-    scrollToBottom();
-}
+        function scrollToBottom() {
+            messagesArea.scrollTop = messagesArea.scrollHeight;
+        }
 
-function showThinking(text) {
-    if (thinkingEl) { thinkingEl.remove(); }
-    thinkingEl = document.createElement('div');
-    thinkingEl.className = 'thinking';
-    thinkingEl.innerHTML =
-        '<div class="thinking-dots"><span></span><span></span><span></span></div>' +
-        '<span>' + escapeHtml(text) + '</span>';
-    messagesArea.appendChild(thinkingEl);
-    scrollToBottom();
-}
+        function addUserMessage(text) {
+            hideEmpty();
+            const div = document.createElement('div');
+            div.className = 'message user';
+            div.textContent = text;
+            messagesArea.appendChild(div);
+            scrollToBottom();
+        }
 
-function removeThinking() {
-    if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
-}
+        function showThinking(text) {
+            if (thinkingEl) { thinkingEl.remove(); }
+            thinkingEl = document.createElement('div');
+            thinkingEl.className = 'thinking';
+            thinkingEl.innerHTML =
+                '<div class="thinking-dots"><span></span><span></span><span></span></div>' +
+                '<span>' + escapeHtml(text) + '</span>';
+            messagesArea.appendChild(thinkingEl);
+            scrollToBottom();
+        }
 
-function startAssistantMessage() {
-    hideEmpty();
-    removeThinking();
-    currentAssistantContent = '';
-    currentAssistantEl = document.createElement('div');
-    currentAssistantEl.className = 'message assistant';
-    messagesArea.appendChild(currentAssistantEl);
-    scrollToBottom();
-}
+        function removeThinking() {
+            if (thinkingEl) { thinkingEl.remove(); thinkingEl = null; }
+        }
 
-function appendToken(text) {
-    if (!currentAssistantEl) { startAssistantMessage(); }
-    currentAssistantContent += text;
-    currentAssistantEl.innerHTML = renderMarkdown(currentAssistantContent);
-    scrollToBottom();
-}
+        function startAssistantMessage() {
+            hideEmpty();
+            removeThinking();
+            currentAssistantContent = '';
+            currentAssistantEl = document.createElement('div');
+            currentAssistantEl.className = 'message assistant';
+            messagesArea.appendChild(currentAssistantEl);
+            scrollToBottom();
+        }
 
-function addSources(sources) {
-    if (!sources || !sources.length || !currentAssistantEl) return;
-    const container = document.createElement('div');
-    container.className = 'sources';
-    for (const s of sources) {
-        const chip = document.createElement('span');
-        chip.className = 'source-chip';
-        const label = s.url.length > 40 ? s.url.substring(s.url.length - 40) : s.url;
-        chip.innerHTML = '<span class="type">' + escapeHtml(s.type) + '</span> ' + escapeHtml(label);
-        container.appendChild(chip);
-    }
-    currentAssistantEl.appendChild(container);
-    scrollToBottom();
-}
+        function appendToken(text) {
+            if (!currentAssistantEl) { startAssistantMessage(); }
+            currentAssistantContent += text;
+            currentAssistantEl.innerHTML = renderMarkdown(currentAssistantContent);
+            scrollToBottom();
+        }
 
-function finishStream() {
-    removeThinking();
-    currentAssistantEl = null;
-    currentAssistantContent = '';
-    isStreaming = false;
-    sendBtn.disabled = false;
-    inputBox.disabled = false;
-}
-
-function renderMarkdown(text) {
-    let html = text
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-
-    html = html.replace(/\`\`\`(\\w*)?\\n([\\s\\S]*?)\`\`\`/g, function(m, lang, code) {
-        return '<pre><code>' + code + '</code></pre>';
-    });
-    html = html.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
-    html = html.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
-    html = html.replace(/\\*(.+?)\\*/g, '<em>$1</em>');
-    html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
-    html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\\/li>)/s, '<ul>$1</ul>');
-    html = html.replace(/\\n/g, '<br>');
-    return html;
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function sendMessage() {
-    const text = inputBox.value.trim();
-    if (!text || isStreaming) return;
-
-    addUserMessage(text);
-    inputBox.value = '';
-    inputBox.style.height = 'auto';
-    isStreaming = true;
-    sendBtn.disabled = true;
-
-    vscode.postMessage({ type: 'sendMessage', question: text });
-}
-
-sendBtn.addEventListener('click', sendMessage);
-
-inputBox.addEventListener('keydown', function(e) {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        e.preventDefault();
-        sendMessage();
-    }
-});
-
-inputBox.addEventListener('input', function() {
-    this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-});
-
-syncBtn.addEventListener('click', function() {
-    vscode.postMessage({ type: 'sync' });
-});
-
-connectBtn.addEventListener('click', function() {
-    vscode.postMessage({ type: 'connect' });
-});
-
-window.addEventListener('message', function(e) {
-    const msg = e.data;
-
-    switch (msg.type) {
-        case 'streamEvent':
-            handleStreamEvent(msg.event);
-            break;
-        case 'connectionStatus':
-            statusDot.classList.toggle('connected', msg.connected);
-            break;
-        case 'connected':
-            statusDot.classList.add('connected');
-            break;
-        case 'clearChat':
-            messagesArea.innerHTML = '';
-            if (emptyState) {
-                messagesArea.appendChild(emptyState);
-                emptyState.style.display = 'flex';
+        function addSources(sources) {
+            if (!sources || !sources.length || !currentAssistantEl) return;
+            const container = document.createElement('div');
+            container.className = 'sources';
+            for (const s of sources) {
+                const chip = document.createElement('span');
+                chip.className = 'source-chip';
+                const label = s.url.length > 40 ? s.url.substring(s.url.length - 40) : s.url;
+                chip.innerHTML = '<span class="type">' + escapeHtml(s.type) + '</span> ' + escapeHtml(label);
+                container.appendChild(chip);
             }
-            finishStream();
-            break;
-        case 'syncStarted':
-            showThinking('Syncing workspace...');
-            break;
-        case 'synced':
-            removeThinking();
-            break;
-        case 'syncError':
-            removeThinking();
-            break;
-    }
-});
+            currentAssistantEl.appendChild(container);
+            scrollToBottom();
+        }
 
-function handleStreamEvent(event) {
-    switch (event.event) {
-        case 'thinking':
-            showThinking(event.message || 'Thinking...');
-            break;
-        case 'searching':
-            showThinking('Searching ' + (event.source || '') + ' (' + (event.count || 0) + ' results)');
-            break;
-        case 'token':
-            if (!currentAssistantEl) { startAssistantMessage(); }
-            appendToken(event.content || '');
-            break;
-        case 'sources':
-            addSources(event.sources);
-            break;
-        case 'done':
-            finishStream();
-            break;
-        case 'error':
+        function finishStream() {
             removeThinking();
-            if (!currentAssistantEl) { startAssistantMessage(); }
-            currentAssistantEl.innerHTML = '<span style="color:#f85149;">' + escapeHtml(event.message || 'An error occurred.') + '</span>';
-            finishStream();
-            break;
+            currentAssistantEl = null;
+            currentAssistantContent = '';
+            isStreaming = false;
+            sendBtn.disabled = false;
+            inputBox.disabled = false;
+        }
+
+        function renderMarkdown(text) {
+            let html = text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+
+            html = html.replace(/\`\`\`(\\w*)?\\n([\\s\\S]*?)\`\`\`/g, function(m, lang, code) {
+                return '<pre><code>' + code + '</code></pre>';
+            });
+            html = html.replace(/\`([^\`]+)\`/g, '<code>$1</code>');
+            html = html.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');
+            html = html.replace(/\\*(.+?)\\*/g, '<em>$1</em>');
+            html = html.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+            html = html.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+            html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+            html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+            html = html.replace(/(<li>.*<\\/li>)/s, '<ul>$1</ul>');
+            html = html.replace(/\\n/g, '<br>');
+            return html;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function sendMessage() {
+            console.log('sendMessage called');
+            const text = inputBox.value.trim();
+            console.log('text:', text, 'isStreaming:', isStreaming);
+            if (!text || isStreaming) return;
+
+            addUserMessage(text);
+            inputBox.value = '';
+            inputBox.style.height = 'auto';
+            isStreaming = true;
+            sendBtn.disabled = true;
+
+            vscode.postMessage({ type: 'sendMessage', question: text });
+            console.log('Message sent to extension');
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+
+        inputBox.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        inputBox.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        syncBtn.addEventListener('click', function() {
+            vscode.postMessage({ type: 'sync' });
+        });
+
+        connectBtn.addEventListener('click', function() {
+            vscode.postMessage({ type: 'connect' });
+        });
+
+        window.addEventListener('message', function(e) {
+            const msg = e.data;
+
+            switch (msg.type) {
+                case 'streamEvent':
+                    handleStreamEvent(msg.event);
+                    break;
+                case 'connectionStatus':
+                    statusDot.classList.toggle('connected', msg.connected);
+                    break;
+                case 'connected':
+                    statusDot.classList.add('connected');
+                    break;
+                case 'clearChat':
+                    messagesArea.innerHTML = '';
+                    if (emptyState) {
+                        messagesArea.appendChild(emptyState);
+                        emptyState.style.display = 'flex';
+                    }
+                    finishStream();
+                    break;
+                case 'syncStarted':
+                    showThinking('Syncing workspace...');
+                    break;
+                case 'synced':
+                    removeThinking();
+                    break;
+                case 'syncError':
+                    removeThinking();
+                    break;
+            }
+        });
+
+        function handleStreamEvent(event) {
+            switch (event.event) {
+                case 'thinking':
+                    showThinking(event.message || 'Thinking...');
+                    break;
+                case 'searching':
+                    showThinking('Searching ' + (event.source || '') + ' (' + (event.count || 0) + ' results)');
+                    break;
+                case 'token':
+                    if (!currentAssistantEl) { startAssistantMessage(); }
+                    appendToken(event.content || '');
+                    break;
+                case 'sources':
+                    addSources(event.sources);
+                    break;
+                case 'done':
+                    finishStream();
+                    break;
+                case 'error':
+                    removeThinking();
+                    if (!currentAssistantEl) { startAssistantMessage(); }
+                    currentAssistantEl.innerHTML = '<span style="color:#f85149;">' + escapeHtml(event.message || 'An error occurred.') + '</span>';
+                    finishStream();
+                    break;
+            }
+        }
+    } catch (e) {
+        console.error('Error initializing webview:', e);
     }
-}
+})();
 </script>
 </body>
 </html>`;

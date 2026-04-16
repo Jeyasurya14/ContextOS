@@ -23,7 +23,7 @@ export class APIClient {
 
     private getApiUrl(): string {
         const config = vscode.workspace.getConfiguration('contextos');
-        return config.get<string>('apiUrl', 'http://localhost:8000');
+        return config.get<string>('apiUrl', 'https://contextos-api-jxdr.onrender.com');
     }
 
     async saveApiKey(key: string): Promise<void> {
