@@ -46,28 +46,28 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-4 right-4 z-50 space-y-2">
+      <div className="fixed bottom-6 right-6 z-50 space-y-3">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`flex items-start gap-3 min-w-[320px] max-w-md p-4 rounded-lg border shadow-lg animate-in slide-in-from-bottom-5 ${
+            className={`flex items-start gap-3 min-w-[340px] max-w-md p-4 rounded-lg border backdrop-blur-sm shadow-lg animate-in slide-in-from-bottom-5 ${
               t.type === 'success'
-                ? 'bg-green-900/90 border-green-700 text-green-100'
+                ? 'bg-emerald-950/95 border-emerald-800/50 text-emerald-50'
                 : t.type === 'error'
-                ? 'bg-red-900/90 border-red-700 text-red-100'
+                ? 'bg-red-950/95 border-red-800/50 text-red-50'
                 : t.type === 'warning'
-                ? 'bg-yellow-900/90 border-yellow-700 text-yellow-100'
-                : 'bg-blue-900/90 border-blue-700 text-blue-100'
+                ? 'bg-amber-950/95 border-amber-800/50 text-amber-50'
+                : 'bg-blue-950/95 border-blue-800/50 text-blue-50'
             }`}
           >
             {t.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
             {t.type === 'error' && <XCircle className="w-5 h-5 flex-shrink-0" />}
             {t.type === 'warning' && <AlertCircle className="w-5 h-5 flex-shrink-0" />}
             {t.type === 'info' && <Info className="w-5 h-5 flex-shrink-0" />}
-            <p className="flex-1 text-sm">{t.message}</p>
+            <p className="flex-1 text-sm leading-relaxed">{t.message}</p>
             <button
               onClick={() => removeToast(t.id)}
-              className="flex-shrink-0 hover:opacity-70 transition"
+              className="flex-shrink-0 hover:opacity-60 transition-opacity"
             >
               <X className="w-4 h-4" />
             </button>

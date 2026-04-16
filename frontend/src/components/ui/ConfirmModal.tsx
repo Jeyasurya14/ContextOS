@@ -64,47 +64,47 @@ export function ConfirmModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/70 backdrop-blur-md"
         onClick={onClose}
       />
-      <div className="relative bg-dark-900 border border-dark-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+      <div className="relative bg-[#1a1a1d] border border-[rgba(255,255,255,0.08)] rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-dark-400 hover:text-white transition"
+          className="absolute top-5 right-5 text-[#6b7280] hover:text-white transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
-        <h2 className="text-xl font-semibold text-white mb-2">{title}</h2>
-        <p className="text-dark-400 text-sm mb-4">{message}</p>
+        <h2 className="text-lg font-semibold text-white mb-2 pr-8">{title}</h2>
+        <p className="text-[#9ca3af] text-sm mb-5 leading-relaxed">{message}</p>
         {confirmText && (
-          <div className="mb-4">
-            <label className="block text-sm text-dark-400 mb-2">
-              Type <span className="font-mono text-white">{confirmText}</span> to confirm
+          <div className="mb-5">
+            <label className="block text-sm text-[#9ca3af] mb-2">
+              Type <span className="font-mono text-white font-medium">{confirmText}</span> to confirm
             </label>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              className="w-full bg-dark-800 border border-dark-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-brand/50 transition"
+              className="w-full bg-[#202024] border border-[rgba(255,255,255,0.08)] rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:border-brand/40 transition-colors"
               placeholder={confirmText}
             />
           </div>
         )}
-        <div className="flex gap-3">
+        <div className="flex gap-3 pt-1">
           <button
             onClick={onClose}
             disabled={isConfirming}
-            className="btn btn-secondary disabled:opacity-50"
+            className="btn btn-secondary disabled:opacity-50 flex-1"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={!canConfirm || isConfirming}
-            className={`btn disabled:opacity-50 flex items-center justify-center gap-2 ${
+            className={`btn disabled:opacity-50 flex items-center justify-center gap-2 flex-1 ${
               isDangerous
-                ? 'bg-danger hover:bg-danger/80 text-white border-danger'
-                : 'bg-brand hover:bg-brand/80 text-white border-brand'
+                ? 'bg-danger hover:bg-danger/90 text-white border-danger'
+                : 'bg-brand hover:bg-brand/90 text-black border-brand font-semibold'
             }`}
           >
             {isConfirming && <Loader2 className="w-4 h-4 animate-spin" />}

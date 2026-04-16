@@ -9,30 +9,30 @@
    DESIGN TOKENS
    ============================================================ */
 :root {
-  /* Backgrounds — Deeper neutral tone */
-  --bg-base:    #0a0a0b;
-  --bg-subtle:  #111112;
-  --bg-surface: #171719;
-  --bg-raised:  #1e1e21;
-  --bg-overlay: #26262a;
+  /* Backgrounds */
+  --bg-base:    #0d0d0f;
+  --bg-subtle:  #141416;
+  --bg-surface: #1a1a1d;
+  --bg-raised:  #202024;
+  --bg-overlay: #28282c;
 
-  /* Borders — Sharper, more defined */
-  --border-subtle: rgba(255,255,255,0.06);
-  --border-base:   rgba(255,255,255,0.10);
-  --border-strong: rgba(255,255,255,0.18);
+  /* Borders */
+  --border-subtle: rgba(255,255,255,0.05);
+  --border-base:   rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.12);
 
-  /* Text — High density contrast */
-  --text-primary:   #ffffff;
-  --text-secondary: #a1a1aa;
-  --text-tertiary:  #71717a;
-  --text-disabled:  #3f3f46;
+  /* Text */
+  --text-primary:   #f5f5f7;
+  --text-secondary: #9ca3af;
+  --text-tertiary:  #6b7280;
+  --text-disabled:  #4b5563;
 
-  /* Brand — Fixed Amber */
+  /* Brand */
   --brand:           #f59e0b;
   --brand-hover:     #d97706;
-  --brand-muted:     rgba(245,158,11,0.08);
-  --brand-border:    rgba(245,158,11,0.15);
-  --brand-text:      #f59e0b;
+  --brand-muted:     rgba(245,158,11,0.06);
+  --brand-border:    rgba(245,158,11,0.12);
+  --brand-text:      #fbbf24;
 
   /* Danger */
   --danger:          #ef4444;
@@ -46,17 +46,17 @@
   --success-border:  rgba(16,185,129,0.20);
   --success-text:    #34d399;
 
-  /* Radius — Precision Industrial */
-  --r-sm:   3px;
-  --r-md:   5px;
-  --r-lg:   8px;
-  --r-xl:   12px;
+  /* Radius */
+  --r-sm:   4px;
+  --r-md:   6px;
+  --r-lg:   10px;
+  --r-xl:   14px;
   --r-full: 999px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.24);
-  --shadow-md: 0 4px 12px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.3);
-  --shadow-lg: 0 12px 32px rgba(0,0,0,0.5), 0 4px 8px rgba(0,0,0,0.3);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 8px rgba(0,0,0,0.2);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.3);
 
   /* Transitions */
   --t-fast: 120ms ease;
@@ -78,8 +78,9 @@ body {
   color: var(--text-primary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
   overflow-x: hidden;
+  letter-spacing: -0.01em;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -168,35 +169,45 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 8px;
   border-radius: var(--r-md);
   font-family: inherit;
   font-weight: 500;
+  line-height: 1;
   cursor: pointer;
   border: 1px solid transparent;
   text-decoration: none;
   white-space: nowrap;
-  transition: background var(--t-fast), border-color var(--t-fast),
-              color var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast), opacity var(--t-fast);
+  transition: all var(--t-fast);
   -webkit-user-select: none;
   user-select: none;
 }
 
+.btn svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  display: block;
+}
+
+.btn-sm svg { width: 14px; height: 14px; }
+.btn-lg svg { width: 16px; height: 16px; }
+
 .btn:active:not(:disabled) { transform: scale(0.98); }
 .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 
-.btn-sm  { height: 32px; padding: 0 12px; font-size: 13px; }
-.btn-md  { height: 38px; padding: 0 16px; font-size: 14px; }
-.btn-lg  { height: 44px; padding: 0 20px; font-size: 14px; font-weight: 600; }
-.btn-xl  { height: 48px; padding: 0 24px; font-size: 15px; font-weight: 600; }
+.btn-sm  { height: 34px; padding: 0 16px; font-size: 13px; }
+.btn-md  { height: 40px; padding: 0 20px; font-size: 14px; }
+.btn-lg  { height: 44px; padding: 0 24px; font-size: 14px; font-weight: 600; }
+.btn-xl  { height: 48px; padding: 0 28px; font-size: 15px; font-weight: 600; }
 .btn-full { width: 100%; }
 
 /* Primary — filled amber */
 .btn-primary {
   background: var(--brand);
-  color: #1a0e00;
+  color: #000;
   border-color: var(--brand);
-  letter-spacing: -0.01em;
+  font-weight: 600;
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--brand-hover);
@@ -243,6 +254,7 @@ body {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
   border-radius: var(--r-lg);
+  transition: border-color var(--t-fast);
 }
 
 .card-raised {
@@ -268,17 +280,18 @@ body {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
+  gap: 12px;
+  padding: 10px 14px;
   border-radius: var(--r-md);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 500;
   color: var(--text-tertiary);
   cursor: pointer;
   text-decoration: none;
   transition: all var(--t-fast);
-  min-height: 34px;
+  min-height: 38px;
   position: relative;
+  letter-spacing: -0.01em;
 }
 
 .nav-item:hover {
@@ -289,19 +302,19 @@ body {
 .nav-item.active {
   background: var(--bg-surface);
   color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
+  font-weight: 600;
 }
 
-/* Active Indicator bar (Experienced Developer touch) */
 .nav-item.active::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 20px;
+  width: 3px;
   background: var(--brand);
-  border-radius: 0 4px 4px 0;
+  border-radius: 0 2px 2px 0;
 }
 
 /* ============================================================

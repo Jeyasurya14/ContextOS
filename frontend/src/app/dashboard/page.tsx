@@ -137,46 +137,46 @@ export default function DashboardPage() {
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-      {/* ── Resource Stats Bar ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 1, background: 'var(--border-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
+      {/* Stats Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
         {[
           { label: 'Intelligence Usage', value: `${((usage?.queries_count || 0) / (usage?.queries_limit || 1)).toFixed(0)}%`, sub: `${usage?.queries_count || 0} / ${usage?.queries_limit || 0} queries`, icon: Cpu },
           { label: 'Indexed Context', value: fmt(integrations.reduce((s, i) => s + (i.total_chunks || 0), 0)), sub: 'Processed data blocks', icon: Database },
           { label: 'Active Sources', value: integrations.filter(i => i.is_active).length.toString(), sub: 'Connected pipelines', icon: RefreshCw },
-          { label: 'Workforce', value: members.length.toString(), sub: 'Authorized team members', icon: Users },
+          { label: 'Team Members', value: members.length.toString(), sub: 'Workspace users', icon: Users },
         ].map((stat, i) => (
-          <div key={i} style={{ padding: '16px 20px', background: 'var(--bg-subtle)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-              <stat.icon style={{ width: 12, height: 12, color: 'var(--text-tertiary)' }} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{stat.label}</span>
+          <div key={i} className="card" style={{ padding: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <stat.icon style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stat.label}</span>
             </div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{stat.value}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{stat.sub}</div>
+            <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, letterSpacing: '-0.02em' }}>{stat.value}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{stat.sub}</div>
           </div>
         ))}
       </div>
 
-      {/* ── Service Registry (Table) ── */}
+      {/* Service Registry */}
       <div className="card" style={{ overflow: 'hidden' }}>
         <div style={{ 
-          padding: '16px 24px', borderBottom: '1px solid var(--border-base)', 
+          padding: '18px 24px', borderBottom: '1px solid var(--border-base)', 
           background: 'var(--bg-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-             <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Service Registry</h3>
-             <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-sm)' }}>
-                <Search size={12} style={{ color: 'var(--text-tertiary)' }} />
+             <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Connected Sources</h3>
+             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-md)' }}>
+                <Search size={13} style={{ color: 'var(--text-tertiary)' }} />
                 <input 
-                  placeholder="Filter..." 
+                  placeholder="Filter sources..." 
                   value={filter}
                   onChange={e => setFilter(e.target.value)}
-                  style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: 11, width: 120 }} 
+                  style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: 12, width: 140 }} 
                 />
              </div>
           </div>
           <Link href="/dashboard/integrations">
-            <button className="btn btn-primary btn-sm" style={{ fontWeight: 600 }}>
-              <Plus size={14} /> New Source
+            <button className="btn btn-primary btn-sm">
+              <Plus size={14} /> Add Source
             </button>
           </Link>
         </div>
@@ -184,25 +184,27 @@ export default function DashboardPage() {
         {/* Table Header */}
         <div style={{ 
           display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 1fr 1fr 1fr 120px 40px',
-          padding: '10px 24px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-base)',
-          fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.065em'
+          padding: '12px 24px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-base)',
+          fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em'
         }}>
-          <span>Source Name</span>
+          <span>Source</span>
           <span>Type</span>
           <span>Status</span>
-          <span>Density</span>
-          <span style={{ textAlign: 'right' }}>Last Activity</span>
+          <span>Data Points</span>
+          <span style={{ textAlign: 'right' }}>Last Sync</span>
           <span></span>
         </div>
 
         <div>
           {loading ? (
-            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading resource graph...</div>
+            <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading sources...</div>
           ) : integrations.length === 0 ? (
-            <div style={{ padding: 60, textAlign: 'center' }}>
-              <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 12 }}>No services deployed to this workspace yet.</div>
+            <div style={{ padding: 80, textAlign: 'center' }}>
+              <Database size={48} style={{ margin: '0 auto 16px', color: 'var(--text-disabled)' }} />
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>No sources connected</div>
+              <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 20 }}>Connect your first data source to start building context.</div>
               <Link href="/dashboard/integrations">
-                 <button className="btn btn-secondary">Connect your first source</button>
+                 <button className="btn btn-primary">Connect Source</button>
               </Link>
             </div>
           ) : (
@@ -230,54 +232,54 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Low-Level Activity Log (Timeline) ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-        <div className="card" style={{ padding: '20px 24px' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <Terminal size={14} style={{ color: 'var(--brand)' }} />
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Recent Events</h3>
+      {/* Activity & Health */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+        <div className="card" style={{ padding: '24px' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <Terminal size={16} style={{ color: 'var(--brand)' }} />
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Recent Activity</h3>
            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {recentEvents.length > 0 ? (
                 recentEvents.map((ev, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                        <span style={{ color: 'var(--text-tertiary)' }}>[{ev.time}]</span>
-                        <span style={{ color: 'var(--text-primary)' }}>{ev.event}</span>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < recentEvents.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>{ev.event}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{ev.time}</span>
                     </div>
-                    <span style={{ fontSize: 10, padding: '2px 6px', background: 'var(--bg-overlay)', color: 'var(--text-tertiary)', borderRadius: 'var(--r-sm)' }}>{ev.status}</span>
+                    <span className="badge badge-green" style={{ fontSize: 10 }}>{ev.status}</span>
                   </div>
                 ))
               ) : (
-                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center', padding: '20px 0' }}>No recent sync activity detected.</div>
+                <div style={{ fontSize: 13, color: 'var(--text-tertiary)', textAlign: 'center', padding: '40px 0' }}>No recent activity</div>
               )}
             </div>
         </div>
 
-        <div className="card" style={{ padding: '20px 24px' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <Activity size={14} style={{ color: 'var(--success)' }} />
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Intelligence Health</h3>
+        <div className="card" style={{ padding: '24px' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <Activity size={16} style={{ color: 'var(--success)' }} />
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>System Health</h3>
            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {health ? (
                 Object.entries(health.services || {}).map(([name, data]: [string, any]) => (
-                  <div key={name} style={{ height: 44, borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{name} Node</span>
-                      {data.points_count !== undefined && <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{fmt(data.points_count)} vectors</span>}
-                      {data.used_memory_human !== undefined && <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>{data.used_memory_human} used</span>}
+                  <div key={name} style={{ padding: '12px 0', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500, textTransform: 'capitalize' }}>{name}</span>
+                      {data.points_count !== undefined && <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{fmt(data.points_count)} vectors</span>}
+                      {data.used_memory_human !== undefined && <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{data.used_memory_human}</span>}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: data.status === 'connected' ? 'var(--success)' : 'var(--danger)' }} />
-                      <span style={{ fontSize: 12, color: data.status === 'connected' ? 'var(--success-text)' : 'var(--danger-text)', fontWeight: 600 }}>
+                      <span style={{ fontSize: 12, color: data.status === 'connected' ? 'var(--success-text)' : 'var(--danger-text)', fontWeight: 500 }}>
                         {data.status === 'connected' ? 'Online' : 'Offline'}
                       </span>
                     </div>
                   </div>
                 ))
               ) : (
-                <div style={{ fontSize: 12, color: 'var(--text-tertiary)', textAlign: 'center', padding: '20px 0' }}>Linking system telemetry...</div>
+                <div style={{ fontSize: 13, color: 'var(--text-tertiary)', textAlign: 'center', padding: '40px 0' }}>Loading health data...</div>
               )}
             </div>
         </div>

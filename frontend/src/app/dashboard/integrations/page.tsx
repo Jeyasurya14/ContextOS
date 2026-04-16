@@ -52,52 +52,50 @@ function ActiveIntegrationRow({ integration, provider, onSync, onDisconnect, syn
   return (
     <div style={{ 
       display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 1fr 1fr 1fr 180px',
-      padding: '16px 24px', alignItems: 'center', gap: 16,
+      padding: '18px 24px', alignItems: 'center', gap: 16,
       borderBottom: '1px solid var(--border-subtle)',
       background: 'var(--bg-base)'
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ 
-          width: 36, height: 36, borderRadius: 'var(--r-md)', 
+          width: 40, height: 40, borderRadius: 'var(--r-md)', 
           background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
           display: 'flex', alignItems: 'center', justifyContent: 'center'
         }}>
            <span style={{ color: provider.color }}>
-             {/* Simple icon proxy for the list view */}
-             <Database size={16} />
+             <Database size={18} />
            </span>
         </div>
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{provider.label}</div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{provider.label}</div>
           <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>@{integration.provider_username || 'connected'}</div>
         </div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)' }} />
-        <span style={{ fontSize: 12, color: 'var(--success-text)', fontWeight: 500 }}>Live Synergy</span>
+        <span style={{ fontSize: 12, color: 'var(--success-text)', fontWeight: 500 }}>Active</span>
       </div>
 
-      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{fmt(integration.total_chunks)} chunks indexed</div>
+      <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{fmt(integration.total_chunks)} chunks</div>
 
-      <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>Synced {formatLastSync(integration.last_synced_at)}</div>
+      <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{formatLastSync(integration.last_synced_at)}</div>
 
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
         <button 
           className="btn btn-secondary btn-sm"
           onClick={() => onSync(provider.key)}
           disabled={syncing === provider.key}
-          style={{ height: 30, fontSize: 11 }}
         >
-          {syncing === provider.key ? <Loader2 size={12} className="anim-spin" /> : <RefreshCw size={12} />}
+          {syncing === provider.key ? <Loader2 size={13} className="anim-spin" /> : <RefreshCw size={13} />}
           Sync
         </button>
         <button 
           className="btn btn-ghost btn-sm"
           onClick={() => onDisconnect(integration)}
-          style={{ width: 30, height: 30, padding: 0, color: 'var(--text-disabled)' }}
+          style={{ width: 34, height: 34, padding: 0, color: 'var(--text-disabled)' }}
         >
-          <Unlink size={14} />
+          <Unlink size={15} />
         </button>
       </div>
     </div>
@@ -189,31 +187,31 @@ export default function IntegrationsPage() {
   return (
     <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       
-      {/* ── Active Integrations ── */}
+      {/* Active Integrations */}
       <div>
-        <div style={{ marginBottom: 12 }}>
-          <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Active Pipelines</h2>
+        <div style={{ marginBottom: 16 }}>
+          <h2 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Connected Sources</h2>
         </div>
         <div className="card" style={{ overflow: 'hidden' }}>
           {loading ? (
              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)' }}>Syncing registry...</div>
           ) : activeIntegrations.length === 0 ? (
-             <div style={{ padding: '60px 40px', textAlign: 'center' }}>
-                <CloudSyncIcon size={48} />
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginTop: 16 }}>No data sources connected</h3>
-                <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 4 }}>Connect your first tool below to start indexing context.</p>
+             <div style={{ padding: 80, textAlign: 'center' }}>
+                <CloudSyncIcon size={56} />
+                <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginTop: 20, marginBottom: 8 }}>No sources connected</h3>
+                <p style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Connect your first data source below to start building context.</p>
              </div>
           ) : (
             <div>
               {/* Header */}
               <div style={{ 
                 display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 1fr 1fr 1fr 180px',
-                padding: '10px 24px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-base)',
-                fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase'
+                padding: '12px 24px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-base)',
+                fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em'
               }}>
                 <span>Source</span>
-                <span>Signal</span>
-                <span>Density</span>
+                <span>Status</span>
+                <span>Data Points</span>
                 <span>Last Sync</span>
                 <span></span>
               </div>
@@ -232,43 +230,43 @@ export default function IntegrationsPage() {
         </div>
       </div>
 
-      {/* ── Marketplace / Available ── */}
+      {/* Available Sources */}
       <div>
-        <div style={{ marginBottom: 12 }}>
-          <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Library</h2>
+        <div style={{ marginBottom: 16 }}>
+          <h2 style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Available Sources</h2>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
           {availableProviders.map(p => (
-            <div key={p.key} className="card hover:bg-white/[0.01]" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 16, transition: 'background var(--t-fast)' }}>
-              <div style={{ display: 'flex', gap: 16 }}>
+            <div key={p.key} className="card hover:bg-white/[0.01]" style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 18, transition: 'background var(--t-fast)' }}>
+              <div style={{ display: 'flex', gap: 14 }}>
                 <div style={{ 
-                  width: 44, height: 44, borderRadius: 'var(--r-md)', 
+                  width: 48, height: 48, borderRadius: 'var(--r-md)', 
                   background: 'var(--bg-subtle)', border: '1px solid var(--border-base)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                 }}>
-                   <Database size={20} style={{ color: p.color }} />
+                   <Database size={22} style={{ color: p.color }} />
                 </div>
                 <div>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>{p.label}</h3>
-                  <p style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.4 }}>{p.desc}</p>
+                  <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4, letterSpacing: '-0.01em' }}>{p.label}</h3>
+                  <p style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>{p.desc}</p>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 'auto' }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-tertiary)', background: 'var(--bg-raised)', padding: '2px 8px', borderRadius: 'var(--r-sm)' }}>
-                    <ShieldCheck size={10} /> Encryption Active
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 'auto' }}>
+                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--text-tertiary)', background: 'var(--bg-raised)', padding: '4px 8px', borderRadius: 'var(--r-sm)' }}>
+                    <ShieldCheck size={10} /> Encrypted
                  </div>
-                 <div style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>• {p.type}</div>
+                 <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>• {p.type}</div>
               </div>
 
               <button 
                 className="btn btn-primary" 
-                style={{ width: '100%', height: 36, fontSize: 13, fontWeight: 600 }}
+                style={{ width: '100%', height: 40, fontSize: 13 }}
                 onClick={() => handleConnect(p.key)}
                 disabled={connecting === p.key}
               >
                 {connecting === p.key ? <Loader2 size={14} className="anim-spin" /> : p.isExtension ? <ExternalLink size={14} /> : <Plus size={14} />}
-                {connecting === p.key ? 'Connecting...' : p.isExtension ? 'Install SDK' : `Connect ${p.label}`}
+                {connecting === p.key ? 'Connecting...' : p.isExtension ? 'Install Extension' : `Connect ${p.label}`}
               </button>
             </div>
           ))}

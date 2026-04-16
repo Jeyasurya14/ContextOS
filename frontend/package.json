@@ -8,7 +8,7 @@
   "type": "commonjs",
   "main": "postcss.config.js",
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "dev:no-turbo": "next dev",
     "build": "next build",
     "build:analyze": "cross-env ANALYZE=true next build",

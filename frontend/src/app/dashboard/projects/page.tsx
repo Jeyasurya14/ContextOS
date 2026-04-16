@@ -94,7 +94,7 @@ export default function ProjectsPage() {
             </p>
           </div>
           <button className="btn btn-primary" onClick={openCreate}>
-            <Plus style={{ width: 14, height: 14 }} /> New Project
+            <Plus /> New Project
           </button>
         </div>
 
@@ -128,7 +128,7 @@ export default function ProjectsPage() {
             </p>
             {!search && (
               <button className="btn btn-secondary" onClick={openCreate}>
-                <Plus style={{ width: 14, height: 14 }} /> Create first project
+                <Plus /> Create first project
               </button>
             )}
           </div>

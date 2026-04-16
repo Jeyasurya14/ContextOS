@@ -84,32 +84,32 @@ function IndustrialMessage({ msg, onCopy, copiedId }: { msg: Message; onCopy: (c
 
   return (
     <div style={{ 
-      padding: '20px 24px', 
+      padding: '24px 28px', 
       borderBottom: '1px solid var(--border-subtle)',
       background: isUser ? 'var(--bg-subtle)' : 'var(--bg-base)',
-      display: 'flex', gap: 20
+      display: 'flex', gap: 16
     }}>
-      <div style={{ width: 32, height: 32, flexShrink: 0, marginTop: 2 }}>
+      <div style={{ width: 36, height: 36, flexShrink: 0, marginTop: 2 }}>
         {isUser ? (
-           <div style={{ width: '100%', height: '100%', borderRadius: 'var(--r-md)', background: 'var(--bg-raised)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-base)', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>U</div>
+           <div style={{ width: '100%', height: '100%', borderRadius: 'var(--r-md)', background: 'var(--bg-raised)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-base)', fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)' }}>U</div>
         ) : (
-           <div style={{ width: '100%', height: '100%', borderRadius: 'var(--r-md)', background: 'var(--brand-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--brand-border)', color: 'var(--brand)' }}><Brain size={16} /></div>
+           <div style={{ width: '100%', height: '100%', borderRadius: 'var(--r-md)', background: 'var(--brand-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--brand-border)', color: 'var(--brand)' }}><Brain size={18} /></div>
         )}
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-           <span style={{ fontSize: 12, fontWeight: 700, color: isUser ? 'var(--text-secondary)' : 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              {isUser ? 'Client Request' : 'Context-Aware Analysis'}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+           <span style={{ fontSize: 12, fontWeight: 600, color: isUser ? 'var(--text-secondary)' : 'var(--text-primary)', letterSpacing: '-0.01em' }}>
+              {isUser ? 'You' : 'Assistant'}
            </span>
-           <span style={{ fontSize: 10, color: 'var(--text-disabled)' }}>• {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : 'Realtime'}</span>
+           <span style={{ fontSize: 11, color: 'var(--text-disabled)' }}>• {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : 'now'}</span>
         </div>
 
         {msg.thinkingSteps && msg.thinkingSteps.length > 0 && (
-           <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-sm)', padding: '12px', marginBottom: 16 }}>
+           <div style={{ background: 'var(--bg-raised)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-md)', padding: '14px', marginBottom: 16 }}>
               {msg.thinkingSteps.map((step, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: step.done ? 'var(--text-tertiary)' : 'var(--text-secondary)', marginBottom: 4 }}>
-                   {step.done ? <CheckCheck size={12} style={{ color: 'var(--success-text)' }} /> : <Terminal size={12} className="anim-spin" />}
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: step.done ? 'var(--text-tertiary)' : 'var(--text-secondary)', marginBottom: i < msg.thinkingSteps!.length - 1 ? 6 : 0 }}>
+                   {step.done ? <CheckCheck size={13} style={{ color: 'var(--success-text)' }} /> : <Terminal size={13} className="anim-spin" />}
                    <span>{step.message}</span>
                 </div>
               ))}
@@ -119,23 +119,23 @@ function IndustrialMessage({ msg, onCopy, copiedId }: { msg: Message; onCopy: (c
         <div className="chat-prose" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
 
         {msg.sources && msg.sources.length > 0 && (
-          <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ marginTop: 16, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {msg.sources.map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: 'var(--bg-raised)', border: '1px solid var(--border-base)', borderRadius: 'var(--r-sm)', fontSize: 11, color: 'var(--text-secondary)' }}>
-                 <Database size={10} /> {s.type.split('_')[0]}
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', background: 'var(--bg-raised)', border: '1px solid var(--border-base)', borderRadius: 'var(--r-md)', fontSize: 11, color: 'var(--text-secondary)' }}>
+                 <Database size={11} /> {s.type.split('_')[0]}
               </div>
             ))}
           </div>
         )}
 
         {!msg.isStreaming && msg.content && (
-           <div style={{ marginTop: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 12, display: 'flex', gap: 12 }}>
+           <div style={{ marginTop: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 14, display: 'flex', gap: 8 }}>
               <button 
                 className="btn btn-ghost btn-sm" 
                 onClick={() => onCopy(msg.content, msg.id)}
-                style={{ fontSize: 11, color: copiedId === msg.id ? 'var(--success-text)' : 'var(--text-tertiary)' }}
+                style={{ fontSize: 12, color: copiedId === msg.id ? 'var(--success-text)' : 'var(--text-tertiary)', height: '32px' }}
               >
-                {copiedId === msg.id ? <CheckCheck size={12} /> : <Copy size={12} />} {copiedId === msg.id ? 'Copied' : 'Copy'}
+                {copiedId === msg.id ? <CheckCheck size={13} /> : <Copy size={13} />} {copiedId === msg.id ? 'Copied' : 'Copy'}
               </button>
            </div>
         )}
@@ -271,12 +271,12 @@ export default function ChatPage() {
   return (
     <>
       <style>{`
-        .chat-prose { font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
+        .chat-prose { font-size: 14.5px; line-height: 1.7; color: var(--text-secondary); }
         .chat-prose p { margin-bottom: 1em; }
         .chat-prose strong { color: var(--text-primary); font-weight: 600; }
         .chat-prose pre.chat-code-block { background: var(--bg-surface); border: 1px solid var(--border-base); border-radius: var(--r-md); overflow: hidden; margin: 16px 0; }
-        .chat-prose pre .chat-code-lang { background: var(--bg-subtle); padding: 4px 12px; font-size: 10px; text-transform: uppercase; color: var(--text-tertiary); font-weight: 700; border-bottom: 1px solid var(--border-subtle); }
-        .chat-prose pre code { display: block; padding: 12px; font-family: 'JetBrains Mono', monospace; font-size: 12px; overflow-x: auto; color: var(--text-primary); }
+        .chat-prose pre .chat-code-lang { background: var(--bg-subtle); padding: 6px 14px; font-size: 10px; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; border-bottom: 1px solid var(--border-subtle); letter-spacing: 0.05em; }
+        .chat-prose pre code { display: block; padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 12.5px; overflow-x: auto; color: var(--text-primary); line-height: 1.6; }
       `}</style>
       
       <div style={{ 
@@ -288,29 +288,30 @@ export default function ChatPage() {
         overflow: 'hidden' 
       }}>
         
-        {/* Thread Sidebar (Industrial Style) */}
+        {/* Thread Sidebar */}
         <div style={{ width: 280, borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', display: 'flex', flexDirection: 'column' }}>
            <div style={{ padding: '16px', borderBottom: '1px solid var(--border-subtle)' }}>
-              <button className="btn btn-primary btn-full btn-sm" style={{ height: 32 }} onClick={() => { setCurrentChatId(null); setMessages([]) }}>
-                 <Plus size={14} /> New Analysis
+              <button className="btn btn-primary btn-full btn-sm" onClick={() => { setCurrentChatId(null); setMessages([]) }}>
+                 <Plus size={14} /> New Chat
               </button>
            </div>
            <div style={{ flex: 1, overflowY: 'auto', padding: '12px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 12, paddingLeft: 8 }}>Recent Streams</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: 12, paddingLeft: 10, letterSpacing: '0.05em' }}>Conversations</div>
               {chats.map(c => (
                 <button 
                   key={c.id} 
                   onClick={() => { setCurrentChatId(c.id); setMessages(c.messages) }}
                   style={{
-                    width: '100%', textAlign: 'left', padding: '9px 12px', borderRadius: 'var(--r-md)',
+                    width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: 'var(--r-md)',
                     background: currentChatId === c.id ? 'var(--bg-surface)' : 'transparent',
-                    border: currentChatId === c.id ? '1px solid var(--border-base)' : '1px solid transparent',
+                    border: '1px solid transparent',
                     color: currentChatId === c.id ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontSize: '12px', marginBottom: '2px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px',
-                    transition: 'all var(--t-fast)'
+                    fontSize: '13px', marginBottom: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px',
+                    transition: 'all var(--t-fast)', fontWeight: currentChatId === c.id ? 500 : 400
                   }}
+                  className="hover:bg-[var(--bg-surface)]"
                 >
-                   <History size={13} style={{ opacity: 0.5 }} />
+                   <History size={14} style={{ opacity: 0.4, flexShrink: 0 }} />
                    <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</span>
                 </button>
               ))}
@@ -320,21 +321,21 @@ export default function ChatPage() {
         {/* Workspace Chat Area */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
            
-           {/* Dynamic Header */}
-           <div style={{ height: 48, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', padding: '0 20px', justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 20px' }}>
-                 <Layers size={14} style={{ color: 'var(--brand)' }} />
-                 <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{currentChatId ? chats.find(c => c.id === currentChatId)?.title : 'New Intelligence Session'}</span>
+           {/* Header */}
+           <div style={{ height: 56, borderBottom: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', display: 'flex', alignItems: 'center', padding: '0 24px', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                 <Layers size={16} style={{ color: 'var(--brand)' }} />
+                 <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{currentChatId ? chats.find(c => c.id === currentChatId)?.title : 'New Conversation'}</span>
               </div>
            </div>
 
-           {/* Messages Scroll Area (Expansive) */}
+           {/* Messages */}
            <div style={{ flex: 1, overflowY: 'auto' }}>
               {messages.length === 0 ? (
-                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, opacity: 0.5 }}>
-                   <Database size={48} style={{ marginBottom: 20 }} />
-                   <div style={{ fontSize: 14, fontWeight: 600 }}>Ready to parse global context.</div>
-                   <div style={{ fontSize: 12 }}>Input your query to begin semantic analysis.</div>
+                <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+                   <Database size={56} style={{ marginBottom: 20, color: 'var(--text-disabled)' }} />
+                   <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>Start a conversation</div>
+                   <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>Ask anything about your connected sources</div>
                 </div>
               ) : (
                 messages.map(m => (
@@ -344,31 +345,28 @@ export default function ChatPage() {
               <div ref={bottomRef} />
            </div>
 
-           {/* Precision Input Area */}
-           <div style={{ padding: '24px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
-              <div style={{ display: 'flex', gap: 12, background: 'var(--bg-base)', border: '1px solid var(--border-base)', borderRadius: 'var(--r-md)', padding: 4 }}>
+           {/* Input Area */}
+           <div style={{ padding: '20px 24px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+              <div style={{ display: 'flex', gap: 10, background: 'var(--bg-base)', border: '1px solid var(--border-base)', borderRadius: 'var(--r-lg)', padding: 6 }}>
                  <textarea 
                    value={input}
                    onChange={e => setInput(e.target.value)}
                    onKeyDown={e => { if(e.key==='Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
-                   placeholder="Query context pipelines... (Cmd + Enter)"
-                   style={{ flex: 1, background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 13, padding: '12px', resize: 'none', outline: 'none', minHeight: 44 }}
+                   placeholder="Ask anything..."
+                   style={{ flex: 1, background: 'none', border: 'none', color: 'var(--text-primary)', fontSize: 14, padding: '12px 14px', resize: 'none', outline: 'none', minHeight: 48, lineHeight: 1.5 }}
                  />
                  <button 
                    className="btn btn-primary" 
                    onClick={handleSend}
                    disabled={!input.trim() || isStreaming}
-                   style={{ height: 44, width: 44, padding: 0, alignSelf: 'flex-end', borderRadius: 'var(--r-sm)' }}
+                   style={{ height: 48, width: 48, padding: 0, alignSelf: 'flex-end', borderRadius: 'var(--r-md)' }}
                 >
-                    <CornerDownLeft size={16} />
+                    <CornerDownLeft size={18} />
                  </button>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                 <div style={{ display: 'flex', gap: 16 }}>
-                    <div style={{ fontSize: 10, color: 'var(--text-disabled)', display: 'flex', alignItems: 'center', gap: 4 }}><Globe size={10} /> Vector Search Active</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-disabled)', display: 'flex', alignItems: 'center', gap: 4 }}><Maximize2 size={10} /> Deep Parse Enabled</div>
-                 </div>
-                 <div style={{ fontSize: 10, color: 'var(--text-disabled)' }}>GPT-4o Context Aware</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+                 <div style={{ fontSize: 11, color: 'var(--text-disabled)' }}>Press Enter to send, Shift + Enter for new line</div>
+                 <div style={{ fontSize: 11, color: 'var(--text-disabled)' }}>GPT-4o</div>
               </div>
            </div>
 

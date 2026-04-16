@@ -61,7 +61,7 @@ function NavItem({ href, icon: Icon, label, isActive, onClick }: {
 }) {
   return (
     <Link href={href} onClick={onClick} className={`nav-item ${isActive ? 'active' : ''}`}>
-      <Icon style={{ width: 14, height: 14, color: isActive ? 'var(--brand)' : 'inherit' }} />
+      <Icon style={{ width: 16, height: 16, color: isActive ? 'var(--brand)' : 'inherit', strokeWidth: isActive ? 2.5 : 2 }} />
       <span>{label}</span>
     </Link>
   )
@@ -75,40 +75,43 @@ function Sidebar({ user, pathname, onNavClick }: {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       
-      {/* Workspace Switcher Area */}
-      <div style={{ padding: '12px 16px', marginBottom: 16 }}>
+      {/* Workspace Switcher */}
+      <div style={{ padding: '16px', marginBottom: 20 }}>
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '8px', borderRadius: 'var(--r-md)',
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '10px 12px', borderRadius: 'var(--r-md)',
           background: 'var(--bg-raised)', border: '1px solid var(--border-base)',
-          cursor: 'pointer'
-        }}>
+          cursor: 'pointer', transition: 'all var(--t-fast)'
+        }}
+        className="hover:border-[rgba(255,255,255,0.12)]"
+        >
           <div style={{ 
-            width: 28, height: 28, borderRadius: 'var(--r-sm)', 
-            background: 'var(--bg-surface)', border: '1px solid var(--border-strong)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
+            width: 32, height: 32, borderRadius: 'var(--r-md)', 
+            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0
           }}>
-            <Logo size={18} />
+            <Logo size={20} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>ContextOS</p>
-            <p style={{ fontSize: 10, color: 'var(--text-tertiary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Main Workspace</p>
+            <p style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.3, letterSpacing: '-0.01em' }}>ContextOS</p>
+            <p style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: 0 }}>Workspace</p>
           </div>
-          <ChevronRight style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
+          <ChevronRight style={{ width: 16, height: 16, color: 'var(--text-tertiary)', opacity: 0.5 }} />
         </div>
       </div>
 
-      {/* Grouped Navigation */}
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto', padding: '0 8px' }}>
+      {/* Navigation */}
+      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 24, overflowY: 'auto', padding: '0 12px' }}>
         {NAV_GROUPS.map(group => (
-          <div key={group.label} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div key={group.label} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <span style={{ 
-              fontSize: 10, fontWeight: 700, color: 'var(--text-tertiary)', 
-              padding: '0 16px 6px', textTransform: 'uppercase', letterSpacing: '0.08em' 
+              fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', 
+              padding: '0 14px 8px', textTransform: 'uppercase', letterSpacing: '0.05em' 
             }}>
               {group.label}
             </span>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {group.items.map(item => (
                 <NavItem
                   key={item.href}
@@ -122,24 +125,24 @@ function Sidebar({ user, pathname, onNavClick }: {
         ))}
       </nav>
 
-      {/* Footer Area */}
+      {/* Footer */}
       <div style={{ padding: '16px', marginTop: 'auto', borderTop: '1px solid var(--border-subtle)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 8px' }}>
           <div style={{
-            width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
-            background: 'linear-gradient(135deg, #d97706, #7c3aed)',
+            width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, fontWeight: 700, color: '#fff', border: '2px solid var(--bg-raised)'
+            fontSize: 14, fontWeight: 600, color: '#000'
           }}>
-            {user?.name?.[0]?.toUpperCase() ?? '?'}
+            {user?.name?.[0]?.toUpperCase() ?? 'U'}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {user?.name ?? 'Account'}
+            <p style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.01em' }}>
+              {user?.name ?? 'User'}
             </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)' }} />
-              <span style={{ fontSize: 10, color: 'var(--text-tertiary)', textTransform: 'capitalize' }}>{plan} plan</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: 'var(--success)' }} />
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)', textTransform: 'capitalize' }}>{plan}</span>
             </div>
           </div>
         </div>
