@@ -4,7 +4,7 @@ import axios from 'axios'
 import { useAuthStore } from '@/store/auth'
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://contextos-api-jxdr.onrender.com',
   timeout: 120000, // 2 minutes for slow operations like GitHub sync
   headers: { 'Content-Type': 'application/json' },
 })
@@ -131,7 +131,7 @@ export const queryApi = {
     options?: { project_id?: string; team_id?: string }
   ): Promise<Response> => {
     return fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/query`,
+      `${process.env.NEXT_PUBLIC_API_URL || 'https://contextos-api-jxdr.onrender.com'}/api/v1/query`,
       {
         method: 'POST',
         headers: {
