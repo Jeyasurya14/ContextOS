@@ -161,14 +161,14 @@ function TopHeader({ pathname }: { pathname: string | null }) {
   }, [pathname])
 
   return (
-    <header style={{ 
-      height: 56, flexShrink: 0, 
+    <header className="frosted" style={{
+      height: 60, flexShrink: 0,
       borderBottom: '1px solid var(--border-subtle)',
-      background: 'var(--bg-base)',
-      display: 'flex', alignItems: 'center', padding: '0 32px', 
-      gap: 12, justifyContent: 'space-between'
+      display: 'flex', alignItems: 'center', padding: '0 32px',
+      gap: 16, justifyContent: 'space-between',
+      position: 'sticky', top: 0, zIndex: 30,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, minWidth: 0 }}>
         {segments.map((seg, i) => (
           <div key={seg} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{
@@ -183,9 +183,39 @@ function TopHeader({ pathname }: { pathname: string | null }) {
         ))}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-tertiary)' }}>
-        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)' }} />
-        <span>Operational</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        {/* Faux search — hotkey hint */}
+        <button
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '6px 10px 6px 12px',
+            background: 'var(--bg-raised)',
+            border: '1px solid var(--border-base)',
+            borderRadius: 8,
+            color: 'var(--text-tertiary)',
+            fontSize: 12.5,
+            cursor: 'pointer',
+            transition: 'all var(--t-fast)',
+            minWidth: 220,
+          }}
+          className="hover:border-[rgba(255,255,255,0.14)]"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <span style={{ flex: 1, textAlign: 'left' }}>Search</span>
+          <kbd style={{
+            padding: '1px 6px', fontSize: 10.5,
+            fontFamily: 'JetBrains Mono, monospace',
+            background: 'var(--bg-base)', border: '1px solid var(--border-base)',
+            borderRadius: 4, color: 'var(--text-secondary)',
+          }}>⌘K</kbd>
+        </button>
+
+        <div style={{ width: 1, height: 20, background: 'var(--border-base)' }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-tertiary)' }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 8px var(--success)' }} className="anim-dot-pulse" />
+          <span>Operational</span>
+        </div>
       </div>
     </header>
   )
