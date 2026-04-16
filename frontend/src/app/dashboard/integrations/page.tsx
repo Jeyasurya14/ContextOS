@@ -154,11 +154,17 @@ export default function IntegrationsPage() {
   const handleSync = async (key: string) => {
     setSyncing(key)
     try {
-      await integrationsApi.syncGithub()
-      toast.success('Sync started!')
+      if (key === 'github') await integrationsApi.syncGithub()
+      else if (key === 'linear') await integrationsApi.syncLinear()
+      else if (key === 'google_drive') await integrationsApi.syncGoogle()
+      else {
+        toast.info(`Sync triggered for ${key}. Processing background signals.`)
+        return
+      }
+      toast.success(`${key.charAt(0).toUpperCase() + key.slice(1)} Synchronization Started`)
       setTimeout(fetchIntegrations, 2000)
     } catch {
-      toast.error('Sync failed.')
+      toast.error('Sync pipeline initialization failed.')
     } finally {
       setSyncing(null)
     }

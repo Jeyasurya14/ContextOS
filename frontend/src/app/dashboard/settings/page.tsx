@@ -50,6 +50,8 @@ export default function SettingsPage() {
   const [keyStatus, setKeyStatus] = useState<any>(null)
   const [newKey, setNewKey] = useState<string | null>(null)
   const [showRevoke, setShowRevoke] = useState(false)
+  const [showWipe, setShowWipe] = useState(false)
+  const [wiping, setWiping] = useState(false)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://contextos-api-jxdr.onrender.com'
 
@@ -74,6 +76,19 @@ export default function SettingsPage() {
       toast.success('Key Protocol Established')
       const s = await authApi.getApiKeyStatus(); setKeyStatus(s.data)
     } catch { toast.error('Key Generation Failure') }
+  }
+
+  const handleWipe = async () => {
+    setWiping(true)
+    try {
+      await integrationsApi.clearAll()
+      toast.success('Registry Wiped Successfully')
+    } catch {
+      toast.error('Wipe operation failed')
+    } finally {
+      setWiping(false)
+      setShowWipe(false)
+    }
   }
 
   return (
@@ -161,9 +176,14 @@ export default function SettingsPage() {
                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Full Registry Wipe</div>
                <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>This will erase all indexed vectors. This cannot be undone.</div>
             </div>
-            <button className="btn" style={{ background: 'var(--bg-base)', border: '1px solid var(--border-base)', color: 'var(--danger-text)' }}>
-               Execute Wipe
-            </button>
+             <button 
+               className="btn" 
+               disabled={wiping}
+               style={{ background: 'var(--bg-base)', border: '1px solid var(--border-base)', color: 'var(--danger-text)' }}
+               onClick={() => setShowWipe(true)}
+             >
+                {wiping ? <Loader2 size={14} className="anim-spin" /> : 'Execute Wipe'}
+             </button>
          </div>
       </div>
 
@@ -174,6 +194,16 @@ export default function SettingsPage() {
         title="Revoke Protocol"
         message="This will immediately kill all active extension sessions. Continue?"
         isDangerous
+      />
+
+      <ConfirmModal 
+        isOpen={showWipe} 
+        onClose={()=>setShowWipe(false)} 
+        onConfirm={handleWipe}
+        title="Full Registry Wipe"
+        message="This will permanently delete all indexed context from your workspace. This cannot be undone."
+        isDangerous
+        confirmLabel="Confirm Destructive Wipe"
       />
 
     </div>

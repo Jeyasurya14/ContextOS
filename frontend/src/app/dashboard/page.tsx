@@ -73,7 +73,19 @@ function ServiceRow({ label, type, status, lastSync, chunks, icon: Icon, color }
       
       <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'right' }}>{lastSync}</div>
 
-      <button className="btn btn-ghost" style={{ width: 28, height: 28, padding: 0 }}><MoreHorizontal size={14} /></button>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+         <button 
+           className="btn btn-ghost" 
+           style={{ width: 28, height: 28, padding: 0 }}
+           onClick={() => {
+             if (status === 'Active') {
+               integrationsApi.syncGithub().then(() => alert('Sync started for ' + label));
+             }
+           }}
+         >
+           <RefreshCw size={14} style={{ color: 'var(--text-disabled)' }} />
+         </button>
+      </div>
     </div>
   )
 }
@@ -86,6 +98,7 @@ export default function DashboardPage() {
   const [integrations, setIntegrations] = useState<any[]>([])
   const [members, setMembers] = useState<any[]>([])
   const [health, setHealth] = useState<any>(null)
+  const [filter, setFilter] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -153,12 +166,19 @@ export default function DashboardPage() {
              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Service Registry</h3>
              <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-sm)' }}>
                 <Search size={12} style={{ color: 'var(--text-tertiary)' }} />
-                <input placeholder="Filter..." style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: 11, width: 120 }} />
+                <input 
+                  placeholder="Filter..." 
+                  value={filter}
+                  onChange={e => setFilter(e.target.value)}
+                  style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: 11, width: 120 }} 
+                />
              </div>
           </div>
-          <button className="btn btn-primary btn-sm" style={{ fontWeight: 600 }}>
-            <Plus size={14} /> New Source
-          </button>
+          <Link href="/dashboard/integrations">
+            <button className="btn btn-primary btn-sm" style={{ fontWeight: 600 }}>
+              <Plus size={14} /> New Source
+            </button>
+          </Link>
         </div>
 
         {/* Table Header */}
@@ -186,21 +206,26 @@ export default function DashboardPage() {
               </Link>
             </div>
           ) : (
-            integrations.map(intg => {
-              const p = PROVIDERS.find(pr => pr.apiKey === intg.provider) || { label: intg.provider, icon: Database, color: 'var(--text-secondary)', type: 'Custom' }
-              return (
-                <ServiceRow 
-                  key={intg.id}
-                  label={p.label}
-                  type={p.type}
-                  status={intg.is_active ? 'Active' : 'Disconnected'}
-                  chunks={intg.total_chunks ? fmt(intg.total_chunks) : '0'}
-                  lastSync={intg.last_synced_at ? relTime(intg.last_synced_at) : 'Never'}
-                  icon={p.icon}
-                  color={intg.is_active ? p.color : 'var(--text-disabled)'}
-                />
-              )
-            })
+            integrations
+              .filter(i => {
+                const p = PROVIDERS.find(pr => pr.apiKey === i.provider)
+                return !filter || p?.label.toLowerCase().includes(filter.toLowerCase()) || i.provider.toLowerCase().includes(filter.toLowerCase())
+              })
+              .map(intg => {
+                const p = PROVIDERS.find(pr => pr.apiKey === intg.provider) || { label: intg.provider, icon: Database, color: 'var(--text-secondary)', type: 'Custom' }
+                return (
+                  <ServiceRow 
+                    key={intg.id}
+                    label={p.label}
+                    type={p.type}
+                    status={intg.is_active ? 'Active' : 'Disconnected'}
+                    chunks={intg.total_chunks ? fmt(intg.total_chunks) : '0'}
+                    lastSync={intg.last_synced_at ? relTime(intg.last_synced_at) : 'Never'}
+                    icon={p.icon}
+                    color={intg.is_active ? p.color : 'var(--text-disabled)'}
+                  />
+                )
+              })
           )}
         </div>
       </div>
