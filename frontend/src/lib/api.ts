@@ -3,8 +3,14 @@
 import axios from 'axios'
 import { useAuthStore } from '@/store/auth'
 
+// Use relative URLs so all requests go through Vercel's proxy (next.config.mjs rewrites)
+// Vercel forwards /api/v1/* to Render server-to-server — no CORS needed.
+const API_BASE = typeof window !== 'undefined'
+  ? ''  // browser: use relative URL (same-origin proxy)
+  : (process.env.NEXT_PUBLIC_API_URL || 'https://contextos-api-jxdr.onrender.com') // SSR: direct
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://contextos-api-jxdr.onrender.com',
+  baseURL: API_BASE,
   timeout: 120000, // 2 minutes for slow operations like GitHub sync
   headers: { 'Content-Type': 'application/json' },
 })
@@ -131,7 +137,7 @@ export const queryApi = {
     options?: { project_id?: string; team_id?: string }
   ): Promise<Response> => {
     return fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || 'https://contextos-api-jxdr.onrender.com'}/api/v1/query`,
+      `${typeof window !== 'undefined' ? '' : (process.env.NEXT_PUBLIC_API_URL || 'https://contextos-api-jxdr.onrender.com')}/api/v1/query`,
       {
         method: 'POST',
         headers: {

@@ -74,10 +74,17 @@ const nextConfig = {
   },
 
   async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'https://contextos-api-jxdr.onrender.com'
     return [
       {
-        source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/:path*`,
+        // Proxy /api/v1/* → Render backend (server-to-server, no CORS)
+        source: '/api/v1/:path*',
+        destination: `${backendUrl}/api/v1/:path*`,
+      },
+      {
+        // Also proxy /health for status checks
+        source: '/health',
+        destination: `${backendUrl}/health`,
       },
     ]
   },
