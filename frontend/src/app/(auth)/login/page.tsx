@@ -1,4 +1,3 @@
-// frontend/src/app/(auth)/login/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -6,31 +5,43 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
-import { Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, Loader2, Github, Zap } from 'lucide-react'
 
-function Logo({ size = 24 }: { size?: number }) {
+/* ─── Logo ───────────────────────────────────────────────────── */
+function Logo({ size = 28 }: { size?: number }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width={size} height={size}>
+    <svg viewBox="0 0 64 64" width={size} height={size} fill="none">
       <defs>
-        <linearGradient id="lc" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#f59e0b" />
+        <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#fbbf24" />
           <stop offset="100%" stopColor="#d97706" />
         </linearGradient>
       </defs>
-      <path d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50"
-        fill="none" stroke="url(#lc)" strokeWidth="5.5" strokeLinecap="round" />
-      <circle cx="17" cy="32" r="4" fill="#f59e0b" />
-      <g transform="translate(37,32)">
-        <path d="M0,-14 L12,-7 L12,7 L0,14 L-12,7 L-12,-7 Z"
-          fill="none" stroke="url(#lc)" strokeWidth="2.5" strokeLinejoin="round" />
-        <line x1="-6" y1="-3.5" x2="6" y2="-3.5" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-        <line x1="-6" y1="0"    x2="6" y2="0"    stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-        <line x1="-6" y1="3.5"  x2="6" y2="3.5"  stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-      </g>
+      <path d="M28 14C16 14 10 21 10 32s6 18 18 18"
+        stroke="url(#g1)" strokeWidth="5" strokeLinecap="round" />
+      <circle cx="17" cy="32" r="4" fill="url(#g1)" />
+      <path d="M37 18l13 7.5V39L37 46.5 24 39V25.5z"
+        stroke="url(#g1)" strokeWidth="2.5" strokeLinejoin="round" />
+      <line x1="30" y1="28" x2="44" y2="28" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+      <line x1="30" y1="32" x2="44" y2="32" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+      <line x1="30" y1="36" x2="44" y2="36" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }
 
+/* ─── Stat row ───────────────────────────────────────────────── */
+function StatRow({ value, label }: { value: string; label: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: '#f0f0f8', letterSpacing: '-0.03em', lineHeight: 1 }}>
+        {value}
+      </div>
+      <div style={{ fontSize: 12, color: 'rgba(148,148,176,0.7)', marginTop: 3 }}>{label}</div>
+    </div>
+  )
+}
+
+/* ─── Login Page ─────────────────────────────────────────────── */
 export default function LoginPage() {
   const router = useRouter()
   const { token, setToken, setUser } = useAuthStore()
@@ -38,7 +49,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  const [showPass, setShowPass] = useState(false)
+  const [emailFocused, setEmailFocused] = useState(false)
+  const [passFocused, setPassFocused]  = useState(false)
 
   useEffect(() => { if (token) router.replace('/') }, [token, router])
 
@@ -49,214 +62,272 @@ export default function LoginPage() {
     try {
       const { data: tokens } = await authApi.login(email, password)
       setToken(tokens.access_token)
-      if (tokens.user) {
-        setUser(tokens.user)
-      } else {
-        const { data: user } = await authApi.getMe()
-        setUser(user)
-      }
-      await new Promise(r => setTimeout(r, 100))
+      if (tokens.user) setUser(tokens.user)
+      else { const { data: user } = await authApi.getMe(); setUser(user) }
+      await new Promise(r => setTimeout(r, 80))
       window.location.href = '/'
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        const e = err as { response?: { data?: { detail?: string } } }
-        setError(e.response?.data?.detail || 'Invalid email or password')
-      } else {
-        setError('Cannot reach the server. Check your connection.')
-      }
-    } finally {
-      setLoading(false)
-    }
+      const e = err as { response?: { data?: { detail?: string } } }
+      setError(e?.response?.data?.detail || 'Invalid email or password.')
+    } finally { setLoading(false) }
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      background: '#0a0a0f',
-    }}>
-      {/* ── Left: Branding panel ── */}
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
+
+      {/* ═══════════ LEFT PANEL ═══════════ */}
       <div
         className="hidden lg:flex"
         style={{
-          width: 400,
+          width: 'clamp(340px, 38vw, 480px)',
           flexShrink: 0,
-          background: '#0d0d15',
-          borderRight: '1px solid #1e1e2e',
           flexDirection: 'column',
-          padding: '40px 40px',
+          position: 'relative',
+          overflow: 'hidden',
+          background: 'var(--bg-subtle)',
+          borderRight: '1px solid var(--border-subtle)',
         }}
       >
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 'auto' }}>
-          <Logo size={28} />
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#e8e8f0', letterSpacing: '-0.01em' }}>
-            ContextOS
-          </span>
-        </div>
+        {/* Subtle gradient wash */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: 'radial-gradient(ellipse 70% 50% at 30% 70%, rgba(245,158,11,0.06) 0%, transparent 100%)',
+        }} />
+        {/* Top-right accent */}
+        <div style={{
+          position: 'absolute', top: -80, right: -80,
+          width: 280, height: 280, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(245,158,11,0.05) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
 
-        {/* Center content */}
-        <div style={{ paddingBottom: 80 }}>
-          <p style={{
-            fontSize: 24, fontWeight: 700, color: '#e8e8f0',
-            letterSpacing: '-0.02em', lineHeight: 1.3, marginBottom: 12,
-          }}>
-            Your entire workspace,<br />queryable in seconds.
-          </p>
-          <p style={{ fontSize: 13, color: '#4a4a60', lineHeight: 1.7, marginBottom: 40 }}>
-            Connect GitHub, Notion, Slack and more. Ask anything about your codebase or team knowledge.
-          </p>
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', padding: '36px 40px' }}>
+          {/* Logo + wordmark */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <Logo size={26} />
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              ContextOS
+            </span>
+          </div>
+
+          {/* Main marketing copy — vertically centered */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 0 48px' }}>
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '4px 10px', borderRadius: 'var(--r-full)',
+              background: 'var(--brand-muted)', border: '1px solid var(--brand-border)',
+              marginBottom: 20, alignSelf: 'flex-start',
+            }}>
+              <Zap style={{ width: 11, height: 11, color: 'var(--brand)' }} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brand-text)', letterSpacing: '0.02em' }}>
+                AI-powered context layer
+              </span>
+            </div>
+
+            <h1 style={{
+              fontSize: 'clamp(26px, 3vw, 34px)',
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              letterSpacing: '-0.035em',
+              lineHeight: 1.18,
+              marginBottom: 14,
+            }}>
+              Your entire workspace,<br />
+              <span style={{ color: 'var(--brand-text)' }}>searchable instantly.</span>
+            </h1>
+
+            <p style={{
+              fontSize: 14, lineHeight: 1.65,
+              color: 'var(--text-tertiary)',
+              maxWidth: 320,
+            }}>
+              Connect GitHub, Notion, Slack, and more. Ask your AI anything about your codebase and team knowledge.
+            </p>
+
+            {/* Stats */}
+            <div style={{
+              display: 'flex', gap: 32, marginTop: 36,
+              paddingTop: 28, borderTop: '1px solid var(--border-subtle)',
+            }}>
+              <StatRow value="50k+" label="Context chunks indexed" />
+              <StatRow value="12+"  label="Integrations available" />
+              <StatRow value="99.9%" label="Uptime" />
+            </div>
+          </div>
 
           {/* Testimonial */}
           <div style={{
-            padding: '16px 20px',
-            background: '#111118',
-            border: '1px solid #1e1e2e',
-            borderRadius: 12,
+            padding: '18px 20px',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--r-lg)',
           }}>
-            <p style={{ fontSize: 13, lineHeight: 1.6, marginBottom: 10, color: '#8888a0' }}>
-              &ldquo;ContextOS cut our onboarding time in half. New devs can ask about any part of the codebase immediately.&rdquo;
+            <p style={{ fontSize: 13, lineHeight: 1.65, color: 'var(--text-secondary)', marginBottom: 14 }}>
+              "ContextOS cut our onboarding time by 60%. New engineers can ask about any part of the codebase on day one."
             </p>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{
-                width: 28, height: 28, borderRadius: '50%',
-                background: 'linear-gradient(135deg, #d97706, #7c3aed)',
+                width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                background: 'linear-gradient(135deg, #7c3aed, #db2777)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 11, fontWeight: 700, color: '#fff',
+                fontSize: 13, fontWeight: 700, color: '#fff',
               }}>A</div>
               <div>
-                <p style={{ fontSize: 12, fontWeight: 600, color: '#e8e8f0', margin: 0 }}>Alex Chen</p>
-                <p style={{ fontSize: 11, color: '#4a4a60', margin: 0 }}>CTO, Finexo</p>
+                <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1 }}>Alex Chen</p>
+                <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>CTO at Finexo</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Right: Form ── */}
+      {/* ═══════════ RIGHT PANEL ═══════════ */}
       <div style={{
         flex: 1,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '40px 24px',
+        padding: '48px 24px',
       }}>
         <div
-          className="animate-fade-in"
-          style={{ width: '100%', maxWidth: 380 }}
+          className="anim-fade-up"
+          style={{ width: '100%', maxWidth: 400 }}
         >
           {/* Mobile logo */}
-          <div className="flex lg:hidden" style={{
-            alignItems: 'center', gap: 8, marginBottom: 32,
-            justifyContent: 'center',
-          }}>
+          <div
+            className="flex lg:hidden"
+            style={{ alignItems: 'center', gap: 9, justifyContent: 'center', marginBottom: 40 }}
+          >
             <Logo size={24} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#e8e8f0' }}>ContextOS</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              ContextOS
+            </span>
           </div>
 
-          <h1 style={{
-            fontSize: 22, fontWeight: 700, color: '#e8e8f0',
-            letterSpacing: '-0.02em', marginBottom: 6,
-          }}>
-            Sign in
-          </h1>
-          <p style={{ fontSize: 13, color: '#4a4a60', marginBottom: 28 }}>
-            New here?{' '}
-            <Link href="/register" style={{ color: '#f59e0b', fontWeight: 500 }}>
-              Create a free account
-            </Link>
-          </p>
-
-          {/* Error */}
-          {error && (
-            <div style={{
-              display: 'flex', alignItems: 'flex-start', gap: 8,
-              padding: '10px 14px', marginBottom: 20, borderRadius: 10,
-              background: 'rgba(239,68,68,0.06)',
-              border: '1px solid rgba(239,68,68,0.2)',
+          {/* Form header */}
+          <div style={{ marginBottom: 28 }}>
+            <h2 style={{
+              fontSize: 22, fontWeight: 700, color: 'var(--text-primary)',
+              letterSpacing: '-0.025em', lineHeight: 1.2, marginBottom: 8,
             }}>
-              <AlertCircle style={{ width: 14, height: 14, color: '#f87171', flexShrink: 0, marginTop: 1 }} />
-              <p style={{ fontSize: 13, color: '#f87171', margin: 0 }}>{error}</p>
-            </div>
-          )}
+              Welcome back
+            </h2>
+            <p style={{ fontSize: 13.5, color: 'var(--text-tertiary)', lineHeight: 1 }}>
+              New to ContextOS?{' '}
+              <Link href="/register" style={{ color: 'var(--brand-text)', fontWeight: 500, textDecoration: 'none' }}>
+                Create a free account
+              </Link>
+            </p>
+          </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {/* Email */}
-            <div>
-              <label style={{
-                display: 'block', fontSize: 12, fontWeight: 500,
-                color: '#8888a0', marginBottom: 6,
-              }}>
-                Email
-              </label>
-              <input
-                className="input"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-                autoFocus
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label style={{
-                display: 'block', fontSize: 12, fontWeight: 500,
-                color: '#8888a0', marginBottom: 6,
-              }}>
-                Password
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  className="input"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  autoComplete="current-password"
-                  style={{ paddingRight: 42 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute', right: 12, top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: '#4a4a60', display: 'flex', padding: 0,
-                  }}
-                  tabIndex={-1}
-                >
-                  {showPassword
-                    ? <EyeOff style={{ width: 15, height: 15 }} />
-                    : <Eye style={{ width: 15, height: 15 }} />}
-                </button>
+          {/* Form card */}
+          <div style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-base)',
+            borderRadius: 'var(--r-xl)',
+            padding: '24px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+          }}>
+            {/* Error banner */}
+            {error && (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 9,
+                padding: '10px 12px', marginBottom: 18,
+                background: 'var(--danger-muted)', border: '1px solid var(--danger-border)',
+                borderRadius: 'var(--r-md)',
+              }}
+                className="anim-fade-in"
+              >
+                <AlertCircle style={{ width: 15, height: 15, color: 'var(--danger-text)', marginTop: 1, flexShrink: 0 }} />
+                <p style={{ fontSize: 13, color: 'var(--danger-text)', lineHeight: 1.45 }}>{error}</p>
               </div>
-            </div>
+            )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary"
-              style={{ width: '100%', height: 40, marginTop: 4, fontSize: 14 }}
-            >
-              {loading
-                ? <Loader2 style={{ width: 15, height: 15, animation: 'spin 0.75s linear infinite' }} />
-                : 'Sign in'
-              }
-            </button>
-          </form>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Email */}
+              <div className="field-group">
+                <label className="field-label">Email address</label>
+                <div className="field-wrapper">
+                  <input
+                    className="field-input"
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    onFocus={() => setEmailFocused(true)}
+                    onBlur={() => setEmailFocused(false)}
+                    placeholder="you@company.com"
+                    required
+                    autoComplete="email"
+                    autoFocus
+                  />
+                </div>
+              </div>
 
-          <p style={{ fontSize: 12, color: '#4a4a60', textAlign: 'center', marginTop: 24 }}>
+              {/* Password */}
+              <div className="field-group">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <label className="field-label">Password</label>
+                  <Link href="/forgot-password" style={{
+                    fontSize: 12, color: 'var(--text-tertiary)', textDecoration: 'none',
+                    transition: 'color var(--t-fast)',
+                  }}
+                    onMouseEnter={e => (e.currentTarget.style.color = 'var(--brand-text)')}
+                    onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-tertiary)')}
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+                <div className="field-wrapper">
+                  <input
+                    className={`field-input icon-right`}
+                    type={showPass ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    onFocus={() => setPassFocused(true)}
+                    onBlur={() => setPassFocused(false)}
+                    placeholder="••••••••"
+                    required
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    className="field-icon right btn"
+                    onClick={() => setShowPass(!showPass)}
+                    tabIndex={-1}
+                    style={{
+                      background: 'none', border: 'none', borderRadius: 'var(--r-sm)',
+                      padding: '4px', height: 28, width: 28,
+                    }}
+                  >
+                    {showPass
+                      ? <EyeOff style={{ width: 15, height: 15, color: 'var(--text-tertiary)' }} />
+                      : <Eye    style={{ width: 15, height: 15, color: 'var(--text-tertiary)' }} />
+                    }
+                  </button>
+                </div>
+              </div>
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn btn-primary btn-lg btn-full"
+                style={{ marginTop: 4 }}
+              >
+                {loading
+                  ? <Loader2 className="anim-spin" style={{ width: 16, height: 16 }} />
+                  : 'Sign in to ContextOS'
+                }
+              </button>
+            </form>
+          </div>
+
+          {/* Footer */}
+          <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
             By signing in you agree to our{' '}
-            <Link href="/terms" style={{ color: '#8888a0' }}>Terms</Link>
-            {' '}&amp;{' '}
-            <Link href="/privacy" style={{ color: '#8888a0' }}>Privacy Policy</Link>
+            <Link href="/terms" style={{ color: 'var(--text-secondary)', textDecoration: 'underline', textUnderlineOffset: 3 }}>Terms</Link>
+            {' '}and{' '}
+            <Link href="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'underline', textUnderlineOffset: 3 }}>Privacy Policy</Link>
           </p>
         </div>
       </div>

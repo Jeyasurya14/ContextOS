@@ -1,4 +1,3 @@
-// frontend/src/app/(auth)/register/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -6,73 +5,94 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
-import { Eye, EyeOff, AlertCircle, Loader2, Check } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, Loader2, Check, Zap } from 'lucide-react'
 
-function Logo({ size = 24 }: { size?: number }) {
+function Logo({ size = 28 }: { size?: number }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width={size} height={size}>
+    <svg viewBox="0 0 64 64" width={size} height={size} fill="none">
       <defs>
-        <linearGradient id="rc" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#f59e0b" />
+        <linearGradient id="rg1" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#fbbf24" />
           <stop offset="100%" stopColor="#d97706" />
         </linearGradient>
       </defs>
-      <path d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50"
-        fill="none" stroke="url(#rc)" strokeWidth="5.5" strokeLinecap="round" />
-      <circle cx="17" cy="32" r="4" fill="#f59e0b" />
-      <g transform="translate(37,32)">
-        <path d="M0,-14 L12,-7 L12,7 L0,14 L-12,7 L-12,-7 Z"
-          fill="none" stroke="url(#rc)" strokeWidth="2.5" strokeLinejoin="round" />
-        <line x1="-6" y1="-3.5" x2="6" y2="-3.5" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-        <line x1="-6" y1="0"    x2="6" y2="0"    stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-        <line x1="-6" y1="3.5"  x2="6" y2="3.5"  stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-      </g>
+      <path d="M28 14C16 14 10 21 10 32s6 18 18 18" stroke="url(#rg1)" strokeWidth="5" strokeLinecap="round" />
+      <circle cx="17" cy="32" r="4" fill="url(#rg1)" />
+      <path d="M37 18l13 7.5V39L37 46.5 24 39V25.5z" stroke="url(#rg1)" strokeWidth="2.5" strokeLinejoin="round" />
+      <line x1="30" y1="28" x2="44" y2="28" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+      <line x1="30" y1="32" x2="44" y2="32" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+      <line x1="30" y1="36" x2="44" y2="36" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }
 
-function PasswordStrength({ password }: { password: string }) {
+/* ─── Password strength ───────────────────────────────────────── */
+const RULES = [
+  { label: '8+ characters',       test: (p: string) => p.length >= 8 },
+  { label: 'Uppercase letter',    test: (p: string) => /[A-Z]/.test(p) },
+  { label: 'Number or symbol',    test: (p: string) => /[0-9\W]/.test(p) },
+]
+
+function PasswordMeter({ password }: { password: string }) {
   if (!password) return null
-  const checks = [
-    { label: 'At least 8 characters',   pass: password.length >= 8 },
-    { label: 'One uppercase letter',     pass: /[A-Z]/.test(password) },
-    { label: 'One number or symbol',     pass: /[0-9!@#$%^&*]/.test(password) },
-  ]
-  const score = checks.filter(c => c.pass).length
-  const colors = ['#ef4444', '#f59e0b', '#22c55e']
-  const labels = ['Weak', 'Fair', 'Strong']
+  const score = RULES.filter(r => r.test(password)).length
+  const barColor = score === 1 ? '#ef4444' : score === 2 ? '#f59e0b' : '#10b981'
 
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-        {[0, 1, 2].map(i => (
+      {/* Bars */}
+      <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+        {RULES.map((_, i) => (
           <div key={i} style={{
             flex: 1, height: 3, borderRadius: 99,
-            background: i < score ? colors[score - 1] : '#1e1e2e',
-            transition: 'background 0.2s',
+            background: i < score ? barColor : 'var(--bg-overlay)',
+            transition: 'background 0.25s',
           }} />
         ))}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {checks.map(c => (
-          <div key={c.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{
-              width: 14, height: 14, borderRadius: '50%', flexShrink: 0,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: c.pass ? 'rgba(34,197,94,0.12)' : '#1a1a24',
-              border: `1px solid ${c.pass ? 'rgba(34,197,94,0.3)' : '#252535'}`,
-              transition: 'all 0.2s',
-            }}>
-              {c.pass && <Check style={{ width: 8, height: 8, color: '#22c55e' }} />}
+      {/* Checklist */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {RULES.map(rule => {
+          const pass = rule.test(password)
+          return (
+            <div key={rule.label} style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+              <div style={{
+                width: 16, height: 16, borderRadius: '50%', flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: pass ? 'var(--success-muted)' : 'var(--bg-overlay)',
+                border: `1px solid ${pass ? 'var(--success-border)' : 'var(--border-base)'}`,
+                transition: 'all 0.2s',
+              }}>
+                {pass && <Check style={{ width: 9, height: 9, color: 'var(--success-text)' }} />}
+              </div>
+              <span style={{ fontSize: 12, color: pass ? 'var(--success-text)' : 'var(--text-tertiary)' }}>
+                {rule.label}
+              </span>
             </div>
-            <span style={{ fontSize: 11, color: c.pass ? '#4ade80' : '#4a4a60' }}>{c.label}</span>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
 }
 
+/* ─── Feature item ────────────────────────────────────────────── */
+function Feature({ label }: { label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{
+        width: 20, height: 20, borderRadius: '50%',
+        background: 'var(--brand-muted)', border: '1px solid var(--brand-border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+      }}>
+        <Check style={{ width: 10, height: 10, color: 'var(--brand)' }} />
+      </div>
+      <span style={{ fontSize: 13.5, color: 'var(--text-secondary)' }}>{label}</span>
+    </div>
+  )
+}
+
+/* ─── Page ────────────────────────────────────────────────────── */
 export default function RegisterPage() {
   const router = useRouter()
   const { token, setToken, setUser } = useAuthStore()
@@ -81,7 +101,7 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showPassword, setShowPassword] = useState(false)
+  const [showPass, setShowPass] = useState(false)
 
   useEffect(() => { if (token) router.replace('/') }, [token, router])
 
@@ -94,216 +114,263 @@ export default function RegisterPage() {
       setToken(tokens.access_token)
       const { data: user } = await authApi.getMe()
       setUser(user)
-      await new Promise(r => setTimeout(r, 100))
+      await new Promise(r => setTimeout(r, 80))
       window.location.href = '/'
     } catch (err: unknown) {
-      if (err && typeof err === 'object' && 'response' in err) {
-        const e = err as { response?: { data?: { detail?: string } } }
-        setError(e.response?.data?.detail || 'Registration failed. Please try again.')
-      } else {
-        setError('Cannot reach the server. Check your connection.')
-      }
-    } finally {
-      setLoading(false)
-    }
+      const e = err as { response?: { data?: { detail?: string } } }
+      setError(e?.response?.data?.detail || 'Something went wrong. Please try again.')
+    } finally { setLoading(false) }
   }
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      background: '#0a0a0f',
-    }}>
-      {/* ── Left: Branding ── */}
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
+
+      {/* ═══════════ LEFT PANEL ═══════════ */}
       <div
         className="hidden lg:flex"
         style={{
-          width: 400,
+          width: 'clamp(320px, 36vw, 460px)',
           flexShrink: 0,
-          background: '#0d0d15',
-          borderRight: '1px solid #1e1e2e',
           flexDirection: 'column',
-          padding: '40px 40px',
+          position: 'relative',
+          overflow: 'hidden',
+          background: 'var(--bg-subtle)',
+          borderRight: '1px solid var(--border-subtle)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 'auto' }}>
-          <Logo size={28} />
-          <span style={{ fontSize: 15, fontWeight: 700, color: '#e8e8f0', letterSpacing: '-0.01em' }}>
-            ContextOS
-          </span>
-        </div>
+        {/* Gradient wash */}
+        <div style={{
+          position: 'absolute', inset: 0, pointerEvents: 'none',
+          background: 'radial-gradient(ellipse 70% 60% at 20% 80%, rgba(245,158,11,0.055) 0%, transparent 100%)',
+        }} />
 
-        <div style={{ paddingBottom: 80 }}>
-          <p style={{
-            fontSize: 24, fontWeight: 700, color: '#e8e8f0',
-            letterSpacing: '-0.02em', lineHeight: 1.3, marginBottom: 12,
-          }}>
-            Start free.<br />Scale when ready.
-          </p>
-          <p style={{ fontSize: 13, color: '#4a4a60', lineHeight: 1.7, marginBottom: 32 }}>
-            Everything you need to give your AI the full picture of your workspace — without the complexity.
-          </p>
+        <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', padding: '36px 40px' }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+            <Logo size={26} />
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              ContextOS
+            </span>
+          </div>
 
-          {/* Feature checklist */}
-          {[
-            'Free forever on the Starter plan',
-            'Connect GitHub, Notion, Slack & Linear',
-            'VS Code extension included',
-            'No credit card required',
-          ].map(item => (
-            <div key={item} style={{
-              display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12,
+          {/* Content */}
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 0 40px' }}>
+
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '4px 10px', borderRadius: 'var(--r-full)',
+              background: 'var(--brand-muted)', border: '1px solid var(--brand-border)',
+              marginBottom: 20, alignSelf: 'flex-start',
             }}>
-              <div style={{
-                width: 18, height: 18, borderRadius: '50%',
-                background: 'rgba(245,158,11,0.12)',
-                border: '1px solid rgba(245,158,11,0.25)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
-                <Check style={{ width: 9, height: 9, color: '#f59e0b' }} />
-              </div>
-              <span style={{ fontSize: 13, color: '#8888a0' }}>{item}</span>
+              <Zap style={{ width: 11, height: 11, color: 'var(--brand)' }} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brand-text)', letterSpacing: '0.02em' }}>
+                Start for free
+              </span>
             </div>
-          ))}
+
+            <h1 style={{
+              fontSize: 'clamp(24px, 2.8vw, 32px)',
+              fontWeight: 800, color: 'var(--text-primary)',
+              letterSpacing: '-0.035em', lineHeight: 1.2,
+              marginBottom: 12,
+            }}>
+              Context for your<br />
+              <span style={{ color: 'var(--brand-text)' }}>entire team.</span>
+            </h1>
+
+            <p style={{
+              fontSize: 14, lineHeight: 1.65, color: 'var(--text-tertiary)',
+              maxWidth: 300, marginBottom: 32,
+            }}>
+              Everything you need to give your AI the full picture of your codebase and team — without the complexity.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <Feature label="Free forever on the Starter plan" />
+              <Feature label="GitHub, Notion, Slack, Linear & more" />
+              <Feature label="VS Code extension included" />
+              <Feature label="No credit card required" />
+            </div>
+          </div>
+
+          {/* Trust bar */}
+          <div style={{
+            padding: '14px 16px',
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--r-lg)',
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <div style={{ display: 'flex' }}>
+              {['#7c3aed','#db2777','#0891b2','#059669'].map((c, i) => (
+                <div key={c} style={{
+                  width: 24, height: 24, borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${c}, ${c}dd)`,
+                  border: '2px solid var(--bg-surface)',
+                  marginLeft: i === 0 ? 0 : -6, position: 'relative', zIndex: 4 - i,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 10, fontWeight: 700, color: '#fff',
+                }}>
+                  {['A','B','C','D'][i]}
+                </div>
+              ))}
+            </div>
+            <div>
+              <p style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1 }}>
+                1,200+ teams onboarded
+              </p>
+              <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 3 }}>
+                Join developers who ship faster with context
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Right: Form ── */}
+      {/* ═══════════ RIGHT PANEL ═══════════ */}
       <div style={{
         flex: 1,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '40px 24px',
+        padding: '48px 24px',
+        overflowY: 'auto',
       }}>
         <div
-          className="animate-fade-in"
-          style={{ width: '100%', maxWidth: 380 }}
+          className="anim-fade-up"
+          style={{ width: '100%', maxWidth: 400 }}
         >
           {/* Mobile logo */}
-          <div className="flex lg:hidden" style={{
-            alignItems: 'center', gap: 8, marginBottom: 32, justifyContent: 'center',
-          }}>
+          <div
+            className="flex lg:hidden"
+            style={{ alignItems: 'center', gap: 9, justifyContent: 'center', marginBottom: 36 }}
+          >
             <Logo size={24} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#e8e8f0' }}>ContextOS</span>
+            <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+              ContextOS
+            </span>
           </div>
 
-          <h1 style={{
-            fontSize: 22, fontWeight: 700, color: '#e8e8f0',
-            letterSpacing: '-0.02em', marginBottom: 6,
-          }}>
-            Create your account
-          </h1>
-          <p style={{ fontSize: 13, color: '#4a4a60', marginBottom: 28 }}>
-            Already have one?{' '}
-            <Link href="/login" style={{ color: '#f59e0b', fontWeight: 500 }}>
-              Sign in
-            </Link>
-          </p>
-
-          {/* Error */}
-          {error && (
-            <div style={{
-              display: 'flex', alignItems: 'flex-start', gap: 8,
-              padding: '10px 14px', marginBottom: 20, borderRadius: 10,
-              background: 'rgba(239,68,68,0.06)',
-              border: '1px solid rgba(239,68,68,0.2)',
+          <div style={{ marginBottom: 28 }}>
+            <h2 style={{
+              fontSize: 22, fontWeight: 700, color: 'var(--text-primary)',
+              letterSpacing: '-0.025em', marginBottom: 8,
             }}>
-              <AlertCircle style={{ width: 14, height: 14, color: '#f87171', flexShrink: 0, marginTop: 1 }} />
-              <p style={{ fontSize: 13, color: '#f87171', margin: 0 }}>{error}</p>
-            </div>
-          )}
+              Create your account
+            </h2>
+            <p style={{ fontSize: 13.5, color: 'var(--text-tertiary)' }}>
+              Already have an account?{' '}
+              <Link href="/login" style={{ color: 'var(--brand-text)', fontWeight: 500, textDecoration: 'none' }}>
+                Sign in
+              </Link>
+            </p>
+          </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Full name */}
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#8888a0', marginBottom: 6 }}>
-                Full name
-              </label>
-              <input
-                className="input"
-                type="text"
-                value={fullName}
-                onChange={e => setFullName(e.target.value)}
-                placeholder="Jane Doe"
-                required
-                autoComplete="name"
-                autoFocus
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#8888a0', marginBottom: 6 }}>
-                Work email
-              </label>
-              <input
-                className="input"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 500, color: '#8888a0', marginBottom: 6 }}>
-                Password
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  className="input"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Min 8 characters"
-                  required
-                  minLength={8}
-                  autoComplete="new-password"
-                  style={{ paddingRight: 42 }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute', right: 12, top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: '#4a4a60', display: 'flex', padding: 0,
-                  }}
-                  tabIndex={-1}
-                >
-                  {showPassword
-                    ? <EyeOff style={{ width: 15, height: 15 }} />
-                    : <Eye style={{ width: 15, height: 15 }} />}
-                </button>
+          {/* Form card */}
+          <div style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border-base)',
+            borderRadius: 'var(--r-xl)',
+            padding: '24px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+          }}>
+            {error && (
+              <div
+                className="anim-fade-in"
+                style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 9,
+                  padding: '10px 12px', marginBottom: 16,
+                  background: 'var(--danger-muted)', border: '1px solid var(--danger-border)',
+                  borderRadius: 'var(--r-md)',
+                }}
+              >
+                <AlertCircle style={{ width: 15, height: 15, color: 'var(--danger-text)', flexShrink: 0, marginTop: 1 }} />
+                <p style={{ fontSize: 13, color: 'var(--danger-text)', lineHeight: 1.45 }}>{error}</p>
               </div>
-              <PasswordStrength password={password} />
-            </div>
+            )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn btn-primary"
-              style={{ width: '100%', height: 40, marginTop: 6, fontSize: 14 }}
-            >
-              {loading
-                ? <Loader2 style={{ width: 15, height: 15, animation: 'spin 0.75s linear infinite' }} />
-                : 'Create account'
-              }
-            </button>
-          </form>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Name */}
+              <div className="field-group">
+                <label className="field-label">Full name</label>
+                <input
+                  className="field-input"
+                  type="text"
+                  value={fullName}
+                  onChange={e => setFullName(e.target.value)}
+                  placeholder="Jane Smith"
+                  required
+                  autoComplete="name"
+                  autoFocus
+                />
+              </div>
 
-          <p style={{ fontSize: 12, color: '#4a4a60', textAlign: 'center', marginTop: 24 }}>
-            By signing up you agree to our{' '}
-            <Link href="/terms" style={{ color: '#8888a0' }}>Terms</Link>
-            {' '}&amp;{' '}
-            <Link href="/privacy" style={{ color: '#8888a0' }}>Privacy Policy</Link>
+              {/* Email */}
+              <div className="field-group">
+                <label className="field-label">Work email</label>
+                <input
+                  className="field-input"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  required
+                  autoComplete="email"
+                />
+              </div>
+
+              {/* Password */}
+              <div className="field-group">
+                <label className="field-label">Password</label>
+                <div className="field-wrapper">
+                  <input
+                    className="field-input icon-right"
+                    type={showPass ? 'text' : 'password'}
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="Min 8 characters"
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                  />
+                  <button
+                    type="button"
+                    className="field-icon right btn"
+                    onClick={() => setShowPass(!showPass)}
+                    tabIndex={-1}
+                    style={{
+                      background: 'none', border: 'none', borderRadius: 'var(--r-sm)',
+                      padding: '4px', height: 28, width: 28,
+                    }}
+                  >
+                    {showPass
+                      ? <EyeOff style={{ width: 15, height: 15, color: 'var(--text-tertiary)' }} />
+                      : <Eye    style={{ width: 15, height: 15, color: 'var(--text-tertiary)' }} />
+                    }
+                  </button>
+                </div>
+                <PasswordMeter password={password} />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn btn-primary btn-lg btn-full"
+                style={{ marginTop: 4 }}
+              >
+                {loading
+                  ? <Loader2 className="anim-spin" style={{ width: 16, height: 16 }} />
+                  : 'Create free account'
+                }
+              </button>
+            </form>
+          </div>
+
+          <p style={{ textAlign: 'center', marginTop: 20, fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.6 }}>
+            By creating an account you agree to our{' '}
+            <Link href="/terms" style={{ color: 'var(--text-secondary)', textDecoration: 'underline', textUnderlineOffset: 3 }}>Terms</Link>
+            {' '}and{' '}
+            <Link href="/privacy" style={{ color: 'var(--text-secondary)', textDecoration: 'underline', textUnderlineOffset: 3 }}>Privacy Policy</Link>
           </p>
         </div>
       </div>

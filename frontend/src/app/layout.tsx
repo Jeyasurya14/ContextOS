@@ -26,23 +26,19 @@ const NAV_SECONDARY = [
 
 function Logo({ size = 24 }: { size?: number }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width={size} height={size}>
+    <svg viewBox="0 0 64 64" width={size} height={size} fill="none">
       <defs>
-        <linearGradient id="lg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#f59e0b" />
+        <linearGradient id="lg_nav" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#fbbf24" />
           <stop offset="100%" stopColor="#d97706" />
         </linearGradient>
       </defs>
-      <path d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50"
-        fill="none" stroke="url(#lg)" strokeWidth="5.5" strokeLinecap="round" />
-      <circle cx="17" cy="32" r="4" fill="#f59e0b" />
-      <g transform="translate(37,32)">
-        <path d="M0,-14 L12,-7 L12,7 L0,14 L-12,7 L-12,-7 Z"
-          fill="none" stroke="url(#lg)" strokeWidth="2.5" strokeLinejoin="round" />
-        <line x1="-6" y1="-3.5" x2="6" y2="-3.5" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-        <line x1="-6" y1="0"    x2="6" y2="0"    stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-        <line x1="-6" y1="3.5"  x2="6" y2="3.5"  stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
-      </g>
+      <path d="M28 14C16 14 10 21 10 32s6 18 18 18" stroke="url(#lg_nav)" strokeWidth="5" strokeLinecap="round" />
+      <circle cx="17" cy="32" r="4" fill="url(#lg_nav)" />
+      <path d="M37 18l13 7.5V39L37 46.5 24 39V25.5z" stroke="url(#lg_nav)" strokeWidth="2.5" strokeLinejoin="round" />
+      <line x1="30" y1="28" x2="44" y2="28" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+      <line x1="30" y1="32" x2="44" y2="32" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+      <line x1="30" y1="36" x2="44" y2="36" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }
@@ -51,9 +47,9 @@ function NavItem({ href, icon: Icon, label, isActive, onClick }: {
   href: string; icon: any; label: string; isActive: boolean; onClick?: () => void
 }) {
   return (
-    <Link href={href} onClick={onClick}>
-      <div className={`nav-link ${isActive ? 'active' : ''}`}>
-        <Icon style={{ width: 15, height: 15, flexShrink: 0 }} />
+    <Link href={href} onClick={onClick} style={{ textDecoration: 'none' }}>
+      <div className={`nav-item ${isActive ? 'active' : ''}`}>
+        <Icon style={{ width: 16, height: 16, flexShrink: 0 }} />
         <span>{label}</span>
       </div>
     </Link>
@@ -72,19 +68,19 @@ function Sidebar({ user, pathname, onNavClick, onLogout }: {
     }}>
       {/* Logo */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
+        display: 'flex', alignItems: 'center', gap: 10,
         padding: '16px 8px 14px',
-        borderBottom: '1px solid #1e1e2e',
+        borderBottom: '1px solid var(--border-subtle)',
         marginBottom: 8,
       }}>
-        <Logo size={22} />
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#e8e8f0', letterSpacing: '-0.01em' }}>
+        <Logo size={24} />
+        <span style={{ fontSize: 14.5, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>
           ContextOS
         </span>
       </div>
 
       {/* Primary nav */}
-      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 1, paddingTop: 4 }}>
+      <nav style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 6 }}>
         {NAV.map(item => (
           <NavItem
             key={item.href}
@@ -98,7 +94,7 @@ function Sidebar({ user, pathname, onNavClick, onLogout }: {
         ))}
 
         {/* Divider */}
-        <div style={{ height: 1, background: '#1e1e2e', margin: '8px 2px' }} />
+        <div style={{ height: 1, background: 'var(--border-subtle)', margin: '10px 4px' }} />
 
         {NAV_SECONDARY.map(item => (
           <NavItem
@@ -112,81 +108,59 @@ function Sidebar({ user, pathname, onNavClick, onLogout }: {
 
       {/* User footer */}
       <div style={{
-        borderTop: '1px solid #1e1e2e',
-        padding: '10px 0 12px',
+        borderTop: '1px solid var(--border-subtle)',
+        padding: '12px 0 16px',
+        display: 'flex', flexDirection: 'column', gap: 4,
       }}>
         {/* Plan badge */}
         {plan === 'free' && (
-          <Link href="/dashboard/billing">
+          <Link href="/dashboard/billing" style={{ textDecoration: 'none' }}>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 6,
-              padding: '7px 10px', borderRadius: 8, marginBottom: 4,
-              background: 'rgba(245,158,11,0.06)',
-              border: '1px solid rgba(245,158,11,0.14)',
+              padding: '7px 10px', borderRadius: 'var(--r-md)',
+              background: 'var(--brand-muted)',
+              border: '1px solid var(--brand-border)',
               cursor: 'pointer',
-              transition: 'background 0.15s',
+              transition: 'background var(--t-fast)',
             }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,158,11,0.1)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(245,158,11,0.06)')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(245,158,11,0.15)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--brand-muted)')}
             >
-              <Zap style={{ width: 12, height: 12, color: '#f59e0b' }} />
-              <span style={{ fontSize: 12, color: '#f59e0b', fontWeight: 500, flex: 1 }}>Free plan</span>
-              <span style={{ fontSize: 11, color: '#8888a0' }}>Upgrade →</span>
+              <Zap style={{ width: 14, height: 14, color: 'var(--brand)' }} />
+              <span style={{ fontSize: 13, color: 'var(--brand-text)', fontWeight: 500, flex: 1 }}>Free plan</span>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Upgrade</span>
             </div>
           </Link>
         )}
 
         {/* User row */}
-        <Link href="/dashboard/settings" onClick={onNavClick}>
+        <Link href="/dashboard/settings" onClick={onNavClick} style={{ textDecoration: 'none' }}>
           <div style={{
-            display: 'flex', alignItems: 'center', gap: 9,
-            padding: '8px 10px', borderRadius: 8, cursor: 'pointer',
-            transition: 'background 0.15s',
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '8px 10px', borderRadius: 'var(--r-md)', cursor: 'pointer',
+            transition: 'background var(--t-fast)',
           }}
-            onMouseEnter={e => (e.currentTarget.style.background = '#111118')}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-surface)')}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
             <div style={{
-              width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+              width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
               background: 'linear-gradient(135deg, #d97706, #7c3aed)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 12, fontWeight: 700, color: '#fff',
             }}>
               {user?.name?.[0]?.toUpperCase() ?? '?'}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 12, fontWeight: 600, color: '#e8e8f0', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1 }}>
                 {user?.name ?? '—'}
               </p>
-              <p style={{ fontSize: 11, color: '#4a4a60', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1 }}>
                 {user?.email ?? ''}
               </p>
             </div>
-            <ChevronRight style={{ width: 13, height: 13, color: '#4a4a60', flexShrink: 0 }} />
           </div>
         </Link>
-
-        <button
-          onClick={onLogout}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-            padding: '7px 10px', borderRadius: 8, marginTop: 2,
-            background: 'none', border: 'none', cursor: 'pointer',
-            fontSize: 13, color: '#4a4a60', fontFamily: 'inherit',
-            transition: 'all 0.15s',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(239,68,68,0.06)'
-            e.currentTarget.style.color = '#f87171'
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'none'
-            e.currentTarget.style.color = '#4a4a60'
-          }}
-        >
-          <LogOut style={{ width: 13, height: 13 }} />
-          Sign out
-        </button>
       </div>
     </div>
   )
@@ -224,14 +198,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   if (isDashboard && (!isInitialized || (isInitialized && !token))) {
     return (
       <html lang="en" className="dark">
-        <body style={{ background: '#0a0a0f', display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ textAlign: 'center' }}>
-            <Logo size={32} />
-            <p style={{ fontSize: 13, color: '#4a4a60', marginTop: 12, fontFamily: 'Inter, sans-serif' }}>
-              {isInitialized ? 'Redirecting…' : 'Loading…'}
+        <body style={{ background: 'var(--bg-base)', display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ textAlign: 'center' }} className="anim-fade-in">
+            <Logo size={36} />
+            <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 16, fontWeight: 500 }}>
+              {isInitialized ? 'Redirecting…' : 'Loading workspace…'}
             </p>
           </div>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </body>
       </html>
     )
@@ -247,34 +220,34 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ToastProvider>
           {isDashboard ? (
-            <div style={{ display: 'flex', height: '100dvh', background: '#0a0a0f', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', height: '100dvh', background: 'var(--bg-base)', overflow: 'hidden' }}>
 
               {/* Mobile overlay */}
               {mobileOpen && (
                 <div
+                  className="anim-fade-in"
                   onClick={() => setMobileOpen(false)}
                   style={{
                     position: 'fixed', inset: 0, zIndex: 40,
-                    background: 'rgba(0,0,0,0.6)',
-                    backdropFilter: 'blur(4px)',
+                    background: 'rgba(0,0,0,0.5)',
+                    backdropFilter: 'blur(3px)',
                   }}
                 />
               )}
 
               {/* Sidebar */}
               <aside style={{
-                width: 220,
+                width: 240,
                 flexShrink: 0,
                 height: '100%',
-                background: '#0d0d15',
-                borderRight: '1px solid #1e1e2e',
+                background: 'var(--bg-subtle)',
+                borderRight: '1px solid var(--border-subtle)',
                 overflowY: 'auto',
-                // Mobile: drawer
                 position: 'fixed',
                 left: 0, top: 0, bottom: 0,
                 zIndex: 50,
                 transform: mobileOpen ? 'translateX(0)' : 'translateX(-100%)',
-                transition: 'transform 0.22s ease-out',
+                transition: 'transform 0.25s cubic-bezier(.16,1,.3,1)',
               }}
                 className="lg:relative lg:translate-x-0 lg:block"
               >
@@ -290,18 +263,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
                 {/* Mobile close */}
                 <button
-                  className="lg:hidden"
+                  className="lg:hidden btn btn-ghost"
                   onClick={() => setMobileOpen(false)}
                   style={{
                     position: 'absolute', top: 12, right: 12,
-                    width: 28, height: 28, borderRadius: 6,
-                    background: '#1a1a24', border: '1px solid #252535',
-                    color: '#8888a0', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    zIndex: 1,
+                    width: 32, height: 32, padding: 0, zIndex: 1,
                   }}
                 >
-                  <X style={{ width: 13, height: 13 }} />
+                  <X style={{ width: 16, height: 16 }} />
                 </button>
 
                 <Sidebar
@@ -313,45 +282,41 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </aside>
 
               {/* Main */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0, background: 'var(--bg-base)' }}>
 
                 {/* Mobile topbar */}
                 <div
                   className="lg:hidden"
                   style={{
                     display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 16px', flexShrink: 0,
-                    background: '#0d0d15',
-                    borderBottom: '1px solid #1e1e2e',
+                    padding: '12px 16px', flexShrink: 0,
+                    background: 'var(--bg-subtle)',
+                    borderBottom: '1px solid var(--border-subtle)',
                   }}
                 >
                   <button
+                    className="btn btn-secondary"
                     onClick={() => setMobileOpen(true)}
-                    style={{
-                      width: 32, height: 32, borderRadius: 7,
-                      background: '#111118', border: '1px solid #1e1e2e',
-                      color: '#8888a0', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
+                    style={{ width: 36, height: 36, padding: 0 }}
                   >
-                    <Menu style={{ width: 15, height: 15 }} />
+                    <Menu style={{ width: 16, height: 16 }} />
                   </button>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <Logo size={20} />
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#e8e8f0' }}>ContextOS</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Logo size={22} />
+                    <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>ContextOS</span>
                   </div>
                 </div>
 
                 {/* Content */}
                 <main style={{ flex: 1, overflow: 'auto' }}>
-                  <div style={{ padding: '32px 32px', maxWidth: 1200, margin: '0 auto' }}>
+                  <div style={{ padding: '36px 40px', maxWidth: 1080, margin: '0 auto' }}>
                     {children}
                   </div>
                 </main>
               </div>
             </div>
           ) : (
-            <div style={{ minHeight: '100vh', background: '#0a0a0f' }}>{children}</div>
+            <div style={{ minHeight: '100vh', background: 'var(--bg-base)' }}>{children}</div>
           )}
         </ToastProvider>
       </body>

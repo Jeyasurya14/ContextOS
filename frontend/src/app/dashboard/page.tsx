@@ -1,4 +1,3 @@
-// frontend/src/app/dashboard/page.tsx
 'use client'
 
 import { useEffect, useState, useMemo, useRef } from 'react'
@@ -6,7 +5,7 @@ import Link from 'next/link'
 import {
   Database, Plug, Activity, TrendingUp, Users,
   Zap, Clock, Brain, GitCommit, FileText, Hash,
-  ArrowRight, ChevronRight, Layers, Globe,
+  ArrowRight, ChevronRight, Layers, Globe, CheckCircle2
 } from 'lucide-react'
 import { integrationsApi, billingApi } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
@@ -29,39 +28,16 @@ function fmt(n: number) {
 /* ─── Providers ──────────────────────────────────────────────── */
 const PROVIDERS = [
   { key: 'github',  apiKey: 'github',      label: 'GitHub',       icon: GitCommit, color: '#a78bfa' },
-  { key: 'notion',  apiKey: 'notion',       label: 'Notion',       icon: FileText,  color: '#e4e4e7' },
-  { key: 'slack',   apiKey: 'slack',        label: 'Slack',        icon: Hash,      color: '#f87171' },
-  { key: 'linear',  apiKey: 'linear',       label: 'Linear',       icon: Layers,    color: '#67e8f9' },
-  { key: 'google',  apiKey: 'google_drive', label: 'Google Drive', icon: Globe,     color: '#86efac' },
+  { key: 'notion',  apiKey: 'notion',      label: 'Notion',       icon: FileText,  color: '#e2e8f0' },
+  { key: 'slack',   apiKey: 'slack',       label: 'Slack',        icon: Hash,      color: '#f87171' },
+  { key: 'linear',  apiKey: 'linear',      label: 'Linear',       icon: Layers,    color: '#67e8f9' },
+  { key: 'google',  apiKey: 'google_drive',label: 'Google Drive', icon: Globe,     color: '#86efac' },
 ]
 
-/* ─── Animated number ────────────────────────────────────────── */
-function Counter({ to }: { to: number }) {
-  const [val, setVal] = useState(0)
-  const raf = useRef<number>()
-  const t0 = useRef<number>()
-
-  useEffect(() => {
-    const from = val
-    t0.current = undefined
-    const animate = (ts: number) => {
-      if (!t0.current) t0.current = ts
-      const p = Math.min((ts - t0.current) / 900, 1)
-      const ease = 1 - Math.pow(1 - p, 3)
-      setVal(Math.round(from + (to - from) * ease))
-      if (p < 1) raf.current = requestAnimationFrame(animate)
-    }
-    raf.current = requestAnimationFrame(animate)
-    return () => { if (raf.current) cancelAnimationFrame(raf.current) }
-  }, [to])
-
-  return <>{fmt(val)}</>
-}
-
 /* ─── Sparkline ──────────────────────────────────────────────── */
-function Sparkline({ data, color }: { data: number[]; color: string }) {
+function Sparkline({ data, height = 32 }: { data: number[]; height?: number }) {
   if (data.length < 2) return null
-  const W = 120, H = 32
+  const W = 100, H = height
   const max = Math.max(...data, 1)
   const pts = data.map((v, i) => ({
     x: (i / (data.length - 1)) * W,
@@ -74,74 +50,30 @@ function Sparkline({ data, color }: { data: number[]; color: string }) {
   }, '')
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width={W} height={H} preserveAspectRatio="none">
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
       <defs>
-        <linearGradient id={`sp-${color.replace(/\W/g, '')}`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.15" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        <linearGradient id="spLine" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
         </linearGradient>
       </defs>
-      <path d={`${d} L${W},${H} L0,${H} Z`} fill={`url(#sp-${color.replace(/\W/g, '')})`} />
-      <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      <path d={`${d} L${W},${H} L0,${H} Z`} fill="url(#spLine)" />
+      <path d={d} fill="none" stroke="var(--brand)" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   )
 }
 
-/* ─── Stat card ──────────────────────────────────────────────── */
-function StatCard({ label, value, sub, icon: Icon, loading, sparkData }: {
-  label: string; value: number | string | null; sub?: string
-  icon: any; loading?: boolean; sparkData?: number[]
-}) {
-  return (
-    <div className="card" style={{ padding: '18px 20px' }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
-        <p style={{ fontSize: 12, fontWeight: 500, color: '#8888a0' }}>{label}</p>
-        <div style={{
-          width: 28, height: 28, borderRadius: 7, flexShrink: 0,
-          background: '#1a1a24', border: '1px solid #252535',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Icon style={{ width: 13, height: 13, color: '#8888a0' }} />
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="skeleton" style={{ height: 28, width: 72, marginBottom: 4 }} />
-      ) : (
-        <p style={{ fontSize: 24, fontWeight: 700, color: '#e8e8f0', letterSpacing: '-0.02em', lineHeight: 1, marginBottom: 4 }}>
-          {typeof value === 'number' ? <Counter to={value} /> : value ?? '—'}
-        </p>
-      )}
-
-      {sub && <p style={{ fontSize: 11, color: '#4a4a60' }}>{sub}</p>}
-
-      {sparkData && sparkData.length > 1 && (
-        <div style={{ marginTop: 12, overflow: 'hidden' }}>
-          <Sparkline data={sparkData} color="#f59e0b" />
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ─── Query chart ────────────────────────────────────────────── */
-function QueryChart({ data, queriesCount, limit }: { data: number[]; queriesCount: number; limit: number }) {
+/* ─── Query Chart ────────────────────────────────────────────── */
+function QueryChartArea({ data, limit, count }: { data: number[], limit: number, count: number }) {
   if (data.length === 0) {
-    return (
-      <div style={{
-        height: 120, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: '#4a4a60', fontSize: 13,
-      }}>
-        Waiting for data…
-      </div>
-    )
+    return <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>Waiting for data…</div>
   }
 
-  const W = 600, H = 120
+  const W = 600, H = 160
   const max = Math.max(...data, 1)
   const pts = data.map((v, i) => ({
     x: (i / (data.length - 1)) * W,
-    y: H - (v / max) * (H - 12) - 4,
+    y: H - (v / max) * (H - 16) - 8,
   }))
   const line = pts.reduce((acc, pt, i) => {
     if (i === 0) return `M${pt.x},${pt.y}`
@@ -150,104 +82,53 @@ function QueryChart({ data, queriesCount, limit }: { data: number[]; queriesCoun
   }, '')
   const fill = `${line} L${W},${H} L0,${H} Z`
   const last = pts[pts.length - 1]
-  const pct = limit > 0 && limit !== -1 ? (queriesCount / limit) * 100 : null
+  const pct = limit > 0 && limit !== -1 ? (count / limit) * 100 : null
 
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 120 }} preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.12" />
-            <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {[0.33, 0.66].map(f => (
-          <line key={f} x1={0} y1={H * f} x2={W} y2={H * f}
-            stroke="#1e1e2e" strokeWidth="1" />
-        ))}
-        <path d={fill} fill="url(#cg)" />
-        <path d={line} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx={last.x} cy={last.y} r="3" fill="#f59e0b" />
-      </svg>
+      <div style={{ position: 'relative', height: 160, marginBottom: 16 }}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: '100%', overflow: 'visible' }} preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="qcGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {/* Grid lines */}
+          {[1/3, 2/3].map(f => (
+            <line key={f} x1={0} y1={H * f} x2={W} y2={H * f} stroke="var(--border-base)" strokeWidth="1" strokeDasharray="4 4" />
+          ))}
+          <path d={fill} fill="url(#qcGrad)" className="anim-fade-in" />
+          <path d={line} fill="none" stroke="var(--brand)" strokeWidth="1.5" strokeLinecap="round" className="anim-fade-in" />
+          {/* Current point */}
+          <circle cx={last.x} cy={last.y} r="4" fill="var(--brand)" stroke="var(--bg-surface)" strokeWidth="2" />
+        </svg>
+      </div>
 
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginTop: 12, paddingTop: 12, borderTop: '1px solid #1e1e2e',
-        fontSize: 11,
+        paddingTop: 16, borderTop: '1px solid var(--border-subtle)',
+        fontSize: 12,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span style={{ color: '#8888a0' }}>
-            Today: <span style={{ color: '#e8e8f0', fontWeight: 600 }}>{queriesCount}</span>
-          </span>
-          <span style={{ color: '#8888a0' }}>
-            Limit: <span style={{ color: '#e8e8f0' }}>{limit === -1 ? '∞' : limit}</span>
-          </span>
-        </div>
-        {pct !== null && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div className="progress" style={{ width: 60 }}>
-              <div className="progress-fill" style={{
-                width: `${Math.min(pct, 100)}%`,
-                background: pct > 80 ? '#ef4444' : '#f59e0b',
-              }} />
-            </div>
-            <span style={{ color: '#4a4a60' }}>{Math.round(pct)}%</span>
+        <div style={{ display: 'flex', gap: 24 }}>
+          <div>
+            <span style={{ color: 'var(--text-secondary)' }}>Today: </span>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{count} queries</span>
           </div>
-        )}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#4ade80' }}>
-          <span style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: '#22c55e', display: 'inline-block',
-          }} />
-          Live
+          {limit !== -1 && (
+            <div>
+              <span style={{ color: 'var(--text-secondary)' }}>Limit check: </span>
+              <span style={{ color: pct && pct > 80 ? 'var(--danger-text)' : 'var(--success-text)' }}>
+                {limit - count} remaining
+              </span>
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', animation: 'dot-pulse 2s infinite' }} />
+          <span style={{ color: 'var(--success-text)', fontWeight: 500 }}>Live Data</span>
         </div>
       </div>
-    </div>
-  )
-}
-
-/* ─── Integration row ────────────────────────────────────────── */
-function IntegrationRow({ provider, integration }: { provider: typeof PROVIDERS[0]; integration: any }) {
-  const connected = integration?.is_active === true
-  const chunks = integration?.total_chunks ?? 0
-  const lastSync = integration?.last_synced_at
-  const Icon = provider.icon
-
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      padding: '9px 14px', borderBottom: '1px solid #1e1e2e',
-    }}>
-      <div style={{
-        width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-        background: '#1a1a24', border: '1px solid #252535',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        position: 'relative',
-      }}>
-        <Icon style={{ width: 13, height: 13, color: connected ? provider.color : '#4a4a60' }} />
-        {connected && (
-          <span style={{
-            position: 'absolute', bottom: -2, right: -2,
-            width: 7, height: 7, borderRadius: '50%',
-            background: '#22c55e', border: '2px solid #0a0a0f',
-          }} />
-        )}
-      </div>
-
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 13, fontWeight: 500, color: connected ? '#e8e8f0' : '#4a4a60', margin: 0 }}>
-          {provider.label}
-        </p>
-        <p style={{ fontSize: 11, color: '#4a4a60', margin: 0 }}>
-          {connected ? (lastSync ? relTime(lastSync) : 'Connected') : 'Not connected'}
-        </p>
-      </div>
-
-      {connected && chunks > 0 && (
-        <span style={{ fontSize: 11, fontWeight: 600, color: '#8888a0' }}>
-          {fmt(chunks)} chunks
-        </span>
-      )}
     </div>
   )
 }
@@ -260,10 +141,9 @@ export default function DashboardPage() {
   const [usage, setUsage] = useState<any>(null)
   const [integrations, setIntegrations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [queryHistory, setQueryHistory] = useState<number[]>([])
-  const [chunkHistory] = useState(() =>
-    Array.from({ length: 14 }, (_, i) => Math.max(0, i * 0.8 + Math.random() * 0.4))
-  )
+
+  const [queryData, setQueryData] = useState<number[]>([])
+  const [chunkData] = useState(() => Array.from({ length: 12 }, (_, i) => Math.max(0, i * 2 + Math.random() * 5)))
 
   const greeting = useMemo(() => {
     const h = new Date().getHours()
@@ -277,261 +157,220 @@ export default function DashboardPage() {
     ;(async () => {
       setLoading(true)
       try {
-        const [usageRes, intRes] = await Promise.allSettled([
-          billingApi.getUsage(),
-          integrationsApi.getAll(),
-        ])
-        if (usageRes.status === 'fulfilled') setUsage(usageRes.value.data)
-        if (intRes.status === 'fulfilled') setIntegrations(intRes.value.data || [])
-      } finally {
-        setLoading(false)
-      }
+        const [uRes, iRes] = await Promise.allSettled([billingApi.getUsage(), integrationsApi.getAll()])
+        if (uRes.status === 'fulfilled') setUsage(uRes.value.data)
+        if (iRes.status === 'fulfilled') setIntegrations(iRes.value.data || [])
+      } finally { setLoading(false) }
     })()
   }, [isInitialized])
 
+  // Mock live chart data
   useEffect(() => {
     if (loading || !usage) return
-    const base = usage?.queries_count ?? 0
-    const seed = Array.from({ length: 24 }, (_, i) =>
-      Math.max(0, base - (24 - i) * 0.3 + (Math.random() - 0.5) * 2)
-    )
-    seed[seed.length - 1] = base
-    setQueryHistory(seed)
+    const count = usage?.queries_count ?? 0
+    let series = Array.from({ length: 24 }, (_, i) => Math.max(0, count - (24 - i) * 1.5 + (Math.random() - 0.5) * 3))
+    series[series.length - 1] = count
+    setQueryData(series)
+
     const iv = setInterval(() => {
-      setQueryHistory(prev => {
+      setQueryData(prev => {
         const next = [...prev.slice(1)]
-        next.push(Math.max(0, prev[prev.length - 1] + (Math.random() - 0.4)))
+        next.push(Math.max(0, prev[prev.length - 1] + (Math.random() - 0.3) * 2))
         return next
       })
-    }, 3000)
+    }, 4000)
     return () => clearInterval(iv)
   }, [loading, usage])
 
-  const connectedCount = integrations.filter(i => i.is_active).length
+  const activeCount = integrations.filter(i => i.is_active).length
   const totalChunks = integrations.reduce((s, i) => s + (i.total_chunks || 0), 0)
-  const queriesCount = usage?.queries_count ?? 0
-  const queriesLimit = usage?.queries_limit ?? 25
-  const planLabel = (user?.plan ?? 'Free').charAt(0).toUpperCase() + (user?.plan ?? 'free').slice(1)
+  const qCount = usage?.queries_count ?? 0
+  const qLim = usage?.queries_limit ?? 50
+  const planName = (user?.plan ?? 'free').charAt(0).toUpperCase() + (user?.plan ?? 'free').slice(1)
 
   return (
-    <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
 
-      {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+      {/* ── HEADER ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <h1 style={{
-            fontSize: 20, fontWeight: 700, color: '#e8e8f0',
-            letterSpacing: '-0.02em', margin: '0 0 4px',
-          }}>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 4 }}>
             {greeting}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
           </h1>
-          <p style={{ fontSize: 13, color: '#4a4a60', margin: 0 }}>
-            {connectedCount > 0
-              ? `${connectedCount} source${connectedCount !== 1 ? 's' : ''} active · ${fmt(totalChunks)} chunks`
-              : 'Connect your tools to start building context.'
-            }
+          <p style={{ fontSize: 13.5, color: 'var(--text-tertiary)' }}>
+            Here's what's happening in your workspace today.
           </p>
         </div>
         <Link href="/dashboard/chat">
-          <button className="btn btn-primary" style={{ height: 36, fontSize: 13 }}>
-            <Brain style={{ width: 14, height: 14 }} />
+          <button className="btn btn-primary btn-md">
+            <Brain style={{ width: 15, height: 15 }} />
             Ask ContextOS
           </button>
         </Link>
       </div>
 
-      {/* ── Stat cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-        <StatCard label="Context chunks" value={loading ? null : totalChunks}
-          sub={`${connectedCount} source${connectedCount !== 1 ? 's' : ''}`}
-          icon={Database} loading={loading} sparkData={chunkHistory} />
-        <StatCard label="Active sources" value={loading ? null : connectedCount}
-          sub={`of ${PROVIDERS.length} available`}
-          icon={Plug} loading={loading} />
-        <StatCard label="Queries today" value={loading ? null : queriesCount}
-          sub={queriesLimit === -1 ? 'Unlimited' : `${Math.max(0, queriesLimit - queriesCount)} remaining`}
-          icon={Activity} loading={loading} />
-        <StatCard label="Plan" value={loading ? null : planLabel}
-          sub="Current subscription"
-          icon={Zap} loading={loading} />
-      </div>
+      {/* ── METRICS GRID ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
 
-      {/* ── Main content ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}
-        className="lg:grid-cols-3">
-
-        {/* Query activity — 2 cols */}
-        <div className="card lg:col-span-2" style={{ padding: '18px 20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#e8e8f0', margin: '0 0 2px' }}>Query Activity</p>
-              <p style={{ fontSize: 11, color: '#4a4a60', margin: 0 }}>24h window</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#4ade80' }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
-              Live
-            </div>
+        {/* Card 1: Chunks */}
+        <div className="card-raised" style={{ padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>Indexed Chunks</span>
+            <Database style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
           </div>
-          {loading ? (
-            <div className="skeleton" style={{ height: 120 }} />
-          ) : (
-            <QueryChart data={queryHistory} queriesCount={queriesCount} limit={queriesLimit} />
+          {loading ? <div className="skel" style={{ height: 32, width: 80, marginTop: 4 }} /> : (
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginTop: 4 }}>
+              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1, letterSpacing: '-0.03em' }}>
+                {fmt(totalChunks)}
+              </span>
+              <div style={{ width: 60, height: 20, marginBottom: 2 }}><Sparkline data={chunkData} height={20} /></div>
+            </div>
           )}
         </div>
 
-        {/* Quick actions — 1 col */}
-        <div className="card" style={{ padding: '18px 20px' }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#e8e8f0', margin: '0 0 14px' }}>Quick actions</p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {/* Card 2: Sources */}
+        <div className="card-raised" style={{ padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>Active Sources</span>
+            <Plug style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
+          </div>
+          {loading ? <div className="skel" style={{ height: 32, width: 80, marginTop: 4 }} /> : (
+            <div style={{ marginTop: 4 }}>
+              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1, letterSpacing: '-0.03em' }}>
+                {activeCount} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-tertiary)', letterSpacing: 'normal' }}>/ {PROVIDERS.length}</span>
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Card 3: Queries */}
+        <div className="card-raised" style={{ padding: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>Queries Today</span>
+            <Activity style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
+          </div>
+          {loading ? <div className="skel" style={{ height: 32, width: 80, marginTop: 4 }} /> : (
+            <div style={{ marginTop: 4 }}>
+              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1, letterSpacing: '-0.03em' }}>
+                {qCount}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── MAIN CHARTS & ACTIONS ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }} className="lg:grid-cols-3">
+
+        {/* Left: Chart */}
+        <div className="card lg:col-span-2" style={{ padding: 24 }}>
+          <div style={{ marginBottom: 24 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Query Volume</h3>
+            <p style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>Activity across your team over the last 24 hours.</p>
+          </div>
+          {loading ? <div className="skel" style={{ height: 200 }} /> : (
+            <QueryChartArea data={queryData} limit={qLim} count={qCount} />
+          )}
+        </div>
+
+        {/* Right: Quick actions */}
+        <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>Quick Actions</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {[
-              { href: '/dashboard/chat',         label: 'Ask anything',       sub: 'Query your context',     icon: Brain   },
-              { href: '/dashboard/integrations', label: 'Add integrations',   sub: 'Connect data sources',   icon: Plug    },
-              { href: '/dashboard/team',         label: 'Invite team',        sub: 'Share your workspace',   icon: Users   },
+              { href: '/dashboard/chat', icon: Brain, label: 'Chat with Workspace', sub: 'Run a new query' },
+              { href: '/dashboard/integrations', icon: Plug, label: 'Add Data Source', sub: 'Connect GitHub, Notion, etc' },
+              { href: '/dashboard/team', icon: Users, label: 'Invite Team', sub: 'Collaborate on context' },
             ].map(a => (
-              <Link key={a.href} href={a.href}>
+              <Link key={a.href} href={a.href} style={{ textDecoration: 'none' }}>
                 <div style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '9px 10px', borderRadius: 8, cursor: 'pointer',
-                  transition: 'background 0.15s',
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '12px 14px', borderRadius: 'var(--r-md)',
+                  border: '1px solid var(--border-subtle)',
+                  background: 'var(--bg-subtle)',
+                  transition: 'border var(--t-fast), background var(--t-fast)',
                 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#1a1a24')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.background = 'var(--bg-raised)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.background = 'var(--bg-subtle)' }}
                 >
-                  <div style={{
-                    width: 28, height: 28, borderRadius: 7, flexShrink: 0,
-                    background: '#1a1a24', border: '1px solid #252535',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <a.icon style={{ width: 13, height: 13, color: '#8888a0' }} />
+                  <div style={{ width: 32, height: 32, borderRadius: 'var(--r-sm)', background: 'var(--bg-overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <a.icon style={{ width: 14, height: 14, color: 'var(--text-primary)' }} />
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: '#e8e8f0', margin: 0 }}>{a.label}</p>
-                    <p style={{ fontSize: 11, color: '#4a4a60', margin: 0 }}>{a.sub}</p>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{a.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{a.sub}</div>
                   </div>
-                  <ArrowRight style={{ width: 12, height: 12, color: '#4a4a60', flexShrink: 0 }} />
+                  <ChevronRight style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
                 </div>
               </Link>
             ))}
           </div>
+
+          <div style={{ marginTop: 'auto', paddingTop: 24 }}>
+            <div style={{ padding: 16, borderRadius: 'var(--r-md)', background: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <Zap style={{ width: 12, height: 12, color: 'var(--brand)' }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand-text)' }}>ContextOS Starter</span>
+              </div>
+              <p style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.4 }}>
+                You are currently on the free plan. Upgrade to unlock unlimited queries and team members.
+              </p>
+              <Link href="/dashboard/billing">
+                <button className="btn btn-sm" style={{ width: '100%', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', color: 'var(--text-primary)' }}>
+                  View Plans
+                </button>
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Integrations + Usage ── */}
-      <div style={{ display: 'grid', gap: 12 }} className="lg:grid-cols-3">
-
-        {/* Integrations — 2 cols */}
-        <div className="card lg:col-span-2" style={{ overflow: 'hidden' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '14px 20px', borderBottom: '1px solid #1e1e2e',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#e8e8f0', margin: 0 }}>Data Sources</p>
-              {connectedCount > 0 && (
-                <span className="badge badge-green">{connectedCount} active</span>
-              )}
-            </div>
-            <Link href="/dashboard/integrations">
-              <span style={{ fontSize: 12, color: '#8888a0', display: 'flex', alignItems: 'center', gap: 3, transition: 'color 0.15s' }}
-                onMouseEnter={e => (e.currentTarget.style.color = '#f59e0b')}
-                onMouseLeave={e => (e.currentTarget.style.color = '#8888a0')}>
-                Manage <ChevronRight style={{ width: 12, height: 12 }} />
-              </span>
+      {/* ── INTEGRATIONS ── */}
+      <div>
+        <div className="card">
+          <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Data Integrations</h3>
+            <Link href="/dashboard/integrations" style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500 }}>
+              Manage →
             </Link>
           </div>
-
-          {loading ? (
-            <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="skeleton" style={{ height: 48 }} />
-              ))}
-            </div>
-          ) : (
-            <div>
-              {PROVIDERS.map(p => (
-                <IntegrationRow
-                  key={p.key}
-                  provider={p}
-                  integration={integrations.find(i => i.provider === p.apiKey)}
-                />
-              ))}
-              {connectedCount === 0 && (
-                <div style={{ padding: '32px 20px', textAlign: 'center' }}>
-                  <p style={{ fontSize: 13, color: '#4a4a60', marginBottom: 12 }}>
-                    No integrations connected
-                  </p>
-                  <Link href="/dashboard/integrations">
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b' }}>
-                      Connect your first tool →
-                    </span>
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Usage — 1 col */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div className="card" style={{ padding: '18px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#e8e8f0', margin: 0 }}>Usage</p>
-              <Link href="/dashboard/billing">
-                <span style={{ fontSize: 12, color: '#8888a0', transition: 'color 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color = '#f59e0b')}
-                  onMouseLeave={e => (e.currentTarget.style.color = '#8888a0')}>
-                  Upgrade →
-                </span>
-              </Link>
-            </div>
-
+          <div>
             {loading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {[...Array(2)].map((_, i) => <div key={i} className="skeleton" style={{ height: 36 }} />)}
+              <div style={{ padding: '24px' }}>
+                <div className="skel" style={{ height: 48, marginBottom: 8 }} />
+                <div className="skel" style={{ height: 48, marginBottom: 8 }} />
+                <div className="skel" style={{ height: 48 }} />
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {/* Queries */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12 }}>
-                    <span style={{ color: '#8888a0' }}>Queries</span>
-                    <span style={{ color: '#e8e8f0', fontWeight: 500 }}>
-                      {queriesCount} / {queriesLimit === -1 ? '∞' : queriesLimit}
-                    </span>
-                  </div>
-                  <div className="progress">
-                    <div className="progress-fill" style={{
-                      width: queriesLimit === -1 ? '15%' :
-                        `${Math.min((queriesCount / queriesLimit) * 100, 100)}%`,
-                      background: queriesCount / queriesLimit > 0.8 ? '#ef4444' : '#f59e0b',
-                    }} />
-                  </div>
-                </div>
-
-                {/* Integrations */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 12 }}>
-                    <span style={{ color: '#8888a0' }}>Integrations</span>
-                    <span style={{ color: '#e8e8f0', fontWeight: 500 }}>
-                      {connectedCount} / {PROVIDERS.length}
-                    </span>
-                  </div>
-                  <div className="progress">
-                    <div className="progress-fill" style={{
-                      width: `${(connectedCount / PROVIDERS.length) * 100}%`,
-                      background: '#22c55e',
-                    }} />
-                  </div>
-                </div>
-
-                {/* Plan */}
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  paddingTop: 10, borderTop: '1px solid #1e1e2e',
-                }}>
-                  <span style={{ fontSize: 12, color: '#8888a0' }}>Plan</span>
-                  <span className="badge badge-amber">{planLabel}</span>
-                </div>
+              <div style={{
+                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 1,
+                background: 'var(--border-subtle)', // Creates 1px borders between items
+              }}>
+                {PROVIDERS.map(p => {
+                  const intg = integrations.find(i => i.provider === p.apiKey)
+                  const isActive = intg?.is_active
+                  return (
+                    <div key={p.key} style={{
+                      padding: '16px 24px', background: 'var(--bg-surface)',
+                      display: 'flex', alignItems: 'center', gap: 12,
+                    }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 'var(--r-sm)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <p.icon style={{ width: 16, height: 16, color: isActive ? p.color : 'var(--text-tertiary)' }} />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 500, color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{p.label}</div>
+                        <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)' }}>
+                          {isActive ? (intg.total_chunks ? `${fmt(intg.total_chunks)} chunks` : 'Connected') : 'Not connected'}
+                        </div>
+                      </div>
+                      {isActive ? (
+                        <span className="badge badge-green">Active</span>
+                      ) : (
+                        <span className="badge badge-neutral">Connect</span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>
