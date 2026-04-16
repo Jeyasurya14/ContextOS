@@ -3,10 +3,9 @@
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
-  Database, Plug, Activity, TrendingUp, Users,
-  Zap, Clock, Brain, GitCommit, FileText, Hash,
-  ArrowRight, ChevronRight, Layers, Globe, CheckCircle2,
-  Cpu, Terminal, RefreshCw, Plus, Search, Filter, MoreHorizontal
+  Database, Users, MessageSquare, Plug,
+  ArrowUpRight, ArrowRight, RefreshCw, Plus,
+  CheckCircle2, Clock, Sparkles, Activity
 } from 'lucide-react'
 import { integrationsApi, billingApi, teamsApi, healthApi } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
@@ -26,68 +25,19 @@ function fmt(n: number) {
   return String(n)
 }
 
-const PROVIDERS = [
-  { key: 'github',  apiKey: 'github',      label: 'GitHub Repo',  icon: GitCommit, color: '#a78bfa', type: 'Source Control' },
-  { key: 'notion',  apiKey: 'notion',      label: 'Notion Doc',   icon: FileText,  color: '#ffffff', type: 'Knowledge Base' },
-  { key: 'slack',   apiKey: 'slack',       label: 'Slack App',    icon: Hash,      color: '#f87171', type: 'Real-time' },
-  { key: 'linear',  apiKey: 'linear',      label: 'Linear App',   icon: Layers,    color: '#67e8f9', type: 'Issue Tracking' },
-  { key: 'google',  apiKey: 'google_drive',label: 'GDrive Context', icon: Globe,     color: '#86efac', type: 'Cloud Storage' },
-]
+function greeting() {
+  const h = new Date().getHours()
+  if (h < 12) return 'Good morning'
+  if (h < 18) return 'Good afternoon'
+  return 'Good evening'
+}
 
-/* ─── Render Dashboard Table Row ─── */
-function ServiceRow({ label, type, status, lastSync, chunks, icon: Icon, color }: any) {
-  return (
-    <div 
-      style={{ 
-        display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 1fr 1fr 1fr 120px 40px',
-        padding: '12px 24px', alignItems: 'center', gap: 16,
-        borderBottom: '1px solid var(--border-subtle)',
-        background: 'var(--bg-base)', transition: 'background var(--t-fast)'
-      }}
-      className="group hover:bg-white/[0.02]"
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div style={{ 
-          width: 32, height: 32, borderRadius: 'var(--r-md)', 
-          background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-        }}>
-          <Icon style={{ width: 14, height: 14, color }} />
-        </div>
-        <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none' }}>{label}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>main-prod</div>
-        </div>
-      </div>
-      
-      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{type}</div>
-      
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 6, height: 6, borderRadius: '50%', background: status === 'Active' ? 'var(--success)' : 'var(--text-disabled)' }} />
-          <span style={{ fontSize: 12, color: status === 'Active' ? 'var(--success-text)' : 'var(--text-tertiary)', fontWeight: 500 }}>{status}</span>
-        </div>
-      </div>
-
-      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{chunks || '—'} data points</div>
-      
-      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'right' }}>{lastSync}</div>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-         <button 
-           className="btn btn-ghost" 
-           style={{ width: 28, height: 28, padding: 0 }}
-           onClick={() => {
-             if (status === 'Active') {
-               integrationsApi.syncGithub().then(() => alert('Sync started for ' + label));
-             }
-           }}
-         >
-           <RefreshCw size={14} style={{ color: 'var(--text-disabled)' }} />
-         </button>
-      </div>
-    </div>
-  )
+const PROVIDER_LABELS: Record<string, string> = {
+  github: 'GitHub',
+  notion: 'Notion',
+  slack: 'Slack',
+  linear: 'Linear',
+  google_drive: 'Google Drive',
 }
 
 /* ─── Page ───────────────────────────────────────────────────── */
@@ -98,7 +48,6 @@ export default function DashboardPage() {
   const [integrations, setIntegrations] = useState<any[]>([])
   const [members, setMembers] = useState<any[]>([])
   const [health, setHealth] = useState<any>(null)
-  const [filter, setFilter] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -107,7 +56,7 @@ export default function DashboardPage() {
       setLoading(true)
       try {
         const [uRes, iRes, mRes, hRes] = await Promise.allSettled([
-          billingApi.getUsage(), 
+          billingApi.getUsage(),
           integrationsApi.getAll(),
           teamsApi.getMembers(),
           healthApi.getHealth()
@@ -120,13 +69,19 @@ export default function DashboardPage() {
     })()
   }, [isInitialized])
 
-  // Derive real events from integrations
+  const queriesUsed = usage?.queries_count || 0
+  const queriesLimit = usage?.queries_limit || 0
+  const queriesPct = queriesLimit > 0 ? Math.min(100, Math.round((queriesUsed / queriesLimit) * 100)) : 0
+  const totalChunks = integrations.reduce((s, i) => s + (i.total_chunks || 0), 0)
+  const activeSources = integrations.filter(i => i.is_active).length
+
   const recentEvents = useMemo(() => {
     return integrations
       .filter(i => i.last_synced_at)
       .map(i => ({
-        event: `${PROVIDERS.find(p => p.apiKey === i.provider)?.label || i.provider} Sync`,
-        status: i.sync_status === 'completed' ? 'Success' : 'Active',
+        provider: i.provider,
+        label: PROVIDER_LABELS[i.provider] || i.provider,
+        status: i.sync_status,
         time: relTime(i.last_synced_at),
         timestamp: new Date(i.last_synced_at).getTime()
       }))
@@ -134,157 +89,273 @@ export default function DashboardPage() {
       .slice(0, 5)
   }, [integrations])
 
+  const firstName = (user?.name || 'there').split(' ')[0]
+  const allHealthy = health && Object.values(health.services || {}).every((s: any) => s.status === 'connected')
+
+  const stats = [
+    {
+      label: 'Queries this month',
+      value: fmt(queriesUsed),
+      sub: queriesLimit > 0 ? `of ${fmt(queriesLimit)}` : 'unlimited',
+      icon: MessageSquare,
+      progress: queriesPct,
+    },
+    {
+      label: 'Knowledge base',
+      value: fmt(totalChunks),
+      sub: 'indexed chunks',
+      icon: Database,
+    },
+    {
+      label: 'Integrations',
+      value: activeSources.toString(),
+      sub: activeSources === 1 ? 'active source' : 'active sources',
+      icon: Plug,
+    },
+    {
+      label: 'Team',
+      value: members.length.toString(),
+      sub: members.length === 1 ? 'member' : 'members',
+      icon: Users,
+    },
+  ]
+
   return (
-    <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 32, maxWidth: 1280, margin: '0 auto', width: '100%' }}>
+
+      {/* Hero / Welcome */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <h1 style={{ fontSize: 26, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 6 }}>
+            {greeting()}, {firstName}
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>
+            Here's what's happening across your workspace.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link href="/dashboard/chat">
+            <button className="btn btn-secondary btn-sm">
+              <MessageSquare size={14} /> Open chat
+            </button>
+          </Link>
+          <Link href="/dashboard/integrations">
+            <button className="btn btn-primary btn-sm">
+              <Plus size={14} /> Add integration
+            </button>
+          </Link>
+        </div>
+      </div>
 
       {/* Stats Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-        {[
-          { label: 'Intelligence Usage', value: `${((usage?.queries_count || 0) / (usage?.queries_limit || 1)).toFixed(0)}%`, sub: `${usage?.queries_count || 0} / ${usage?.queries_limit || 0} queries`, icon: Cpu },
-          { label: 'Indexed Context', value: fmt(integrations.reduce((s, i) => s + (i.total_chunks || 0), 0)), sub: 'Processed data blocks', icon: Database },
-          { label: 'Active Sources', value: integrations.filter(i => i.is_active).length.toString(), sub: 'Connected pipelines', icon: RefreshCw },
-          { label: 'Team Members', value: members.length.toString(), sub: 'Workspace users', icon: Users },
-        ].map((stat, i) => (
-          <div key={i} className="card" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <stat.icon style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{stat.label}</span>
+        {stats.map((stat, i) => (
+          <div key={i} className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14, minHeight: 120 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <span style={{ fontSize: 13, color: 'var(--text-tertiary)', fontWeight: 500 }}>{stat.label}</span>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--bg-raised)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <stat.icon size={14} style={{ color: 'var(--text-secondary)' }} />
+              </div>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4, letterSpacing: '-0.02em' }}>{stat.value}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{stat.sub}</div>
+            <div style={{ marginTop: 'auto' }}>
+              <div style={{ fontSize: 30, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                {loading ? <span className="skel" style={{ display: 'inline-block', width: 60, height: 28 }} /> : stat.value}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 6 }}>{stat.sub}</div>
+            </div>
+            {typeof stat.progress === 'number' && (
+              <div className="progress" style={{ marginTop: 4 }}>
+                <div className="progress-fill progress-amber" style={{ width: `${stat.progress}%` }} />
+              </div>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Service Registry */}
-      <div className="card" style={{ overflow: 'hidden' }}>
-        <div style={{ 
-          padding: '18px 24px', borderBottom: '1px solid var(--border-base)', 
-          background: 'var(--bg-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-             <h3 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Connected Sources</h3>
-             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-md)' }}>
-                <Search size={13} style={{ color: 'var(--text-tertiary)' }} />
-                <input 
-                  placeholder="Filter sources..." 
-                  value={filter}
-                  onChange={e => setFilter(e.target.value)}
-                  style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: 12, width: 140 }} 
-                />
-             </div>
-          </div>
-          <Link href="/dashboard/integrations">
-            <button className="btn btn-primary btn-sm">
-              <Plus size={14} /> Add Source
-            </button>
-          </Link>
-        </div>
+      {/* Two-column content */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 20 }}>
 
-        {/* Table Header */}
-        <div style={{ 
-          display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 1fr 1fr 1fr 120px 40px',
-          padding: '12px 24px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-base)',
-          fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em'
-        }}>
-          <span>Source</span>
-          <span>Type</span>
-          <span>Status</span>
-          <span>Data Points</span>
-          <span style={{ textAlign: 'right' }}>Last Sync</span>
-          <span></span>
-        </div>
-
-        <div>
-          {loading ? (
-            <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading sources...</div>
-          ) : integrations.length === 0 ? (
-            <div style={{ padding: 80, textAlign: 'center' }}>
-              <Database size={48} style={{ margin: '0 auto 16px', color: 'var(--text-disabled)' }} />
-              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>No sources connected</div>
-              <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 20 }}>Connect your first data source to start building context.</div>
-              <Link href="/dashboard/integrations">
-                 <button className="btn btn-primary">Connect Source</button>
-              </Link>
+        {/* Connected Sources */}
+        <section className="card" style={{ overflow: 'hidden' }}>
+          <header style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border-subtle)' }}>
+            <div>
+              <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Connected sources</h2>
+              <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>Data feeding your context engine</p>
             </div>
-          ) : (
-            integrations
-              .filter(i => {
-                const p = PROVIDERS.find(pr => pr.apiKey === i.provider)
-                return !filter || p?.label.toLowerCase().includes(filter.toLowerCase()) || i.provider.toLowerCase().includes(filter.toLowerCase())
-              })
-              .map(intg => {
-                const p = PROVIDERS.find(pr => pr.apiKey === intg.provider) || { label: intg.provider, icon: Database, color: 'var(--text-secondary)', type: 'Custom' }
-                return (
-                  <ServiceRow 
-                    key={intg.id}
-                    label={p.label}
-                    type={p.type}
-                    status={intg.is_active ? 'Active' : 'Disconnected'}
-                    chunks={intg.total_chunks ? fmt(intg.total_chunks) : '0'}
-                    lastSync={intg.last_synced_at ? relTime(intg.last_synced_at) : 'Never'}
-                    icon={p.icon}
-                    color={intg.is_active ? p.color : 'var(--text-disabled)'}
-                  />
-                )
-              })
-          )}
-        </div>
-      </div>
+            <Link href="/dashboard/integrations" style={{ textDecoration: 'none' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                Manage <ArrowRight size={12} />
+              </span>
+            </Link>
+          </header>
 
-      {/* Activity & Health */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-        <div className="card" style={{ padding: '24px' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <Terminal size={16} style={{ color: 'var(--brand)' }} />
-              <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Recent Activity</h3>
-           </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div>
+            {loading ? (
+              <div style={{ padding: 40 }}>
+                {[1, 2, 3].map(i => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                    <div className="skel" style={{ width: 36, height: 36, borderRadius: 8 }} />
+                    <div style={{ flex: 1 }}>
+                      <div className="skel" style={{ height: 12, width: '40%', marginBottom: 6 }} />
+                      <div className="skel" style={{ height: 10, width: '25%' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : integrations.length === 0 ? (
+              <div style={{ padding: '60px 24px', textAlign: 'center' }}>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: 'var(--bg-raised)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                  <Plug size={20} style={{ color: 'var(--text-tertiary)' }} />
+                </div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>No sources yet</div>
+                <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 20 }}>
+                  Connect your tools to start building context.
+                </div>
+                <Link href="/dashboard/integrations">
+                  <button className="btn btn-primary btn-sm">
+                    <Plus size={14} /> Connect a source
+                  </button>
+                </Link>
+              </div>
+            ) : (
+              integrations.map((intg, i) => (
+                <SourceRow
+                  key={intg.id}
+                  name={PROVIDER_LABELS[intg.provider] || intg.provider}
+                  active={intg.is_active}
+                  chunks={intg.total_chunks || 0}
+                  lastSync={intg.last_synced_at ? relTime(intg.last_synced_at) : 'Never'}
+                  isLast={i === integrations.length - 1}
+                />
+              ))
+            )}
+          </div>
+        </section>
+
+        {/* Right column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* System status */}
+          <section className="card" style={{ padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>System status</h2>
+              {health && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: allHealthy ? 'var(--success-text)' : 'var(--danger-text)' }}>
+                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: allHealthy ? 'var(--success)' : 'var(--danger)' }} />
+                  {allHealthy ? 'All systems operational' : 'Degraded'}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {health ? (
+                Object.entries(health.services || {}).map(([name, data]: [string, any], i, arr) => (
+                  <div key={name} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 0',
+                    borderBottom: i < arr.length - 1 ? '1px solid var(--border-subtle)' : 'none'
+                  }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)', textTransform: 'capitalize' }}>{name}</span>
+                    <span style={{
+                      fontSize: 12,
+                      color: data.status === 'connected' ? 'var(--success-text)' : 'var(--danger-text)',
+                      fontWeight: 500,
+                      display: 'inline-flex', alignItems: 'center', gap: 6
+                    }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: data.status === 'connected' ? 'var(--success)' : 'var(--danger)' }} />
+                      {data.status === 'connected' ? 'Online' : 'Offline'}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                [1, 2, 3].map(i => (
+                  <div key={i} style={{ padding: '10px 0', borderBottom: i < 3 ? '1px solid var(--border-subtle)' : 'none' }}>
+                    <div className="skel" style={{ height: 12, width: '60%' }} />
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+
+          {/* Activity */}
+          <section className="card" style={{ padding: 20 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 14 }}>Recent activity</h2>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
               {recentEvents.length > 0 ? (
                 recentEvents.map((ev, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: i < recentEvents.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>{ev.event}</span>
-                        <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{ev.time}</span>
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '10px 0',
+                    borderBottom: i < recentEvents.length - 1 ? '1px solid var(--border-subtle)' : 'none'
+                  }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: '50%',
+                      background: 'var(--success-muted)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+                    }}>
+                      <CheckCircle2 size={14} style={{ color: 'var(--success-text)' }} />
                     </div>
-                    <span className="badge badge-green" style={{ fontSize: 10 }}>{ev.status}</span>
-                  </div>
-                ))
-              ) : (
-                <div style={{ fontSize: 13, color: 'var(--text-tertiary)', textAlign: 'center', padding: '40px 0' }}>No recent activity</div>
-              )}
-            </div>
-        </div>
-
-        <div className="card" style={{ padding: '24px' }}>
-           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-              <Activity size={16} style={{ color: 'var(--success)' }} />
-              <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>System Health</h3>
-           </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-              {health ? (
-                Object.entries(health.services || {}).map(([name, data]: [string, any]) => (
-                  <div key={name} style={{ padding: '12px 0', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500, textTransform: 'capitalize' }}>{name}</span>
-                      {data.points_count !== undefined && <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{fmt(data.points_count)} vectors</span>}
-                      {data.used_memory_human !== undefined && <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{data.used_memory_human}</span>}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: data.status === 'connected' ? 'var(--success)' : 'var(--danger)' }} />
-                      <span style={{ fontSize: 12, color: data.status === 'connected' ? 'var(--success-text)' : 'var(--danger-text)', fontWeight: 500 }}>
-                        {data.status === 'connected' ? 'Online' : 'Offline'}
-                      </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>
+                        {ev.label} synced
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                        {ev.time}
+                      </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div style={{ fontSize: 13, color: 'var(--text-tertiary)', textAlign: 'center', padding: '40px 0' }}>Loading health data...</div>
+                <div style={{ padding: '24px 0', textAlign: 'center' }}>
+                  <Clock size={18} style={{ color: 'var(--text-disabled)', marginBottom: 8 }} />
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>No activity yet</div>
+                </div>
               )}
             </div>
+          </section>
         </div>
       </div>
 
+    </div>
+  )
+}
+
+/* ─── Source Row ─── */
+function SourceRow({ name, active, chunks, lastSync, isLast }: {
+  name: string; active: boolean; chunks: number; lastSync: string; isLast: boolean
+}) {
+  return (
+    <div
+      className="hover:bg-white/[0.015]"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        padding: '14px 20px',
+        borderBottom: isLast ? 'none' : '1px solid var(--border-subtle)',
+        transition: 'background var(--t-fast)'
+      }}
+    >
+      <div style={{
+        width: 36, height: 36, borderRadius: 8,
+        background: 'var(--bg-raised)', border: '1px solid var(--border-base)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)',
+        flexShrink: 0
+      }}>
+        {name[0]?.toUpperCase()}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>{name}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>
+          {fmt(chunks)} chunks · Synced {lastSync}
+        </div>
+      </div>
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        fontSize: 12, color: active ? 'var(--success-text)' : 'var(--text-tertiary)',
+        fontWeight: 500
+      }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: active ? 'var(--success)' : 'var(--text-disabled)' }} />
+        {active ? 'Active' : 'Paused'}
+      </span>
     </div>
   )
 }

@@ -159,37 +159,30 @@ function TopHeader({ pathname }: { pathname: string | null }) {
 
   return (
     <header style={{ 
-      height: 52, flexShrink: 0, 
+      height: 56, flexShrink: 0, 
       borderBottom: '1px solid var(--border-subtle)',
       background: 'var(--bg-base)',
-      display: 'flex', alignItems: 'center', padding: '0 24px', 
+      display: 'flex', alignItems: 'center', padding: '0 32px', 
       gap: 12, justifyContent: 'space-between'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Globe style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-          <span style={{ color: 'var(--text-tertiary)' }}>Workspace</span>
-          <ChevronRight style={{ width: 12, height: 12, color: 'var(--text-disabled)' }} />
-          {segments.map((seg, i) => (
-            <div key={seg} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontWeight: i === segments.length - 1 ? 600 : 400, color: i === segments.length - 1 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                {seg === 'Dashboard' ? 'Overview' : seg}
-              </span>
-              {i < segments.length - 1 && <ChevronRight style={{ width: 12, height: 12, color: 'var(--text-disabled)' }} />}
-            </div>
-          ))}
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+        {segments.map((seg, i) => (
+          <div key={seg} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{
+              fontWeight: i === segments.length - 1 ? 600 : 400,
+              color: i === segments.length - 1 ? 'var(--text-primary)' : 'var(--text-tertiary)',
+              letterSpacing: '-0.01em'
+            }}>
+              {seg === 'Dashboard' ? 'Overview' : seg}
+            </span>
+            {i < segments.length - 1 && <ChevronRight style={{ width: 14, height: 14, color: 'var(--text-disabled)' }} />}
+          </div>
+        ))}
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 10px var(--success)' }} className="anim-dot-pulse" />
-          <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500 }}>Global Index Active</span>
-        </div>
-        <div style={{ height: 16, width: 1, background: 'var(--border-base)' }} />
-        <button className="btn btn-secondary btn-sm" style={{ height: 28, fontSize: 12 }}>
-          <RefreshCw style={{ width: 12, height: 12 }} /> Force Sync
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-tertiary)' }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--success)' }} />
+        <span>Operational</span>
       </div>
     </header>
   )

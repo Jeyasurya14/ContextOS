@@ -10,16 +10,16 @@
    ============================================================ */
 :root {
   /* Backgrounds */
-  --bg-base:    #0d0d0f;
-  --bg-subtle:  #141416;
-  --bg-surface: #1a1a1d;
-  --bg-raised:  #202024;
-  --bg-overlay: #28282c;
+  --bg-base:    #0a0a0b;
+  --bg-subtle:  #0f0f11;
+  --bg-surface: #141416;
+  --bg-raised:  #1a1a1d;
+  --bg-overlay: #222226;
 
   /* Borders */
-  --border-subtle: rgba(255,255,255,0.05);
-  --border-base:   rgba(255,255,255,0.08);
-  --border-strong: rgba(255,255,255,0.12);
+  --border-subtle: rgba(255,255,255,0.04);
+  --border-base:   rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.11);
 
   /* Text */
   --text-primary:   #f5f5f7;
@@ -253,9 +253,10 @@ body {
 .card {
   background: var(--bg-surface);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--r-lg);
-  transition: border-color var(--t-fast);
+  border-radius: 12px;
+  transition: border-color var(--t-fast), background var(--t-fast);
 }
+.card:hover { border-color: var(--border-base); }
 
 .card-raised {
   background: var(--bg-surface);
@@ -280,41 +281,29 @@ body {
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  border-radius: var(--r-md);
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
   font-size: 13.5px;
   font-weight: 500;
-  color: var(--text-tertiary);
+  color: var(--text-secondary);
   cursor: pointer;
   text-decoration: none;
   transition: all var(--t-fast);
-  min-height: 38px;
+  min-height: 34px;
   position: relative;
   letter-spacing: -0.01em;
 }
 
 .nav-item:hover {
-  background: var(--bg-surface);
-  color: var(--text-secondary);
+  background: var(--bg-raised);
+  color: var(--text-primary);
 }
 
 .nav-item.active {
-  background: var(--bg-surface);
+  background: var(--bg-raised);
   color: var(--text-primary);
   font-weight: 600;
-}
-
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  height: 20px;
-  width: 3px;
-  background: var(--brand);
-  border-radius: 0 2px 2px 0;
 }
 
 /* ============================================================
