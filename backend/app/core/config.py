@@ -59,6 +59,30 @@ def _inject_ssl_for_external(url: str) -> str:
     return urlunparse(parsed._replace(query=new_query))
 
 
+def _ensure_asyncpg_driver(url: str) -> str:
+    """Guarantee the URL uses the asyncpg driver for SQLAlchemy's async engine.
+
+    Database providers (NeonDB, Supabase, Render, etc.) give plain
+    postgresql:// or postgres:// URLs.  SQLAlchemy's create_async_engine
+    requires postgresql+asyncpg://.  This normalises any valid PG URL:
+
+        postgres://...            →  postgresql+asyncpg://...
+        postgresql://...          →  postgresql+asyncpg://...
+        postgresql+psycopg2://... →  postgresql+asyncpg://...
+        postgresql+asyncpg://...  →  (unchanged)
+    """
+    if not url:
+        return url
+    # Normalise the legacy 'postgres://' scheme first
+    url = url.replace("postgres://", "postgresql://", 1)
+    # Replace any non-asyncpg driver with asyncpg
+    url = re.sub(r"^postgresql\+[^:]+://", "postgresql+asyncpg://", url)
+    # Plain postgresql:// (no driver) → asyncpg
+    if url.startswith("postgresql://"):
+        url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
 BASE_DIR = Path(__file__).resolve().parents[2]
 
 
@@ -75,11 +99,18 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def normalise_database_url(cls, v: object) -> object:
-        """On Render: rewrite external hostname → internal (no SSL needed).
-        Elsewhere: inject ssl=require for known external managed DB hosts."""
+        """Normalise any PostgreSQL URL into the form SQLAlchemy async needs.
+
+        Steps applied in order:
+          1. Render internal hostname rewrite (external → internal, drops SSL need)
+          2. Inject ssl=require for known external managed-DB hosts
+          3. Ensure the asyncpg driver prefix is present
+             (handles plain postgresql:// from NeonDB/Supabase dashboards)
+        """
         if isinstance(v, str):
-            v = _to_render_internal_url(v)   # Step 1: internal hostname (Render)
-            v = _inject_ssl_for_external(v)  # Step 2: SSL for other managed hosts
+            v = _to_render_internal_url(v)   # Step 1
+            v = _inject_ssl_for_external(v)  # Step 2
+            v = _ensure_asyncpg_driver(v)    # Step 3 — MUST be last
         return v
 
     DATABASE_POOL_SIZE: int = 20
