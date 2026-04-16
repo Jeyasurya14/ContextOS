@@ -4,7 +4,7 @@ import time
 import gzip
 import io
 from fastapi import Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.types import Message
 from loguru import logger
