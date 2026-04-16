@@ -9,30 +9,30 @@
    DESIGN TOKENS
    ============================================================ */
 :root {
-  /* Backgrounds */
-  --bg-base:    #09090e;
-  --bg-subtle:  #0f0f17;
-  --bg-surface: #13131d;
-  --bg-raised:  #18182a;
-  --bg-overlay: #1d1d30;
+  /* Backgrounds — Deeper neutral tone */
+  --bg-base:    #0a0a0b;
+  --bg-subtle:  #111112;
+  --bg-surface: #171719;
+  --bg-raised:  #1e1e21;
+  --bg-overlay: #26262a;
 
-  /* Borders */
-  --border-subtle: rgba(255,255,255,0.05);
-  --border-base:   rgba(255,255,255,0.08);
-  --border-strong: rgba(255,255,255,0.14);
+  /* Borders — Sharper, more defined */
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-base:   rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.18);
 
-  /* Text */
-  --text-primary:   #f0f0f8;
-  --text-secondary: #9494b0;
-  --text-tertiary:  #4a4a68;
-  --text-disabled:  #2e2e48;
+  /* Text — High density contrast */
+  --text-primary:   #ffffff;
+  --text-secondary: #a1a1aa;
+  --text-tertiary:  #71717a;
+  --text-disabled:  #3f3f46;
 
-  /* Brand — amber */
+  /* Brand — Fixed Amber */
   --brand:           #f59e0b;
   --brand-hover:     #d97706;
-  --brand-muted:     rgba(245,158,11,0.10);
-  --brand-border:    rgba(245,158,11,0.20);
-  --brand-text:      #fbbf24;
+  --brand-muted:     rgba(245,158,11,0.08);
+  --brand-border:    rgba(245,158,11,0.15);
+  --brand-text:      #f59e0b;
 
   /* Danger */
   --danger:          #ef4444;
@@ -46,11 +46,11 @@
   --success-border:  rgba(16,185,129,0.20);
   --success-text:    #34d399;
 
-  /* Radius */
-  --r-sm:   6px;
-  --r-md:   10px;
-  --r-lg:   14px;
-  --r-xl:   18px;
+  /* Radius — Precision Industrial */
+  --r-sm:   3px;
+  --r-md:   5px;
+  --r-lg:   8px;
+  --r-xl:   12px;
   --r-full: 999px;
 
   /* Shadows */

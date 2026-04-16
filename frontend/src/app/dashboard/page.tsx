@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Database, Plug, Activity, TrendingUp, Users,
   Zap, Clock, Brain, GitCommit, FileText, Hash,
-  ArrowRight, ChevronRight, Layers, Globe, CheckCircle2
+  ArrowRight, ChevronRight, Layers, Globe, CheckCircle2,
+  Cpu, Terminal, RefreshCw, Plus, Search, Filter, MoreHorizontal
 } from 'lucide-react'
 import { integrationsApi, billingApi } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
@@ -25,110 +26,54 @@ function fmt(n: number) {
   return String(n)
 }
 
-/* ─── Providers ──────────────────────────────────────────────── */
 const PROVIDERS = [
-  { key: 'github',  apiKey: 'github',      label: 'GitHub',       icon: GitCommit, color: '#a78bfa' },
-  { key: 'notion',  apiKey: 'notion',      label: 'Notion',       icon: FileText,  color: '#e2e8f0' },
-  { key: 'slack',   apiKey: 'slack',       label: 'Slack',        icon: Hash,      color: '#f87171' },
-  { key: 'linear',  apiKey: 'linear',      label: 'Linear',       icon: Layers,    color: '#67e8f9' },
-  { key: 'google',  apiKey: 'google_drive',label: 'Google Drive', icon: Globe,     color: '#86efac' },
+  { key: 'github',  apiKey: 'github',      label: 'GitHub Repo',  icon: GitCommit, color: '#a78bfa', type: 'Source Control' },
+  { key: 'notion',  apiKey: 'notion',      label: 'Notion Doc',   icon: FileText,  color: '#ffffff', type: 'Knowledge Base' },
+  { key: 'slack',   apiKey: 'slack',       label: 'Slack App',    icon: Hash,      color: '#f87171', type: 'Real-time' },
+  { key: 'linear',  apiKey: 'linear',      label: 'Linear App',   icon: Layers,    color: '#67e8f9', type: 'Issue Tracking' },
+  { key: 'google',  apiKey: 'google_drive',label: 'GDrive Context', icon: Globe,     color: '#86efac', type: 'Cloud Storage' },
 ]
 
-/* ─── Sparkline ──────────────────────────────────────────────── */
-function Sparkline({ data, height = 32 }: { data: number[]; height?: number }) {
-  if (data.length < 2) return null
-  const W = 100, H = height
-  const max = Math.max(...data, 1)
-  const pts = data.map((v, i) => ({
-    x: (i / (data.length - 1)) * W,
-    y: H - (v / max) * (H - 4) - 2,
-  }))
-  const d = pts.reduce((acc, pt, i) => {
-    if (i === 0) return `M${pt.x},${pt.y}`
-    const prev = pts[i - 1]
-    return `${acc} C${prev.x + (pt.x - prev.x) / 2},${prev.y} ${pt.x - (pt.x - prev.x) / 2},${pt.y} ${pt.x},${pt.y}`
-  }, '')
-
+/* ─── Render Dashboard Table Row ─── */
+function ServiceRow({ label, type, status, lastSync, chunks, icon: Icon, color }: any) {
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="100%" preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="spLine" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${d} L${W},${H} L0,${H} Z`} fill="url(#spLine)" />
-      <path d={d} fill="none" stroke="var(--brand)" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  )
-}
-
-/* ─── Query Chart ────────────────────────────────────────────── */
-function QueryChartArea({ data, limit, count }: { data: number[], limit: number, count: number }) {
-  if (data.length === 0) {
-    return <div style={{ height: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)' }}>Waiting for data…</div>
-  }
-
-  const W = 600, H = 160
-  const max = Math.max(...data, 1)
-  const pts = data.map((v, i) => ({
-    x: (i / (data.length - 1)) * W,
-    y: H - (v / max) * (H - 16) - 8,
-  }))
-  const line = pts.reduce((acc, pt, i) => {
-    if (i === 0) return `M${pt.x},${pt.y}`
-    const prev = pts[i - 1]
-    return `${acc} C${prev.x + (pt.x - prev.x) / 3},${prev.y} ${pt.x - (pt.x - prev.x) / 3},${pt.y} ${pt.x},${pt.y}`
-  }, '')
-  const fill = `${line} L${W},${H} L0,${H} Z`
-  const last = pts[pts.length - 1]
-  const pct = limit > 0 && limit !== -1 ? (count / limit) * 100 : null
-
-  return (
-    <div>
-      <div style={{ position: 'relative', height: 160, marginBottom: 16 }}>
-        <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: '100%', overflow: 'visible' }} preserveAspectRatio="none">
-          <defs>
-            <linearGradient id="qcGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--brand)" stopOpacity="0.15" />
-              <stop offset="100%" stopColor="var(--brand)" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          {/* Grid lines */}
-          {[1/3, 2/3].map(f => (
-            <line key={f} x1={0} y1={H * f} x2={W} y2={H * f} stroke="var(--border-base)" strokeWidth="1" strokeDasharray="4 4" />
-          ))}
-          <path d={fill} fill="url(#qcGrad)" className="anim-fade-in" />
-          <path d={line} fill="none" stroke="var(--brand)" strokeWidth="1.5" strokeLinecap="round" className="anim-fade-in" />
-          {/* Current point */}
-          <circle cx={last.x} cy={last.y} r="4" fill="var(--brand)" stroke="var(--bg-surface)" strokeWidth="2" />
-        </svg>
-      </div>
-
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        paddingTop: 16, borderTop: '1px solid var(--border-subtle)',
-        fontSize: 12,
-      }}>
-        <div style={{ display: 'flex', gap: 24 }}>
-          <div>
-            <span style={{ color: 'var(--text-secondary)' }}>Today: </span>
-            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{count} queries</span>
-          </div>
-          {limit !== -1 && (
-            <div>
-              <span style={{ color: 'var(--text-secondary)' }}>Limit check: </span>
-              <span style={{ color: pct && pct > 80 ? 'var(--danger-text)' : 'var(--success-text)' }}>
-                {limit - count} remaining
-              </span>
-            </div>
-          )}
+    <div 
+      style={{ 
+        display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 1fr 1fr 1fr 120px 40px',
+        padding: '12px 24px', alignItems: 'center', gap: 16,
+        borderBottom: '1px solid var(--border-subtle)',
+        background: 'var(--bg-base)', transition: 'background var(--t-fast)'
+      }}
+      className="group hover:bg-white/[0.02]"
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ 
+          width: 32, height: 32, borderRadius: 'var(--r-md)', 
+          background: 'var(--bg-surface)', border: '1px solid var(--border-base)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+        }}>
+          <Icon style={{ width: 14, height: 14, color }} />
         </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none' }}>{label}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>main-prod</div>
+        </div>
+      </div>
+      
+      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{type}</div>
+      
+      <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', animation: 'dot-pulse 2s infinite' }} />
-          <span style={{ color: 'var(--success-text)', fontWeight: 500 }}>Live Data</span>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: status === 'Active' ? 'var(--success)' : 'var(--text-disabled)' }} />
+          <span style={{ fontSize: 12, color: status === 'Active' ? 'var(--success-text)' : 'var(--text-tertiary)', fontWeight: 500 }}>{status}</span>
         </div>
       </div>
+
+      <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{chunks || '—'} data points</div>
+      
+      <div style={{ fontSize: 11, color: 'var(--text-tertiary)', textAlign: 'right' }}>{lastSync}</div>
+
+      <button className="btn btn-ghost" style={{ width: 28, height: 28, padding: 0 }}><MoreHorizontal size={14} /></button>
     </div>
   )
 }
@@ -137,20 +82,9 @@ function QueryChartArea({ data, limit, count }: { data: number[], limit: number,
 export default function DashboardPage() {
   const user = useAuthStore(s => s.user)
   const isInitialized = useAuthStore(s => s.isInitialized)
-
   const [usage, setUsage] = useState<any>(null)
   const [integrations, setIntegrations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-
-  const [queryData, setQueryData] = useState<number[]>([])
-  const [chunkData] = useState(() => Array.from({ length: 12 }, (_, i) => Math.max(0, i * 2 + Math.random() * 5)))
-
-  const greeting = useMemo(() => {
-    const h = new Date().getHours()
-    if (h < 12) return 'Good morning'
-    if (h < 17) return 'Good afternoon'
-    return 'Good evening'
-  }, [])
 
   useEffect(() => {
     if (!isInitialized) return
@@ -164,218 +98,137 @@ export default function DashboardPage() {
     })()
   }, [isInitialized])
 
-  // Mock live chart data
-  useEffect(() => {
-    if (loading || !usage) return
-    const count = usage?.queries_count ?? 0
-    let series = Array.from({ length: 24 }, (_, i) => Math.max(0, count - (24 - i) * 1.5 + (Math.random() - 0.5) * 3))
-    series[series.length - 1] = count
-    setQueryData(series)
-
-    const iv = setInterval(() => {
-      setQueryData(prev => {
-        const next = [...prev.slice(1)]
-        next.push(Math.max(0, prev[prev.length - 1] + (Math.random() - 0.3) * 2))
-        return next
-      })
-    }, 4000)
-    return () => clearInterval(iv)
-  }, [loading, usage])
-
-  const activeCount = integrations.filter(i => i.is_active).length
-  const totalChunks = integrations.reduce((s, i) => s + (i.total_chunks || 0), 0)
-  const qCount = usage?.queries_count ?? 0
-  const qLim = usage?.queries_limit ?? 50
-  const planName = (user?.plan ?? 'free').charAt(0).toUpperCase() + (user?.plan ?? 'free').slice(1)
-
   return (
-    <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+    <div className="anim-fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-      {/* ── HEADER ── */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 4 }}>
-            {greeting}{user?.name ? `, ${user.name.split(' ')[0]}` : ''}
-          </h1>
-          <p style={{ fontSize: 13.5, color: 'var(--text-tertiary)' }}>
-            Here's what's happening in your workspace today.
-          </p>
-        </div>
-        <Link href="/dashboard/chat">
-          <button className="btn btn-primary btn-md">
-            <Brain style={{ width: 15, height: 15 }} />
-            Ask ContextOS
+      {/* ── Resource Stats Bar ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 1, background: 'var(--border-subtle)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-md)', overflow: 'hidden' }}>
+        {[
+          { label: 'Intelligence Usage', value: `${((usage?.queries_count || 0) / (usage?.queries_limit || 1)).toFixed(0)}%`, sub: `${usage?.queries_count || 0} / ${usage?.queries_limit || 0} queries`, icon: Cpu },
+          { label: 'Indexed Context', value: fmt(integrations.reduce((s, i) => s + (i.total_chunks || 0), 0)), sub: 'Processed data blocks', icon: Database },
+          { label: 'Active Sources', value: integrations.filter(i => i.is_active).length.toString(), sub: 'Connected pipelines', icon: RefreshCw },
+          { label: 'Workforce', value: '1', sub: 'Authorized team members', icon: Users },
+        ].map((stat, i) => (
+          <div key={i} style={{ padding: '16px 20px', background: 'var(--bg-subtle)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <stat.icon style={{ width: 12, height: 12, color: 'var(--text-tertiary)' }} />
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{stat.label}</span>
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{stat.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{stat.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Service Registry (Table) ── */}
+      <div className="card" style={{ overflow: 'hidden' }}>
+        <div style={{ 
+          padding: '16px 24px', borderBottom: '1px solid var(--border-base)', 
+          background: 'var(--bg-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+             <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Service Registry</h3>
+             <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', background: 'var(--bg-base)', border: '1px solid var(--border-subtle)', borderRadius: 'var(--r-sm)' }}>
+                <Search size={12} style={{ color: 'var(--text-tertiary)' }} />
+                <input placeholder="Filter..." style={{ background: 'none', border: 'none', outline: 'none', color: 'var(--text-primary)', fontSize: 11, width: 120 }} />
+             </div>
+          </div>
+          <button className="btn btn-primary btn-sm" style={{ fontWeight: 600 }}>
+            <Plus size={14} /> New Source
           </button>
-        </Link>
-      </div>
-
-      {/* ── METRICS GRID ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-
-        {/* Card 1: Chunks */}
-        <div className="card-raised" style={{ padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>Indexed Chunks</span>
-            <Database style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
-          </div>
-          {loading ? <div className="skel" style={{ height: 32, width: 80, marginTop: 4 }} /> : (
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginTop: 4 }}>
-              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1, letterSpacing: '-0.03em' }}>
-                {fmt(totalChunks)}
-              </span>
-              <div style={{ width: 60, height: 20, marginBottom: 2 }}><Sparkline data={chunkData} height={20} /></div>
-            </div>
-          )}
         </div>
 
-        {/* Card 2: Sources */}
-        <div className="card-raised" style={{ padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>Active Sources</span>
-            <Plug style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
-          </div>
-          {loading ? <div className="skel" style={{ height: 32, width: 80, marginTop: 4 }} /> : (
-            <div style={{ marginTop: 4 }}>
-              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1, letterSpacing: '-0.03em' }}>
-                {activeCount} <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-tertiary)', letterSpacing: 'normal' }}>/ {PROVIDERS.length}</span>
-              </span>
-            </div>
-          )}
+        {/* Table Header */}
+        <div style={{ 
+          display: 'grid', gridTemplateColumns: 'minmax(200px, 2fr) 1fr 1fr 1fr 120px 40px',
+          padding: '10px 24px', background: 'var(--bg-subtle)', borderBottom: '1px solid var(--border-base)',
+          fontSize: 11, fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em'
+        }}>
+          <span>Source Name</span>
+          <span>Type</span>
+          <span>Status</span>
+          <span>Density</span>
+          <span style={{ textAlign: 'right' }}>Last Activity</span>
+          <span></span>
         </div>
 
-        {/* Card 3: Queries */}
-        <div className="card-raised" style={{ padding: 20 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-            <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>Queries Today</span>
-            <Activity style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
-          </div>
-          {loading ? <div className="skel" style={{ height: 32, width: 80, marginTop: 4 }} /> : (
-            <div style={{ marginTop: 4 }}>
-              <span style={{ fontSize: 26, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1, letterSpacing: '-0.03em' }}>
-                {qCount}
-              </span>
+        <div>
+          {loading ? (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-tertiary)' }}>Loading resource graph...</div>
+          ) : integrations.length === 0 ? (
+            <div style={{ padding: 60, textAlign: 'center' }}>
+              <div style={{ fontSize: 14, color: 'var(--text-secondary)', marginBottom: 12 }}>No services deployed to this workspace yet.</div>
+              <Link href="/dashboard/integrations">
+                 <button className="btn btn-secondary">Connect your first source</button>
+              </Link>
             </div>
+          ) : (
+            PROVIDERS.map(p => {
+              const intg = integrations.find(i => i.provider === p.apiKey)
+              return (
+                <ServiceRow 
+                  key={p.key}
+                  label={p.label}
+                  type={p.type}
+                  status={intg?.is_active ? 'Active' : 'Missing'}
+                  chunks={intg?.total_chunks ? fmt(intg.total_chunks) : '0'}
+                  lastSync={intg?.last_synced_at ? relTime(intg.last_synced_at) : 'Never'}
+                  icon={p.icon}
+                  color={intg?.is_active ? p.color : 'var(--text-disabled)'}
+                />
+              )
+            })
           )}
         </div>
       </div>
 
-      {/* ── MAIN CHARTS & ACTIONS ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16 }} className="lg:grid-cols-3">
-
-        {/* Left: Chart */}
-        <div className="card lg:col-span-2" style={{ padding: 24 }}>
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Query Volume</h3>
-            <p style={{ fontSize: 12.5, color: 'var(--text-tertiary)' }}>Activity across your team over the last 24 hours.</p>
-          </div>
-          {loading ? <div className="skel" style={{ height: 200 }} /> : (
-            <QueryChartArea data={queryData} limit={qLim} count={qCount} />
-          )}
-        </div>
-
-        {/* Right: Quick actions */}
-        <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>Quick Actions</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              { href: '/dashboard/chat', icon: Brain, label: 'Chat with Workspace', sub: 'Run a new query' },
-              { href: '/dashboard/integrations', icon: Plug, label: 'Add Data Source', sub: 'Connect GitHub, Notion, etc' },
-              { href: '/dashboard/team', icon: Users, label: 'Invite Team', sub: 'Collaborate on context' },
-            ].map(a => (
-              <Link key={a.href} href={a.href} style={{ textDecoration: 'none' }}>
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '12px 14px', borderRadius: 'var(--r-md)',
-                  border: '1px solid var(--border-subtle)',
-                  background: 'var(--bg-subtle)',
-                  transition: 'border var(--t-fast), background var(--t-fast)',
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.background = 'var(--bg-raised)' }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.background = 'var(--bg-subtle)' }}
-                >
-                  <div style={{ width: 32, height: 32, borderRadius: 'var(--r-sm)', background: 'var(--bg-overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <a.icon style={{ width: 14, height: 14, color: 'var(--text-primary)' }} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{a.label}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{a.sub}</div>
-                  </div>
-                  <ChevronRight style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
+      {/* ── Low-Level Activity Log (Timeline) ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div className="card" style={{ padding: 20 }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <Terminal size={14} style={{ color: 'var(--brand)' }} />
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>Recent Events</h3>
+           </div>
+           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { event: 'Context Sync', status: 'Success', time: '12m ago' },
+                { event: 'Team Member Join', status: 'Notice', time: '1h ago' },
+                { event: 'New Intelligence Query', status: 'Activity', time: '3h ago' },
+                { event: 'System Check', status: 'Ok', time: '5h ago' }
+              ].map((ev, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12 }}>
+                   <div style={{ display: 'flex', gap: 8 }}>
+                      <span style={{ color: 'var(--text-tertiary)' }}>[{ev.time}]</span>
+                      <span style={{ color: 'var(--text-primary)' }}>{ev.event}</span>
+                   </div>
+                   <span style={{ fontSize: 10, padding: '2px 6px', background: 'var(--bg-overlay)', color: 'var(--text-tertiary)', borderRadius: 'var(--r-sm)' }}>{ev.status}</span>
                 </div>
-              </Link>
-            ))}
-          </div>
+              ))}
+           </div>
+        </div>
 
-          <div style={{ marginTop: 'auto', paddingTop: 24 }}>
-            <div style={{ padding: 16, borderRadius: 'var(--r-md)', background: 'var(--brand-muted)', border: '1px solid var(--brand-border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                <Zap style={{ width: 12, height: 12, color: 'var(--brand)' }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--brand-text)' }}>ContextOS Starter</span>
+        <div className="card" style={{ padding: 20 }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <Activity size={14} style={{ color: 'var(--success)' }} />
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>Intelligence Health</h3>
+           </div>
+           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ height: 40, borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Semantic Latency</span>
+                 <span style={{ fontSize: 12, color: 'var(--success-text)', fontWeight: 600 }}>114ms</span>
               </div>
-              <p style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginBottom: 12, lineHeight: 1.4 }}>
-                You are currently on the free plan. Upgrade to unlock unlimited queries and team members.
-              </p>
-              <Link href="/dashboard/billing">
-                <button className="btn btn-sm" style={{ width: '100%', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', color: 'var(--text-primary)' }}>
-                  View Plans
-                </button>
-              </Link>
-            </div>
-          </div>
+              <div style={{ height: 40, borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Embedding Density</span>
+                 <span style={{ fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>High Precision</span>
+              </div>
+              <div style={{ height: 40, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                 <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Model Uptime</span>
+                 <span style={{ fontSize: 12, color: 'var(--success-text)', fontWeight: 600 }}>99.99%</span>
+              </div>
+           </div>
         </div>
       </div>
 
-      {/* ── INTEGRATIONS ── */}
-      <div>
-        <div className="card">
-          <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Data Integrations</h3>
-            <Link href="/dashboard/integrations" style={{ fontSize: 12, color: 'var(--text-secondary)', textDecoration: 'none', fontWeight: 500 }}>
-              Manage →
-            </Link>
-          </div>
-          <div>
-            {loading ? (
-              <div style={{ padding: '24px' }}>
-                <div className="skel" style={{ height: 48, marginBottom: 8 }} />
-                <div className="skel" style={{ height: 48, marginBottom: 8 }} />
-                <div className="skel" style={{ height: 48 }} />
-              </div>
-            ) : (
-              <div style={{
-                display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 1,
-                background: 'var(--border-subtle)', // Creates 1px borders between items
-              }}>
-                {PROVIDERS.map(p => {
-                  const intg = integrations.find(i => i.provider === p.apiKey)
-                  const isActive = intg?.is_active
-                  return (
-                    <div key={p.key} style={{
-                      padding: '16px 24px', background: 'var(--bg-surface)',
-                      display: 'flex', alignItems: 'center', gap: 12,
-                    }}>
-                      <div style={{ width: 36, height: 36, borderRadius: 'var(--r-sm)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <p.icon style={{ width: 16, height: 16, color: isActive ? p.color : 'var(--text-tertiary)' }} />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13.5, fontWeight: 500, color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{p.label}</div>
-                        <div style={{ fontSize: 11.5, color: 'var(--text-tertiary)' }}>
-                          {isActive ? (intg.total_chunks ? `${fmt(intg.total_chunks)} chunks` : 'Connected') : 'Not connected'}
-                        </div>
-                      </div>
-                      {isActive ? (
-                        <span className="badge badge-green">Active</span>
-                      ) : (
-                        <span className="badge badge-neutral">Connect</span>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
