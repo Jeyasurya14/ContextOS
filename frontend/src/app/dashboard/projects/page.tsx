@@ -1,22 +1,12 @@
-// frontend/src/app/dashboard/projects/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Plus, FolderOpen, Trash2, Loader2, Edit3, Calendar, X, Search, ChevronRight } from 'lucide-react'
+import { Plus, FolderOpen, Trash2, Loader2, Edit3, Calendar, X, Search } from 'lucide-react'
 import { projectsApi } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
-const PROJECT_COLORS = [
-  { bg: '#d97706', glow: 'rgba(217,119,6,0.15)' },
-  { bg: '#8b5cf6', glow: 'rgba(139,92,246,0.15)' },
-  { bg: '#3b82f6', glow: 'rgba(59,130,246,0.15)' },
-  { bg: '#22c55e', glow: 'rgba(34,197,94,0.15)' },
-  { bg: '#e01e5a', glow: 'rgba(224,30,90,0.15)' },
-  { bg: '#f59e0b', glow: 'rgba(245,158,11,0.15)' },
-  { bg: '#06b6d4', glow: 'rgba(6,182,212,0.15)' },
-  { bg: '#a855f7', glow: 'rgba(168,85,247,0.15)' },
-]
+const PROJECT_COLORS = ['#d97706', '#8b5cf6', '#3b82f6', '#22c55e', '#e01e5a', '#f59e0b', '#06b6d4', '#a855f7']
 
 function getColor(name: string) {
   return PROJECT_COLORS[(name?.charCodeAt(0) ?? 0) % PROJECT_COLORS.length]
@@ -93,127 +83,89 @@ export default function ProjectsPage() {
 
   return (
     <>
-      <style>{`
-        @keyframes pjFade { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
-        @keyframes pjCard { from { opacity:0; transform:translateY(8px) scale(0.99); } to { opacity:1; transform:none; } }
-      `}</style>
-
-      <div className="max-w-5xl" style={{ animation: 'pjFade 0.3s ease-out' }}>
+      <div className="anim-fade-up max-w-[1000px]">
+        
         {/* Header */}
-        <div className="flex items-start justify-between mb-7">
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-                style={{ background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.15)' }}>
-                <FolderOpen className="w-3.5 h-3.5 text-brand" />
-                <span className="text-[10px] font-semibold text-brand uppercase tracking-widest">Projects</span>
-              </div>
-            </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Projects</h1>
-            <p className="text-dark-500 text-sm mt-1">
-              Organize your context by workspace · <span className="text-white font-medium">{projects.length}</span> total
+            <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 8 }}>Projects</h1>
+            <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>
+              Organize your context by workspace · <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>{projects.length}</span> total
             </p>
           </div>
-          <button onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white transition-all"
-            style={{ background: 'linear-gradient(135deg, #d97706, #b45309)', boxShadow: '0 4px 16px rgba(217,119,6,0.25)' }}
-            onMouseEnter={e => (e.currentTarget.style.boxShadow = '0 6px 20px rgba(217,119,6,0.35)')}
-            onMouseLeave={e => (e.currentTarget.style.boxShadow = '0 4px 16px rgba(217,119,6,0.25)')}>
-            <Plus className="w-4 h-4" /> New Project
+          <button className="btn btn-primary" onClick={openCreate}>
+            <Plus style={{ width: 14, height: 14 }} /> New Project
           </button>
         </div>
 
         {/* Search */}
         {projects.length > 3 && (
-          <div className="relative mb-5">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-600" />
-            <input value={search} onChange={e => setSearch(e.target.value)}
+          <div style={{ position: 'relative', marginBottom: 24, maxWidth: 320 }}>
+            <Search style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', width: 14, height: 14, color: 'var(--text-tertiary)' }} />
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search projects…"
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl text-sm bg-dark-900/60 border border-white/6 text-white placeholder-dark-600 outline-none focus:border-brand/30 transition-colors" />
+              className="field-input"
+              style={{ paddingLeft: 36, width: '100%' }}
+            />
           </div>
         )}
 
         {loading ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="rounded-2xl animate-pulse" style={{ height: '160px', background: 'rgba(24,24,27,0.4)', border: '1px solid rgba(255,255,255,0.04)' }} />
+              <div key={i} className="card skel" style={{ height: '160px' }} />
             ))}
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
-              style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.12)' }}>
-              <FolderOpen className="w-8 h-8 text-brand opacity-40" />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: 'var(--r-lg)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <FolderOpen style={{ width: 32, height: 32, color: 'var(--text-tertiary)' }} />
             </div>
-            <h3 className="text-white font-semibold mb-1">{search ? 'No results found' : 'No projects yet'}</h3>
-            <p className="text-sm text-dark-600 mb-5 max-w-xs">
+            <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>{search ? 'No results found' : 'No projects yet'}</h3>
+            <p style={{ fontSize: 14, color: 'var(--text-tertiary)', maxWidth: 300, marginBottom: 24 }}>
               {search ? 'Try a different search term.' : 'Create a project to organize your AI context into workspaces.'}
             </p>
             {!search && (
-              <button onClick={openCreate}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium"
-                style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.2)', color: '#f59e0b' }}>
-                <Plus className="w-4 h-4" /> Create first project
+              <button className="btn btn-secondary" onClick={openCreate}>
+                <Plus style={{ width: 14, height: 14 }} /> Create first project
               </button>
             )}
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((p, idx) => {
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+            {filtered.map((p) => {
               const color = getColor(p.name)
               return (
-                <div key={p.id} className="group relative rounded-2xl overflow-hidden cursor-default transition-all duration-200"
-                  style={{
-                    background: 'rgba(15,15,17,0.85)',
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    backdropFilter: 'blur(12px)',
-                    animation: `pjCard 0.35s ease-out ${idx * 0.05}s both`,
-                  }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLDivElement).style.borderColor = `${color.bg}30`
-                    ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'
-                    ;(e.currentTarget as HTMLDivElement).style.boxShadow = `0 8px 32px rgba(0,0,0,0.2), 0 0 20px ${color.glow}`
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(255,255,255,0.06)'
-                    ;(e.currentTarget as HTMLDivElement).style.transform = 'none'
-                    ;(e.currentTarget as HTMLDivElement).style.boxShadow = 'none'
-                  }}>
+                <div key={p.id} className="card" style={{ display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
                   {/* Top color stripe */}
-                  <div className="h-0.5" style={{ background: `linear-gradient(90deg, transparent, ${color.bg}, transparent)` }} />
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: color }} />
 
-                  <div className="p-5">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0"
-                        style={{ background: color.bg, boxShadow: `0 4px 12px ${color.glow}` }}>
+                  <div style={{ padding: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 'var(--r-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 16, flexShrink: 0, background: color }}>
                         {p.name.charAt(0).toUpperCase()}
                       </div>
                       {/* Actions */}
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <button onClick={() => openEdit(p)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-                          style={{ background: 'rgba(255,255,255,0.04)', color: '#71717a' }}
-                          onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
-                          onMouseLeave={e => (e.currentTarget.style.color = '#71717a')}>
-                          <Edit3 className="w-3.5 h-3.5" />
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button onClick={() => openEdit(p)} className="btn btn-ghost" style={{ width: 28, height: 28, padding: 0 }}>
+                          <Edit3 style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
                         </button>
-                        <button onClick={() => setDeletingProject(p)}
-                          className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-                          style={{ background: 'rgba(255,255,255,0.04)', color: '#71717a' }}
-                          onMouseEnter={e => { (e.currentTarget.style.background = 'rgba(220,38,38,0.1)'); (e.currentTarget.style.color = '#f87171') }}
-                          onMouseLeave={e => { (e.currentTarget.style.background = 'rgba(255,255,255,0.04)'); (e.currentTarget.style.color = '#71717a') }}>
-                          <Trash2 className="w-3.5 h-3.5" />
+                        <button onClick={() => setDeletingProject(p)} className="btn btn-ghost" style={{ width: 28, height: 28, padding: 0 }}>
+                          <Trash2 style={{ width: 14, height: 14, color: 'var(--text-tertiary)' }} />
                         </button>
                       </div>
                     </div>
 
-                    <h3 className="font-semibold text-white text-[14px] mb-1 truncate">{p.name}</h3>
-                    {p.description && (
-                      <p className="text-[12px] text-dark-600 line-clamp-2 leading-relaxed mb-3">{p.description}</p>
+                    <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</h3>
+                    {p.description ? (
+                      <p style={{ fontSize: 12, color: 'var(--text-tertiary)', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.5, minHeight: 36 }}>{p.description}</p>
+                    ) : (
+                      <div style={{ minHeight: 36 }} />
                     )}
 
-                    <div className="flex items-center gap-1.5 text-[11px] text-dark-700 mt-3 pt-3 border-t border-white/4">
-                      <Calendar className="w-3 h-3" />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-tertiary)', marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
+                      <Calendar style={{ width: 12, height: 12 }} />
                       <span>{relTime(p.created_at)}</span>
                     </div>
                   </div>
@@ -225,63 +177,51 @@ export default function ProjectsPage() {
 
         {/* Modal */}
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ animation: 'pjFade 0.2s ease-out' }}>
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeModal} />
-            <div className="relative w-full max-w-md mx-4 rounded-2xl overflow-hidden"
-              style={{
-                background: 'rgba(15,15,17,0.97)',
-                border: '1px solid rgba(255,255,255,0.09)',
-                boxShadow: '0 24px 64px rgba(0,0,0,0.5)',
-              }}>
-              <div className="h-px bg-gradient-to-r from-transparent via-brand/50 to-transparent" />
-              <div className="flex items-center justify-between px-6 py-4">
-                <h2 className="text-base font-bold text-white">{editingProject ? 'Edit Project' : 'New Project'}</h2>
-                <button onClick={closeModal} className="w-7 h-7 rounded-lg flex items-center justify-center text-dark-600 hover:text-white transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  <X className="w-4 h-4" />
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ position: 'absolute', inset: 0, background: 'var(--bg-overlay)', backdropFilter: 'blur(4px)' }} onClick={closeModal} />
+            <div className="card anim-fade-up" style={{ position: 'relative', width: '100%', maxWidth: 440, margin: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
+                <h2 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>{editingProject ? 'Edit Project' : 'New Project'}</h2>
+                <button onClick={closeModal} className="btn btn-ghost" style={{ width: 28, height: 28, padding: 0 }}>
+                  <X style={{ width: 14, height: 14, color: 'var(--text-secondary)' }} />
                 </button>
               </div>
-              <div className="px-6 pb-4 space-y-4">
-                <div>
-                  <label className="block text-xs text-dark-500 font-medium mb-1.5 uppercase tracking-wider">Name</label>
-                  <input value={name} onChange={e => setName(e.target.value)}
+              <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div className="field-group">
+                  <label className="field-label">Project Name</label>
+                  <input
+                    value={name} onChange={e => setName(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                    placeholder="My awesome project"
-                    maxLength={50}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-dark-900/70 border border-white/7 text-white placeholder-dark-700 outline-none transition-colors"
-                    style={{ border: name ? '1px solid rgba(217,119,6,0.3)' : '1px solid rgba(255,255,255,0.07)' }}
-                    autoFocus />
-                  <p className="text-[10px] text-dark-700 mt-1 text-right">{name.length}/50</p>
+                    placeholder="My awesome project" maxLength={50}
+                    className="field-input" autoFocus
+                  />
+                  <p style={{ fontSize: 10, color: 'var(--text-tertiary)', textAlign: 'right', marginTop: 4 }}>{name.length}/50</p>
                 </div>
-                <div>
-                  <label className="block text-xs text-dark-500 font-medium mb-1.5 uppercase tracking-wider">Description <span className="text-dark-700 normal-case">(optional)</span></label>
-                  <textarea value={description} onChange={e => setDescription(e.target.value)}
-                    placeholder="What is this project about?"
-                    rows={3}
-                    className="w-full px-3.5 py-2.5 rounded-xl text-sm bg-dark-900/70 border border-white/7 text-white placeholder-dark-700 outline-none resize-none transition-colors focus:border-brand/25" />
+                <div className="field-group">
+                  <label className="field-label">Description <span style={{ color: 'var(--text-tertiary)', textTransform: 'none' }}>(optional)</span></label>
+                  <textarea
+                    value={description} onChange={e => setDescription(e.target.value)}
+                    placeholder="What is this project about?" rows={3}
+                    className="field-input" style={{ resize: 'none' }}
+                  />
                 </div>
               </div>
-              <div className="flex gap-2.5 px-6 py-4 border-t border-white/5">
-                <button onClick={closeModal}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-dark-500 hover:text-dark-300 transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  Cancel
-                </button>
-                <button onClick={handleSubmit} disabled={submitting || !name.trim()}
-                  className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white transition-all disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
-                  {submitting ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : editingProject ? 'Update' : 'Create'}
+              <div style={{ display: 'flex', gap: 12, padding: '16px 24px', borderTop: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)' }}>
+                <button className="btn btn-secondary" onClick={closeModal} style={{ flex: 1 }}>Cancel</button>
+                <button className="btn btn-primary" onClick={handleSubmit} disabled={submitting || !name.trim()} style={{ flex: 1 }}>
+                  {submitting ? <Loader2 className="anim-spin" style={{ width: 14, height: 14 }} /> : editingProject ? 'Update' : 'Create'}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        <ConfirmModal isOpen={!!deletingProject} onClose={() => setDeletingProject(null)}
-          onConfirm={handleDelete}
-          title="Delete Project"
+        <ConfirmModal
+          isOpen={!!deletingProject} onClose={() => setDeletingProject(null)}
+          onConfirm={handleDelete} title="Delete Project"
           message={`Delete "${deletingProject?.name}"? This cannot be undone.`}
-          confirmLabel="Delete" isDangerous />
+          confirmLabel="Delete" isDangerous
+        />
       </div>
     </>
   )

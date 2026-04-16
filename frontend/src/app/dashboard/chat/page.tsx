@@ -2,9 +2,8 @@
 
 import { useRef, useState, useEffect, useCallback } from 'react'
 import {
-  Plus, Trash2, Edit3, Copy, CheckCheck,
-  ArrowUp, Sparkles, Database, Brain, Loader2, ChevronDown,
-  AlertCircle, ExternalLink, Layers
+  Plus, Copy, CheckCheck,
+  Sparkles, Database, Brain, AlertCircle, ExternalLink, Hash, CornerDownLeft
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { integrationsApi } from '@/lib/api'
@@ -49,10 +48,9 @@ const SUGGESTED = [
   "Summarize my Notion docs",
   "What did I work on last week?",
   "Show me open GitHub issues",
-  "Find bugs mentioned in Slack",
 ]
 
-const STORAGE_KEY = 'contextos_chats_v2'
+const STORAGE_KEY = 'contextos_chats_v3'
 
 /* ─── Markdown renderer ──────────────────────────────── */
 function escHtml(s: string) {
@@ -77,7 +75,7 @@ function renderMarkdown(text: string): string {
   html = html.replace(/^[-*] (.+)$/gm, '<li class="chat-li">$1</li>')
   html = html.replace(/(<li class="chat-li">[\s\S]+?<\/li>(?:\n|$))+/g, (m) => `<ul class="chat-ul">${m}</ul>`)
 
-  // Paragraphs — double newlines
+  // Paragraphs
   html = html.replace(/\n\n+/g, '\n\n')
   html = html.split('\n\n').map(block => {
     if (block.match(/^<(h[1-3]|ul|pre|blockquote|hr)/)) return block
@@ -90,28 +88,46 @@ function renderMarkdown(text: string): string {
 
 /* ─── Provider colors ────────────────────────────────── */
 const PROVIDER_COLORS: Record<string, string> = {
-  github: '#6e40c9',
-  notion: '#a0a0a0',
+  github: '#8b5cf6',
+  notion: '#a1a1aa',
   slack: '#e01e5a',
   linear: '#5b5fc7',
-  google: '#4285f4',
-  google_drive: '#0f9d58',
+  google: '#34a853',
+  google_drive: '#34a853',
+}
+
+function getProviderIcon(type: string) {
+  const t = (type || '').toLowerCase()
+  if (t === 'github') return <Database className="w-3 h-3" />
+  if (t === 'notion') return <Database className="w-3 h-3" />
+  if (t === 'slack') return <Hash className="w-3 h-3" />
+  if (t === 'linear') return <Database className="w-3 h-3" />
+  return <Database className="w-3 h-3" />
 }
 
 /* ─── Source chip ────────────────────────────────────── */
 function SourceChip({ source }: { source: Source }) {
   const type = (source.type || '').split('_')[0]
-  const color = PROVIDER_COLORS[source.type?.toLowerCase()] || '#6b7280'
+  const color = PROVIDER_COLORS[source.type?.toLowerCase()] || 'var(--text-tertiary)'
+  
   return (
     <a
       href={source.url || '#'}
       target={source.url ? '_blank' : undefined}
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-opacity hover:opacity-75"
-      style={{ background: `${color}1a`, border: `1px solid ${color}40`, color }}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '4px 8px', borderRadius: 'var(--r-sm)',
+        fontSize: 11, fontWeight: 500, textDecoration: 'none',
+        background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)',
+        color: 'var(--text-primary)', transition: 'border-color var(--t-fast)',
+      }}
+      onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--border-strong)'}
+      onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-subtle)'}
     >
-      <span className="capitalize">{type}</span>
-      {source.url && <ExternalLink className="w-2.5 h-2.5 opacity-60" />}
+      <span style={{ color }}>{getProviderIcon(source.type)}</span>
+      <span style={{ textTransform: 'capitalize' }}>{type}</span>
+      {source.url && <ExternalLink style={{ width: 10, height: 10, color: 'var(--text-tertiary)' }} />}
     </a>
   )
 }
@@ -119,15 +135,13 @@ function SourceChip({ source }: { source: Source }) {
 /* ─── Thinking dots ──────────────────────────────────── */
 function Dots() {
   return (
-    <span className="inline-flex gap-1 ml-1 align-middle">
+    <span style={{ display: 'inline-flex', gap: 4, marginLeft: 4, alignItems: 'center' }}>
       {[0, 1, 2].map(i => (
         <span
           key={i}
-          className="w-1.5 h-1.5 rounded-full"
           style={{
-            background: '#d97706',
-            opacity: 0.5,
-            animation: `ctxBounce 1.2s ease-in-out ${i * 0.18}s infinite`,
+            width: 4, height: 4, borderRadius: '50%', background: 'var(--text-tertiary)',
+            animation: `ctxBounce 1s ease-in-out ${i * 0.15}s infinite`,
           }}
         />
       ))}
@@ -138,28 +152,20 @@ function Dots() {
 /* ─── Status panel ───────────────────────────────────── */
 function StatusPanel({ steps }: { steps: ThinkingStep[] }) {
   return (
-    <div className="mb-3 space-y-1.5">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
       {steps.map((step, i) => {
         const isLast = i === steps.length - 1 && !step.done
         const isDone = step.done || (!isLast && i < steps.length - 1)
+        
         return (
-          <div
-            key={i}
-            className="flex items-center gap-2 text-xs"
-            style={{
-              color: isDone ? '#3f3f46' : isLast ? '#d97706' : '#52525b',
-              animation: isLast ? 'ctxFadeIn 0.2s ease-out' : 'none',
-            }}
-          >
-            <span className="flex-shrink-0">
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: isDone ? 'var(--text-tertiary)' : 'var(--text-secondary)' }}>
+            <span style={{ flexShrink: 0 }}>
               {isDone
-                ? <CheckCheck className="w-3.5 h-3.5" style={{ color: '#16a34a' }} />
-                : step.type === 'thinking'
-                  ? <Brain className="w-3.5 h-3.5" />
-                  : <Database className="w-3.5 h-3.5" />
+                ? <CheckCheck style={{ width: 14, height: 14, color: 'var(--success-text)' }} />
+                : step.type === 'thinking' ? <Brain style={{ width: 14, height: 14 }} /> : <Database style={{ width: 14, height: 14 }} />
               }
             </span>
-            <span className={isDone ? 'line-through opacity-40' : isLast ? 'font-medium' : 'opacity-50'}>
+            <span style={{ textDecoration: isDone ? 'line-through' : 'none' }}>
               {step.message}
               {step.source && ` · ${step.source}${step.count ? ` (${step.count})` : ''}`}
             </span>
@@ -171,28 +177,22 @@ function StatusPanel({ steps }: { steps: ThinkingStep[] }) {
   )
 }
 
-/* ─── ContextOS mini SVG logo ────────────────────────── */
-function CtxLogo({ size = 20, id = 'logo' }: { size?: number; id?: string }) {
+/* ─── ContextOS logo ────────────────────────── */
+function CtxLogo({ size = 20 }: { size?: number }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width={size} height={size}>
+    <svg viewBox="0 0 64 64" width={size} height={size} fill="none">
       <defs>
-        <linearGradient id={`cg-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#d97706" />
-          <stop offset="100%" stopColor="#b45309" />
-        </linearGradient>
-        <linearGradient id={`hg-${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#f59e0b" />
+        <linearGradient id="c_lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#fbbf24" />
           <stop offset="100%" stopColor="#d97706" />
         </linearGradient>
       </defs>
-      <path d="M28 14 C16 14 10 21 10 32 C10 43 16 50 28 50" fill="none" stroke={`url(#cg-${id})`} strokeWidth="5.5" strokeLinecap="round" />
-      <circle cx="17" cy="32" r="4" fill="#d97706" />
-      <g transform="translate(37,32)">
-        <path d="M0,-15 L13,-7.5 L13,7.5 L0,15 L-13,7.5 L-13,-7.5 Z" fill="none" stroke={`url(#hg-${id})`} strokeWidth="2.5" strokeLinejoin="round" />
-        <line x1="-7" y1="-4" x2="7" y2="-4" stroke={`url(#hg-${id})`} strokeWidth="2" strokeLinecap="round" />
-        <line x1="-7" y1="0" x2="7" y2="0" stroke={`url(#hg-${id})`} strokeWidth="2" strokeLinecap="round" />
-        <line x1="-7" y1="4" x2="7" y2="4" stroke={`url(#hg-${id})`} strokeWidth="2" strokeLinecap="round" />
-      </g>
+      <path d="M28 14C16 14 10 21 10 32s6 18 18 18" stroke="url(#c_lg)" strokeWidth="5" strokeLinecap="round" />
+      <circle cx="17" cy="32" r="4" fill="url(#c_lg)" />
+      <path d="M37 18l13 7.5V39L37 46.5 24 39V25.5z" stroke="url(#c_lg)" strokeWidth="2.5" strokeLinejoin="round" />
+      <line x1="30" y1="28" x2="44" y2="28" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+      <line x1="30" y1="32" x2="44" y2="32" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+      <line x1="30" y1="36" x2="44" y2="36" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
     </svg>
   )
 }
@@ -202,25 +202,18 @@ function MessageBubble({
   msg, onCopy, copiedId,
 }: { msg: Message; onCopy: (c: string, id: number) => void; copiedId: number | null }) {
   const isUser = msg.role === 'user'
-  const ts = msg.timestamp
-    ? new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-    : ''
 
   if (isUser) {
     return (
-      <div className="flex justify-end mb-5 group" style={{ animation: 'ctxFadeIn 0.2s ease-out' }}>
-        <div className="max-w-[78%]">
-          <div
-            className="px-4 py-3 rounded-2xl rounded-tr-sm text-sm leading-relaxed text-white"
-            style={{ background: 'linear-gradient(135deg, #d97706 0%, #b45309 100%)' }}
-          >
+      <div className="anim-fade-up" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 24 }}>
+        <div style={{ maxWidth: '80%' }}>
+          <div style={{
+            padding: '12px 16px', borderRadius: 'var(--r-lg)',
+            borderBottomRightRadius: 'var(--r-sm)',
+            fontSize: 14, lineHeight: 1.5,
+            background: 'var(--text-primary)', color: 'var(--bg-base)',
+          }}>
             {msg.content}
-          </div>
-          <div className="flex justify-end items-center gap-2 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <span className="text-[10px] text-dark-600">{ts}</span>
-            <button onClick={() => onCopy(msg.content, msg.id)} className="text-dark-600 hover:text-dark-400 transition-colors">
-              {copiedId === msg.id ? <CheckCheck className="w-3 h-3 text-success" /> : <Copy className="w-3 h-3" />}
-            </button>
           </div>
         </div>
       </div>
@@ -228,17 +221,19 @@ function MessageBubble({
   }
 
   return (
-    <div className="flex gap-3 mb-8 group" style={{ animation: 'ctxFadeIn 0.2s ease-out' }}>
+    <div className="anim-fade-up" style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
       {/* Avatar */}
-      <div className="flex-shrink-0 w-7 h-7 mt-0.5 rounded-lg flex items-center justify-center"
-        style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)' }}>
-        <CtxLogo size={18} id={`msg-${msg.id}`} />
+      <div style={{
+        width: 30, height: 30, borderRadius: 'var(--r-sm)', flexShrink: 0, marginTop: 4,
+        background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center'
+      }}>
+        <CtxLogo size={16} />
       </div>
 
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xs font-semibold text-white">ContextOS</span>
-          <span className="text-[10px] text-dark-600">{ts}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8, marginTop: 10 }}>
+          ContextOS
         </div>
 
         {/* Status steps */}
@@ -248,54 +243,46 @@ function MessageBubble({
 
         {/* Error */}
         {msg.isError && (
-          <div className="flex items-start gap-2 p-3 rounded-xl text-sm mb-2"
-            style={{ background: 'rgba(220,38,38,0.05)', border: '1px solid rgba(220,38,38,0.2)', color: '#ef4444' }}>
-            <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div style={{ display: 'flex', gap: 8, padding: 12, borderRadius: 'var(--r-md)', background: 'var(--danger-muted)', border: '1px solid var(--danger-border)', color: 'var(--danger-text)', fontSize: 13 }}>
+            <AlertCircle style={{ width: 16, height: 16, flexShrink: 0, marginTop: 2 }} />
             <span>{msg.content}</span>
           </div>
         )}
 
         {/* Content */}
         {!msg.isError && msg.content && (
-          <div className="chat-prose text-sm text-dark-200 leading-relaxed"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+          <div className="chat-prose" dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
         )}
 
-        {/* Streaming indicator when no content yet */}
+        {/* Streaming indicator */}
         {msg.isStreaming && !msg.content && !msg.thinkingSteps?.length && (
-          <div className="flex items-center gap-1">
-            {[0,1,2].map(i => (
-              <span key={i} className="w-2 h-2 rounded-full bg-dark-700"
-                style={{ animation: `ctxBounce 1.2s ease-in-out ${i*0.18}s infinite` }} />
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 24 }}>
+            <Dots />
           </div>
         )}
 
         {/* Streaming cursor */}
         {msg.isStreaming && msg.content && (
-          <span className="inline-block w-0.5 h-4 ml-0.5 align-middle animate-pulse"
-            style={{ background: '#d97706', verticalAlign: 'middle' }} />
+          <span className="anim-pulse" style={{ display: 'inline-block', width: 2, height: 14, background: 'var(--brand)', verticalAlign: 'middle', marginLeft: 4 }} />
         )}
 
         {/* Sources */}
         {msg.sources && msg.sources.length > 0 && !msg.isStreaming && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            <span className="text-[10px] text-dark-600 self-center mr-1">Sources:</span>
+          <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {msg.sources.map((s, i) => <SourceChip key={i} source={s} />)}
           </div>
         )}
 
         {/* Actions */}
         {!msg.isStreaming && msg.content && !msg.isError && (
-          <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
             <button
+              className="btn"
               onClick={() => onCopy(msg.content, msg.id)}
-              className="flex items-center gap-1.5 px-2 py-1 text-[11px] text-dark-500 hover:text-dark-200 hover:bg-dark-800/50 rounded-lg transition-all"
+              style={{ background: 'transparent', padding: '4px 8px', fontSize: 11, border: 'none', color: copiedId === msg.id ? 'var(--success-text)' : 'var(--text-tertiary)' }}
             >
-              {copiedId === msg.id
-                ? <><CheckCheck className="w-3 h-3 text-success" /><span className="text-success">Copied!</span></>
-                : <><Copy className="w-3 h-3" /><span>Copy</span></>
-              }
+              {copiedId === msg.id ? <CheckCheck style={{ width: 13, height: 13 }} /> : <Copy style={{ width: 13, height: 13 }} />}
+              {copiedId === msg.id ? 'Copied' : 'Copy'}
             </button>
           </div>
         )}
@@ -307,39 +294,32 @@ function MessageBubble({
 /* ─── Empty state ────────────────────────────────────── */
 function EmptyState({ onSuggest }: { onSuggest: (q: string) => void }) {
   return (
-    <div className="flex flex-col items-center justify-center h-full py-16 px-6 text-center">
-      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
-        style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.15)' }}>
-        <CtxLogo size={36} id="empty" />
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: '40px 20px', textAlign: 'center' }}>
+      <div style={{ width: 48, height: 48, borderRadius: 'var(--r-md)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 24 }}>
+        <CtxLogo size={28} />
       </div>
 
-      <h2 className="text-2xl font-bold text-white mb-2 tracking-tight">How can I help?</h2>
-      <p className="text-dark-400 text-sm max-w-sm mb-10 leading-relaxed">
-        Ask me anything about your project — commits, docs, Slack threads, or general engineering questions.
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8, letterSpacing: '-0.02em' }}>How can I help today?</h2>
+      <p style={{ fontSize: 14, color: 'var(--text-tertiary)', maxWidth: 400, marginBottom: 40, lineHeight: 1.5 }}>
+        Ask me anything about your project — commits, docs, issues, or general engineering questions across your connected sources.
       </p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, width: '100%', maxWidth: 520 }}>
         {SUGGESTED.map((q) => (
           <button
             key={q}
             onClick={() => onSuggest(q)}
-            className="text-left px-4 py-3 rounded-xl text-sm text-dark-300 hover:text-white transition-all"
-            style={{ background: 'rgba(217,119,6,0.03)', border: '1px solid rgba(217,119,6,0.08)' }}
-            onMouseEnter={e => {
-              const el = e.currentTarget as HTMLButtonElement
-              el.style.background = 'rgba(217,119,6,0.07)'
-              el.style.borderColor = 'rgba(217,119,6,0.2)'
+            style={{
+              textAlign: 'left', padding: '14px 16px', borderRadius: 'var(--r-md)',
+              background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)',
+              fontSize: 13, color: 'var(--text-secondary)', transition: 'all var(--t-fast)',
+              display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer'
             }}
-            onMouseLeave={e => {
-              const el = e.currentTarget as HTMLButtonElement
-              el.style.background = 'rgba(217,119,6,0.03)'
-              el.style.borderColor = 'rgba(217,119,6,0.08)'
-            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.background = 'var(--bg-surface)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-subtle)'; e.currentTarget.style.background = 'var(--bg-subtle)' }}
           >
-            <span className="flex items-start gap-2">
-              <Sparkles className="w-3.5 h-3.5 mt-0.5 text-brand flex-shrink-0" />
-              {q}
-            </span>
+            <Sparkles style={{ width: 14, height: 14, color: 'var(--brand)', flexShrink: 0, marginTop: 2 }} />
+            {q}
           </button>
         ))}
       </div>
@@ -355,34 +335,16 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
-  const [integrations, setIntegrations] = useState<any[]>([])
-  const [loadingIntegrations, setLoadingIntegrations] = useState(true)
   const [copiedId, setCopiedId] = useState<number | null>(null)
-  const [editingChatId, setEditingChatId] = useState<string | null>(null)
-  const [editingTitle, setEditingTitle] = useState('')
-  const [showScrollDown, setShowScrollDown] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
-  // Use refs to always have latest values in async callbacks
   const chatsRef = useRef<Chat[]>([])
   const currentChatIdRef = useRef<string | null>(null)
-
   const bottomRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
 
-  /* ── Keep refs in sync ── */
   useEffect(() => { chatsRef.current = chats }, [chats])
   useEffect(() => { currentChatIdRef.current = currentChatId }, [currentChatId])
 
-  /* ── Load integrations ── */
-  useEffect(() => {
-    integrationsApi.getAll()
-      .then(({ data }) => setIntegrations(data || []))
-      .catch(() => {})
-      .finally(() => setLoadingIntegrations(false))
-  }, [])
-
-  /* ── Load history from localStorage ── */
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
@@ -390,626 +352,206 @@ export default function ChatPage() {
         const parsed: Chat[] = JSON.parse(raw)
         if (parsed.length > 0) {
           setChats(parsed)
-          chatsRef.current = parsed
           setCurrentChatId(parsed[0].id)
-          currentChatIdRef.current = parsed[0].id
           setMessages(parsed[0].messages || [])
         }
       }
     } catch {}
   }, [])
 
-  /* ── Persist chats ── */
   const persistChats = useCallback((updated: Chat[]) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-    } catch {}
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)) } catch {}
     setChats(updated)
     chatsRef.current = updated
   }, [])
 
-  /* ── Save messages into current chat ── */
   const saveMessages = useCallback((msgs: Message[], chatId: string) => {
     const current = chatsRef.current
-    const title = msgs.length > 0
-      ? msgs[0].content.slice(0, 50) + (msgs[0].content.length > 50 ? '…' : '')
-      : 'New conversation'
-    const updated = current.map(c =>
-      c.id === chatId ? { ...c, messages: msgs, title, updatedAt: new Date() } : c
-    )
+    const title = msgs.length > 0 ? msgs[0].content.slice(0, 40) + '...' : 'New conversation'
+    const updated = current.map(c => c.id === chatId ? { ...c, messages: msgs, title, updatedAt: new Date() } : c)
     persistChats(updated)
   }, [persistChats])
 
-  /* ── New chat ── */
   const createNewChat = useCallback(() => {
-    const chat: Chat = {
-      id: Date.now().toString(),
-      title: 'New conversation',
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }
-    const updated = [chat, ...chatsRef.current]
-    persistChats(updated)
+    const chat: Chat = { id: Date.now().toString(), title: 'New conversation', messages: [], createdAt: new Date(), updatedAt: new Date() }
+    persistChats([chat, ...chatsRef.current])
     setCurrentChatId(chat.id)
-    currentChatIdRef.current = chat.id
     setMessages([])
-    setTimeout(() => textareaRef.current?.focus(), 50)
   }, [persistChats])
 
-  /* ── Select chat ── */
-  const selectChat = (chat: Chat) => {
-    setCurrentChatId(chat.id)
-    currentChatIdRef.current = chat.id
-    setMessages(chat.messages || [])
-  }
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
-  /* ── Delete chat ── */
-  const deleteChat = (id: string) => {
-    const updated = chatsRef.current.filter(c => c.id !== id)
-    persistChats(updated)
-    if (currentChatIdRef.current === id) {
-      if (updated.length > 0) {
-        setCurrentChatId(updated[0].id)
-        currentChatIdRef.current = updated[0].id
-        setMessages(updated[0].messages || [])
-      } else {
-        setCurrentChatId(null)
-        currentChatIdRef.current = null
-        setMessages([])
-      }
-    }
-  }
-
-  /* ── Rename chat ── */
-  const renameChat = (id: string, title: string) => {
-    if (!title.trim()) return
-    const updated = chatsRef.current.map(c => c.id === id ? { ...c, title: title.trim() } : c)
-    persistChats(updated)
-    setEditingChatId(null)
-  }
-
-  /* ── Auto-scroll ── */
-  const scrollToBottom = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [])
-
-  useEffect(() => { scrollToBottom() }, [messages, scrollToBottom])
-
-  const handleScroll = () => {
-    const el = scrollRef.current
-    if (!el) return
-    setShowScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 80)
-  }
-
-  /* ── Textarea resize ── */
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value)
-    const ta = e.target
-    ta.style.height = 'auto'
-    ta.style.height = Math.min(ta.scrollHeight, 200) + 'px'
-  }
-
-  /* ── Copy ── */
   const handleCopy = async (content: string, id: number) => {
-    try {
-      await navigator.clipboard.writeText(content)
-      setCopiedId(id)
-      setTimeout(() => setCopiedId(null), 2000)
-    } catch {}
+    try { await navigator.clipboard.writeText(content); setCopiedId(id); setTimeout(() => setCopiedId(null), 2000) } catch {}
   }
 
-  /* ── Send ── */
   const handleSend = useCallback(async () => {
     const text = input.trim()
     if (!text || isStreaming) return
 
-    // Ensure there's a chat to send to
     let chatId = currentChatIdRef.current
     if (!chatId) {
-      const chat: Chat = {
-        id: Date.now().toString(),
-        title: 'New conversation',
-        messages: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
+      const chat: Chat = { id: Date.now().toString(), title: 'New conversation', messages: [], createdAt: new Date(), updatedAt: new Date() }
       persistChats([chat, ...chatsRef.current])
-      chatId = chat.id
-      setCurrentChatId(chat.id)
-      currentChatIdRef.current = chat.id
+      chatId = chat.id; setCurrentChatId(chat.id)
     }
 
-    const userMsg: Message = {
-      id: Date.now(),
-      role: 'user',
-      content: text,
-      timestamp: new Date(),
-    }
-    const assistantMsg: Message = {
-      id: Date.now() + 1,
-      role: 'assistant',
-      content: '',
-      isStreaming: true,
-      thinkingSteps: [],
-      timestamp: new Date(),
-    }
-
-    const initialMsgs = [...messages, userMsg, assistantMsg]
-    setMessages(initialMsgs)
+    const userMsg: Message = { id: Date.now(), role: 'user', content: text, timestamp: new Date() }
+    const assistantMsg: Message = { id: Date.now() + 1, role: 'assistant', content: '', isStreaming: true, thinkingSteps: [], timestamp: new Date() }
+    
+    setMessages([...messages, userMsg, assistantMsg])
     setInput('')
-    if (textareaRef.current) textareaRef.current.style.height = 'auto'
     setIsStreaming(true)
-
-    // Save user message immediately
     saveMessages([...messages, userMsg], chatId)
 
     const token = useAuthStore.getState().token
-    if (!token) {
-      setMessages(prev => [...prev, {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: 'Your session has expired. Please refresh the page or log in again.',
-        isStreaming: false,
-        isError: true,
-        timestamp: new Date(),
-      }])
-      setIsStreaming(false)
-      return
-    }
+    if (!token) { setIsStreaming(false); return }
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
       const resp = await fetch(`${apiUrl}/api/v1/query`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ question: text }),
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ question: text })
       })
 
-      if (resp.status === 401) {
-        useAuthStore.getState().logout()
-        window.location.href = '/login'
-        return
-      }
-
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-
+      if (!resp.ok) throw new Error()
       const reader = resp.body?.getReader()
-      if (!reader) throw new Error('No stream')
+      if (!reader) throw new Error()
 
       let accumulated = ''
-      const decoder = new TextDecoder()
       let stepsLog: ThinkingStep[] = []
-
-      const updateLast = (patch: Partial<Message>) => {
-        setMessages(prev => {
-          const updated = [...prev]
-          updated[updated.length - 1] = { ...updated[updated.length - 1], ...patch }
-          return updated
-        })
-      }
+      const decoder = new TextDecoder()
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-
         for (const line of decoder.decode(value).split('\n')) {
           if (!line.startsWith('data: ')) continue
           try {
             const data = JSON.parse(line.slice(6))
-
-            if (data.event === 'thinking') {
-              stepsLog = [...stepsLog, { type: 'thinking', message: data.message || 'Thinking…' }]
-              updateLast({ thinkingSteps: stepsLog })
-            } else if (data.event === 'searching') {
-              stepsLog = [...stepsLog, {
-                type: 'searching',
-                message: `Searching ${data.source || 'context'}`,
-                source: data.source,
-                count: data.count,
-              }]
-              updateLast({ thinkingSteps: stepsLog })
-            } else if (data.event === 'token') {
+            if (data.event === 'thinking') { stepsLog = [...stepsLog, { type: 'thinking', message: data.message || 'Thinking…' }] }
+            else if (data.event === 'searching') { stepsLog = [...stepsLog, { type: 'searching', message: `Searching ${data.source}`, source: data.source, count: data.count }] }
+            else if (data.event === 'token') {
               accumulated += data.content
-              // Mark all steps done once tokens arrive
-              if (stepsLog.some(s => !s.done)) {
-                stepsLog = stepsLog.map(s => ({ ...s, done: true }))
-              }
-              updateLast({ content: accumulated, thinkingSteps: stepsLog })
-            } else if (data.event === 'sources') {
-              updateLast({ sources: data.sources })
-            } else if (data.event === 'done') {
-              updateLast({ isStreaming: false })
-            } else if (data.event === 'error') {
-              updateLast({
-                content: data.message || 'Something went wrong.',
-                isStreaming: false,
-                isError: true,
-              })
+              if (stepsLog.some(s => !s.done)) stepsLog = stepsLog.map(s => ({ ...s, done: true }))
             }
+            // Realtime updates
+            setMessages(prev => {
+              const u = [...prev]
+              if (data.event === 'sources') u[u.length - 1] = { ...u[u.length - 1], sources: data.sources }
+              else if (data.event === 'done') u[u.length - 1] = { ...u[u.length - 1], isStreaming: false }
+              else if (data.event === 'error') u[u.length - 1] = { ...u[u.length - 1], content: data.message, isStreaming: false, isError: true }
+              else u[u.length - 1] = { ...u[u.length - 1], content: accumulated || '', thinkingSteps: stepsLog }
+              return u
+            })
           } catch {}
         }
       }
 
-      // Final: persist full conversation
       setMessages(prev => {
-        const final = prev.map((m, i) =>
-          i === prev.length - 1 ? { ...m, isStreaming: false } : m
-        )
+        const final = prev.map((m, i) => i === prev.length - 1 ? { ...m, isStreaming: false } : m)
         if (chatId) saveMessages(final, chatId)
         return final
       })
     } catch {
-      setMessages(prev => {
-        const updated = [...prev]
-        updated[updated.length - 1] = {
-          ...updated[updated.length - 1],
-          content: 'Failed to connect. Make sure the backend is running.',
-          isStreaming: false,
-          isError: true,
-        }
-        if (chatId) saveMessages(updated, chatId)
-        return updated
+      setMessages(p => {
+        const u = [...p]
+        u[u.length - 1] = { ...u[u.length - 1], content: 'Error connecting to brain.', isStreaming: false, isError: true }
+        if (chatId) saveMessages(u, chatId)
+        return u
       })
-    } finally {
-      setIsStreaming(false)
-    }
+    } finally { setIsStreaming(false) }
   }, [input, isStreaming, messages, saveMessages, persistChats])
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
-  }
-
-  const [chatSidebarOpen, setChatSidebarOpen] = useState(false)
-
-  const connectedIntegrations = integrations.filter(i => i.is_active)
-  const currentChat = chats.find(c => c.id === currentChatId)
 
   return (
     <>
       <style>{`
-        @keyframes ctxFadeIn {
-          from { opacity: 0; transform: translateY(5px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes ctxBounce {
-          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-          40%            { transform: translateY(-4px); opacity: 1; }
-        }
-
-        /* ── Prose ── */
-        .chat-prose { line-height: 1.75; }
-        .chat-prose .chat-h1 { font-size: 1.2rem; font-weight: 700; color: #fff; margin: 1.2em 0 0.5em; }
-        .chat-prose .chat-h2 { font-size: 1.05rem; font-weight: 700; color: #e4e4e7; margin: 1em 0 0.4em; }
-        .chat-prose .chat-h3 { font-size: 0.95rem; font-weight: 600; color: #d4d4d8; margin: 0.8em 0 0.3em; }
-        .chat-prose .chat-p  { margin-bottom: 0.75em; }
-        .chat-prose .chat-p:last-child { margin-bottom: 0; }
-        .chat-prose .chat-ul { padding-left: 1.25rem; margin: 0.5em 0; list-style-type: disc; }
-        .chat-prose .chat-li { margin: 0.3em 0; }
-        .chat-prose .chat-bq {
-          border-left: 3px solid rgba(217,119,6,0.5);
-          padding-left: 0.75rem;
-          margin: 0.75em 0;
-          color: #71717a;
-          font-style: italic;
-        }
-        .chat-prose .chat-hr { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 1em 0; }
-        .chat-prose .chat-code-block {
-          margin: 0.75em 0;
-          border-radius: 10px;
-          overflow: hidden;
-          background: rgba(0,0,0,0.45);
-          border: 1px solid rgba(255,255,255,0.07);
-        }
-        .chat-prose .chat-code-lang {
-          padding: 0.35rem 0.9rem;
-          font-size: 0.68rem;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: #52525b;
-          border-bottom: 1px solid rgba(255,255,255,0.05);
-          background: rgba(255,255,255,0.02);
-        }
-        .chat-prose .chat-code-block code {
-          display: block;
-          padding: 0.9rem;
-          font-size: 0.8rem;
-          line-height: 1.65;
-          color: #e4e4e7;
-          font-family: 'JetBrains Mono','Fira Code','Cascadia Code',monospace;
-          white-space: pre;
-          overflow-x: auto;
-        }
-        .chat-prose .chat-inline-code {
-          background: rgba(217,119,6,0.1);
-          border: 1px solid rgba(217,119,6,0.2);
-          color: #f59e0b;
-          padding: 0.1em 0.35em;
-          border-radius: 4px;
-          font-size: 0.82em;
-          font-family: 'JetBrains Mono',monospace;
-        }
-        /* sidebar scrollbar */
-        .ctx-sidebar::-webkit-scrollbar { width: 3px; }
-        .ctx-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
-        /* messages scrollbar */
-        .ctx-messages::-webkit-scrollbar { width: 4px; }
-        .ctx-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 10px; }
+        @keyframes ctxBounce { 0%, 100% { transform: translateY(0); opacity: 0.5; } 50% { transform: translateY(-2px); opacity: 1; } }
+        /* Chat Prose Markdown Overrides for minimal SaaS look */
+        .chat-prose { font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
+        .chat-prose p { margin-bottom: 1em; }
+        .chat-prose strong { color: var(--text-primary); font-weight: 600; }
+        .chat-prose .chat-h1, .chat-prose .chat-h2, .chat-prose .chat-h3 { color: var(--text-primary); font-weight: 600; margin: 1.5em 0 0.5em; }
+        .chat-prose ul { padding-left: 1.5em; list-style-type: disc; margin-bottom: 1em; }
+        .chat-prose li { margin-bottom: 0.25em; }
+        .chat-prose code.chat-inline-code { font-family: monospace; font-size: 0.9em; background: var(--bg-subtle); border: 1px solid var(--border-subtle); padding: 0.15em 0.3em; border-radius: 4px; color: var(--text-primary); }
+        .chat-prose pre.chat-code-block { background: var(--bg-surface); border: 1px solid var(--border-base); border-radius: var(--r-md); overflow: hidden; margin-bottom: 1em; }
+        .chat-prose pre .chat-code-lang { background: var(--bg-subtle); border-bottom: 1px solid var(--border-subtle); padding: 6px 12px; font-size: 11px; text-transform: uppercase; color: var(--text-tertiary); font-weight: 600; }
+        .chat-prose pre code { display: block; padding: 12px; font-family: monospace; font-size: 13px; overflow-x: auto; color: var(--text-primary); }
       `}</style>
-
-      <div className="flex overflow-hidden" style={{ height: '100dvh', background: '#09090b' }}>
-
-        {/* ══ Mobile overlay ══ */}
-        {chatSidebarOpen && (
-          <div className="fixed inset-0 z-40 lg:hidden" style={{ background: 'rgba(0,0,0,0.6)' }}
-            onClick={() => setChatSidebarOpen(false)} />
-        )}
-
-        {/* ══ Chat Sidebar ══ */}
-        <div
-          className={`flex-shrink-0 flex flex-col border-r z-50 transition-transform duration-250
-            fixed lg:relative inset-y-0 left-0 w-[220px]
-            ${chatSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}
-          style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(9,9,11,0.98)' }}
-        >
-          {/* New chat button */}
-          <div className="p-3 pb-2">
-            <button
-              onClick={createNewChat}
-              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-white transition-all"
-              style={{ background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.15)' }}
-              onMouseEnter={e => (e.currentTarget.style.background = 'rgba(217,119,6,0.12)')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'rgba(217,119,6,0.07)')}
-            >
-              <Plus className="w-4 h-4 text-brand" />
-              New conversation
+      
+      <div style={{ display: 'flex', height: 'calc(100vh - 73px)', marginTop: '-36px', marginLeft: '-40px', marginRight: '-40px', borderTop: '1px solid var(--border-subtle)' }}>
+        
+        {/* Chat History Sidebar */}
+        <div style={{ width: sidebarOpen ? 260 : 0, transition: 'width var(--t-fast)', borderRight: '1px solid var(--border-subtle)', background: 'var(--bg-subtle)', display: 'flex', flexDirection: 'column', flexShrink: 0, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 16px 8px' }}>
+            <button className="btn btn-secondary" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={createNewChat}>
+              <Plus style={{ width: 14, height: 14 }} /> New Conversation
             </button>
           </div>
-
-          {/* Connected badge */}
-          {connectedIntegrations.length > 0 && (
-            <div className="px-3 pb-2">
-              <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
-                style={{ background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.12)' }}>
-                <div className="w-1.5 h-1.5 rounded-full bg-success" />
-                <span className="text-[10px] text-success font-medium">
-                  {connectedIntegrations.length} source{connectedIntegrations.length !== 1 ? 's' : ''} active
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Divider */}
-          <div className="mx-3 mb-2" style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }} />
-
-          {/* Chat list */}
-          <div className="flex-1 overflow-y-auto ctx-sidebar px-2 pb-3">
-            {chats.length === 0 && (
-              <p className="text-[11px] text-dark-600 text-center py-6">No conversations yet</p>
-            )}
-            {chats.map(chat => {
-              const isActive = currentChatId === chat.id
-              return (
-                <div
-                  key={chat.id}
-                  onClick={() => selectChat(chat)}
-                  className="group relative rounded-xl px-3 py-2.5 cursor-pointer transition-all mb-px"
-                  style={isActive
-                    ? { background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.18)' }
-                    : { border: '1px solid transparent' }
-                  }
-                  onMouseEnter={e => {
-                    if (!isActive) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.025)'
-                  }}
-                  onMouseLeave={e => {
-                    if (!isActive) (e.currentTarget as HTMLDivElement).style.background = ''
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-1">
-                    <div className="flex-1 min-w-0">
-                      {editingChatId === chat.id ? (
-                        <input
-                          value={editingTitle}
-                          onChange={e => setEditingTitle(e.target.value)}
-                          onBlur={() => renameChat(chat.id, editingTitle)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') renameChat(chat.id, editingTitle)
-                            if (e.key === 'Escape') setEditingChatId(null)
-                          }}
-                          className="w-full bg-transparent text-white text-xs outline-none border-b"
-                          style={{ borderColor: 'rgba(217,119,6,0.5)' }}
-                          autoFocus
-                          onClick={e => e.stopPropagation()}
-                        />
-                      ) : (
-                        <p className={`text-xs font-medium truncate ${isActive ? 'text-white' : 'text-dark-300'}`}>
-                          {chat.title}
-                        </p>
-                      )}
-                      <p className="text-[10px] text-dark-600 mt-0.5">
-                        {chat.messages.length} message{chat.messages.length !== 1 ? 's' : ''}
-                      </p>
-                    </div>
-
-                    <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
-                      <button
-                        onClick={e => { e.stopPropagation(); setEditingChatId(chat.id); setEditingTitle(chat.title) }}
-                        className="p-1 rounded text-dark-600 hover:text-dark-300 transition-colors"
-                      >
-                        <Edit3 className="w-2.5 h-2.5" />
-                      </button>
-                      <button
-                        onClick={e => { e.stopPropagation(); deleteChat(chat.id) }}
-                        className="p-1 rounded text-dark-600 hover:text-danger transition-colors"
-                      >
-                        <Trash2 className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {chats.map(c => (
+              <button
+                key={c.id}
+                onClick={() => { setCurrentChatId(c.id); setMessages(c.messages || []) }}
+                style={{
+                  width: '100%', textAlign: 'left', padding: '10px 12px', borderRadius: 'var(--r-md)',
+                  background: currentChatId === c.id ? 'var(--bg-surface)' : 'transparent',
+                  border: currentChatId === c.id ? '1px solid var(--border-base)' : '1px solid transparent',
+                  color: currentChatId === c.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontSize: 13, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap',
+                  transition: 'all var(--t-fast)', cursor: 'pointer'
+                }}
+              >
+                {c.title}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* ══ Main ══ */}
-        <div className="flex-1 flex flex-col min-w-0">
-
-          {/* Header */}
-          <div
-            className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 border-b"
-            style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(9,9,11,0.9)', backdropFilter: 'blur(12px)' }}
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              {/* Mobile: show sidebar toggle */}
-              <button
-                className="lg:hidden flex items-center justify-center w-7 h-7 rounded-lg flex-shrink-0"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                onClick={() => setChatSidebarOpen(true)}
-              >
-                <Layers className="w-3.5 h-3.5 text-dark-400" />
-              </button>
-              <div className="min-w-0">
-                <h1 className="text-sm font-semibold text-white truncate">
-                  {currentChat?.title || 'ContextOS AI'}
-                </h1>
-                <p className="text-[11px] mt-0.5 hidden sm:block" style={{ color: '#3f3f46' }}>
-                  {loadingIntegrations ? 'Loading…'
-                    : connectedIntegrations.length === 0
-                      ? 'Connect integrations to search your context'
-                      : connectedIntegrations.map(i => i.provider.replace('_', ' ')).join(', ')
-                  }
-                </p>
-              </div>
-            </div>
-
-            {/* Provider pills - hidden on xs */}
-            <div className="hidden sm:flex items-center gap-1.5">
-              {connectedIntegrations.slice(0, 3).map(i => {
-                const color = PROVIDER_COLORS[i.provider] || '#6b7280'
-                return (
-                  <span key={i.id} className="px-2 py-0.5 rounded-full text-[10px] font-medium capitalize"
-                    style={{ background: `${color}15`, border: `1px solid ${color}30`, color }}>
-                    {i.provider.replace('_', ' ')}
-                  </span>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div
-            ref={scrollRef}
-            onScroll={handleScroll}
-            className="flex-1 overflow-y-auto ctx-messages"
-          >
-            {messages.length === 0
-              ? <EmptyState onSuggest={q => { setInput(q); setTimeout(() => handleSend(), 50) }} />
-              : (
-                <div className="max-w-3xl mx-auto px-6 py-8">
-                  {messages.map(msg => (
-                    <MessageBubble
-                      key={msg.id}
-                      msg={msg}
-                      onCopy={handleCopy}
-                      copiedId={copiedId}
-                    />
+        {/* Chat Window */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          
+          <div style={{ flex: 1, overflowY: 'auto', padding: '32px 0' }}>
+            <div style={{ maxWidth: 768, margin: '0 auto', padding: '0 24px' }}>
+              {messages.length === 0 ? (
+                <EmptyState onSuggest={s => { setInput(s); setTimeout(handleSend, 50) }} />
+              ) : (
+                <>
+                  {messages.map(m => (
+                    <MessageBubble key={m.id} msg={m} onCopy={handleCopy} copiedId={copiedId} />
                   ))}
                   <div ref={bottomRef} />
-                </div>
-              )
-            }
-
-            {showScrollDown && (
-              <button
-                onClick={scrollToBottom}
-                className="fixed bottom-28 right-8 p-2 rounded-full shadow-lg transition-all z-10"
-                style={{ background: 'rgba(24,24,27,0.95)', border: '1px solid rgba(255,255,255,0.08)' }}
-              >
-                <ChevronDown className="w-4 h-4 text-dark-300" />
-              </button>
-            )}
+                </>
+              )}
+            </div>
           </div>
 
-          {/* Input */}
-          <div
-            className="flex-shrink-0 px-6 py-4 border-t"
-            style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(9,9,11,0.97)', backdropFilter: 'blur(12px)' }}
-          >
-            <div className="max-w-3xl mx-auto">
-              <div
-                id="chat-input-box"
-                className="relative rounded-2xl transition-all duration-150"
-                style={{ background: 'rgba(24,24,27,0.8)', border: '1px solid rgba(255,255,255,0.08)' }}
-                onFocusCapture={e => {
-                  const el = e.currentTarget as HTMLDivElement
-                  el.style.borderColor = 'rgba(217,119,6,0.35)'
-                  el.style.boxShadow = '0 0 0 3px rgba(217,119,6,0.06)'
-                }}
-                onBlurCapture={e => {
-                  const el = e.currentTarget as HTMLDivElement
-                  el.style.borderColor = 'rgba(255,255,255,0.08)'
-                  el.style.boxShadow = 'none'
-                }}
-              >
+          {/* Input Area */}
+          <div style={{ padding: '0 24px 24px' }}>
+            <div style={{ maxWidth: 768, margin: '0 auto' }}>
+              <div style={{ position: 'relative', display: 'flex', background: 'var(--bg-surface)', border: '1px solid var(--border-base)', borderRadius: 'var(--r-xl)', boxShadow: 'var(--shadow-sm)' }}>
                 <textarea
-                  ref={textareaRef}
                   value={input}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask anything about your project…"
-                  rows={1}
-                  disabled={isStreaming}
-                  className="w-full bg-transparent px-5 pt-4 pb-12 text-sm text-white placeholder-dark-600 resize-none focus:outline-none leading-relaxed"
-                  style={{ minHeight: '56px', maxHeight: '200px' }}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } }}
+                  placeholder="Ask any question across your workspace..."
+                  style={{
+                    flex: 1, width: '100%', minHeight: 52, maxHeight: 200, padding: '14px 48px 14px 16px',
+                    background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: 14,
+                    resize: 'none', outline: 'none'
+                  }}
                 />
-
-                {/* Bottom bar */}
-                <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between pointer-events-none">
-                  <div className="pointer-events-auto">
-                    {isStreaming ? (
-                      <div className="flex items-center gap-1.5 text-[11px] text-dark-500">
-                        <span className="flex gap-1">
-                          {[0,1,2].map(i => (
-                            <span key={i} className="w-1 h-1 rounded-full"
-                              style={{ background: '#d97706', animation: `ctxBounce 1.2s ease-in-out ${i*0.15}s infinite` }} />
-                          ))}
-                        </span>
-                        <span>Generating…</span>
-                      </div>
-                    ) : (
-                      <span className="text-[10px]" style={{ color: '#27272a' }}>
-                        Enter ↵ to send · Shift+Enter for newline
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={handleSend}
-                    disabled={isStreaming || !input.trim()}
-                    className="pointer-events-auto flex items-center justify-center w-8 h-8 rounded-xl transition-all duration-150 disabled:opacity-25 disabled:cursor-not-allowed"
-                    style={{
-                      background: input.trim() && !isStreaming
-                        ? 'linear-gradient(135deg, #d97706, #b45309)'
-                        : 'rgba(255,255,255,0.05)',
-                    }}
-                  >
-                    {isStreaming
-                      ? <Loader2 className="w-4 h-4 text-white animate-spin" />
-                      : <ArrowUp className="w-4 h-4 text-white" />
-                    }
-                  </button>
-                </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSend}
+                  disabled={!input.trim() || isStreaming}
+                  style={{ position: 'absolute', right: 8, bottom: 8, width: 32, height: 32, padding: 0, borderRadius: 'var(--r-md)' }}
+                >
+                  <CornerDownLeft style={{ width: 14, height: 14 }} />
+                </button>
               </div>
-
-              <p className="text-center text-[10px] mt-2" style={{ color: '#27272a' }}>
-                ContextOS AI · Responses grounded in your connected sources
+              <p style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8 }}>
+                AI responses can be inaccurate. Always review references carefully.
               </p>
             </div>
           </div>

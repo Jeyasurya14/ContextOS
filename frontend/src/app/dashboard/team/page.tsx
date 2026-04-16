@@ -1,8 +1,7 @@
-// frontend/src/app/dashboard/team/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Users, UserPlus, Mail, Loader2, Trash2, Copy, Crown, Shield, CheckCircle2, X, ArrowRight } from 'lucide-react'
+import { Users, UserPlus, Mail, Loader2, Trash2, Copy, Crown, Shield, CheckCircle2 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { teamsApi } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
@@ -13,15 +12,14 @@ const getAvatarColor = (name: string) => AVATAR_COLORS[(name?.charCodeAt(0) ?? 0
 
 function RoleBadge({ role }: { role: string }) {
   const cfg = role === 'owner'
-    ? { icon: Crown, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)' }
+    ? { icon: Crown, color: '#f59e0b', bg: 'var(--brand-muted)', border: 'var(--brand-border)' }
     : role === 'admin'
     ? { icon: Shield, color: '#818cf8', bg: 'rgba(129,140,248,0.1)', border: 'rgba(129,140,248,0.2)' }
-    : { icon: Users, color: '#71717a', bg: 'rgba(113,113,122,0.08)', border: 'rgba(113,113,122,0.15)' }
+    : { icon: Users, color: 'var(--text-secondary)', bg: 'var(--bg-overlay)', border: 'var(--border-subtle)' }
   const Icon = cfg.icon
   return (
-    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize"
-      style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}>
-      <Icon className="w-2.5 h-2.5" /> {role}
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 'var(--r-full)', fontSize: 10, fontWeight: 600, textTransform: 'capitalize', background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}>
+      <Icon style={{ width: 10, height: 10 }} /> {role}
     </span>
   )
 }
@@ -93,45 +91,42 @@ export default function TeamPage() {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <Loader2 className="w-6 h-6 animate-spin text-brand" />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 256 }}>
+      <Loader2 className="anim-spin" style={{ width: 24, height: 24, color: 'var(--brand)' }} />
     </div>
   )
 
   // ── No team ──
   if (!team) return (
-    <div className="max-w-2xl">
-      <div className="mb-7">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-            style={{ background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.15)' }}>
-            <Users className="w-3.5 h-3.5 text-brand" />
-            <span className="text-[10px] font-semibold text-brand uppercase tracking-widest">Team</span>
-          </div>
-        </div>
-        <h1 className="text-2xl font-bold text-white">Team</h1>
-        <p className="text-dark-500 text-sm mt-1">Collaborate with colleagues on shared context</p>
+    <div className="anim-fade-up max-w-[600px]">
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 8 }}>Team</h1>
+        <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Collaborate with colleagues on shared context</p>
       </div>
 
-      <div className="rounded-2xl p-8 text-center"
-        style={{ background: 'rgba(15,15,17,0.85)', border: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)' }}>
-        <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
-          style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.15)' }}>
-          <Users className="w-8 h-8 text-brand opacity-60" />
+      <div className="card" style={{ padding: 40, textAlign: 'center' }}>
+        <div style={{ width: 64, height: 64, borderRadius: 'var(--r-lg)', margin: '0 auto 20px', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Users style={{ width: 32, height: 32, color: 'var(--text-tertiary)' }} />
         </div>
-        <h2 className="text-xl font-bold text-white mb-2">Create your team</h2>
-        <p className="text-sm text-dark-500 mb-7 max-w-sm mx-auto leading-relaxed">
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>Create your team</h2>
+        <p style={{ fontSize: 14, color: 'var(--text-tertiary)', maxWidth: 360, margin: '0 auto 28px', lineHeight: 1.5 }}>
           Teams let you share context across members. Every teammate gets smarter answers from the shared workspace.
         </p>
-        <div className="flex flex-col gap-2.5 max-w-xs mx-auto">
-          <input value={teamName} onChange={e => setTeamName(e.target.value)}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 320, margin: '0 auto' }}>
+          <input
+            value={teamName} onChange={e => setTeamName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleCreateTeam()}
             placeholder="e.g. Acme Engineering"
-            className="px-4 py-3 rounded-xl text-sm text-center bg-dark-900/70 border border-white/7 text-white placeholder-dark-700 outline-none focus:border-brand/30 transition-colors" />
-          <button onClick={handleCreateTeam} disabled={submitting || !teamName.trim()}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium text-white disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Users className="w-4 h-4" /> Create Team</>}
+            className="field-input"
+            style={{ textAlign: 'center' }}
+          />
+          <button
+            className="btn btn-primary"
+            onClick={handleCreateTeam} disabled={submitting || !teamName.trim()}
+            style={{ width: '100%', height: 42 }}
+          >
+            {submitting ? <Loader2 className="anim-spin" style={{ width: 16, height: 16 }} /> : <Users style={{ width: 16, height: 16 }} />}
+            Create Team
           </button>
         </div>
       </div>
@@ -140,73 +135,70 @@ export default function TeamPage() {
 
   // ── Has team ──
   return (
-    <div className="max-w-3xl">
-      <style>{`
-        @keyframes tmFade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
-      `}</style>
-
-      <div className="mb-7" style={{ animation: 'tmFade 0.3s ease-out' }}>
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
-            style={{ background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.15)' }}>
-            <Users className="w-3.5 h-3.5 text-brand" />
-            <span className="text-[10px] font-semibold text-brand uppercase tracking-widest">Team</span>
-          </div>
-        </div>
-        <h1 className="text-2xl font-bold text-white">{team.name}</h1>
-        <p className="text-dark-500 text-sm mt-1">{members.length} member{members.length !== 1 ? 's' : ''} · Shared context workspace</p>
+    <div className="anim-fade-up max-w-[800px]">
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 8 }}>{team.name}</h1>
+        <p style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>{members.length} member{members.length !== 1 ? 's' : ''} · Shared context workspace</p>
       </div>
 
       {/* Invite card */}
-      <div className="rounded-2xl mb-4"
-        style={{
-          background: 'rgba(15,15,17,0.85)', border: '1px solid rgba(255,255,255,0.07)',
-          backdropFilter: 'blur(12px)', animation: 'tmFade 0.35s ease-out',
-        }}>
-        <div className="p-5 border-b border-white/5">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: 'rgba(217,119,6,0.1)', border: '1px solid rgba(217,119,6,0.2)' }}>
-              <UserPlus className="w-4 h-4 text-brand" />
+      <div className="card" style={{ marginBottom: 24 }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 'var(--r-sm)', background: 'var(--bg-subtle)', border: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <UserPlus style={{ width: 16, height: 16, color: 'var(--text-secondary)' }} />
             </div>
             <div>
-              <p className="text-[13px] font-semibold text-white">Invite Member</p>
-              <p className="text-[10px] text-dark-600">Send an invite link to your teammate</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Invite Member</p>
+              <p style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Send an invite link to your teammate</p>
             </div>
           </div>
         </div>
-        <div className="p-5 space-y-3">
-          <div className="flex gap-2.5">
-            <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+        <div style={{ padding: 24 }}>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <input
+              value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
               placeholder="colleague@company.com" type="email"
               onKeyDown={e => e.key === 'Enter' && handleInvite()}
-              className="flex-1 px-3.5 py-2.5 rounded-xl text-sm bg-dark-900/70 border border-white/7 text-white placeholder-dark-700 outline-none focus:border-brand/30 transition-colors" />
-            <select value={inviteRole} onChange={e => setInviteRole(e.target.value)}
-              className="px-3 py-2.5 rounded-xl text-sm bg-dark-900/70 border border-white/7 text-white outline-none">
+              className="field-input"
+              style={{ flex: 1, minWidth: 200 }}
+            />
+            <select
+              value={inviteRole} onChange={e => setInviteRole(e.target.value)}
+              className="field-input"
+              style={{ width: 120 }}
+            >
               <option value="member">Member</option>
               <option value="admin">Admin</option>
             </select>
-            <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium text-white disabled:opacity-50 flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #d97706, #b45309)' }}>
-              {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+            <button
+              onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}
+              className="btn btn-primary"
+              style={{ flexShrink: 0 }}
+            >
+              {inviting ? <Loader2 className="anim-spin" style={{ width: 14, height: 14 }} /> : <Mail style={{ width: 14, height: 14 }} />}
               Invite
             </button>
           </div>
 
           {inviteLink && (
-            <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.15)' }}>
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-green-900/20">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                <p className="text-[11px] text-green-400 font-medium">Invite link ready — share this with your teammate</p>
+            <div style={{ marginTop: 16, borderRadius: 'var(--r-md)', background: 'var(--success-muted)', border: '1px solid var(--success-border)', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', borderBottom: '1px solid rgba(34, 197, 94, 0.2)' }}>
+                <CheckCircle2 style={{ width: 14, height: 14, color: 'var(--success-text)' }} />
+                <p style={{ fontSize: 12, color: 'var(--success-text)', fontWeight: 500 }}>Invite link ready — share this with your teammate</p>
               </div>
-              <div className="flex gap-2 p-3">
-                <input value={inviteLink} readOnly
-                  className="flex-1 px-3 py-2 rounded-xl text-[11px] font-mono bg-dark-900/60 border border-white/5 text-dark-400 outline-none" />
-                <button onClick={() => { navigator.clipboard.writeText(inviteLink); toast.success('Copied!') }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium transition-all"
-                  style={{ background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.2)', color: '#22c55e' }}>
-                  <Copy className="w-3.5 h-3.5" /> Copy
+              <div style={{ display: 'flex', gap: 12, padding: 16 }}>
+                <input
+                  value={inviteLink} readOnly
+                  className="field-input"
+                  style={{ flex: 1, fontFamily: 'monospace', fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-base)' }}
+                />
+                <button
+                  onClick={() => { navigator.clipboard.writeText(inviteLink); toast.success('Copied!') }}
+                  className="btn"
+                  style={{ background: 'var(--success-muted)', border: '1px solid var(--success-border)', color: 'var(--success-text)' }}
+                >
+                  <Copy style={{ width: 14, height: 14 }} /> Copy
                 </button>
               </div>
             </div>
@@ -215,54 +207,55 @@ export default function TeamPage() {
       </div>
 
       {/* Members list */}
-      <div className="rounded-2xl overflow-hidden"
-        style={{ background: 'rgba(15,15,17,0.85)', border: '1px solid rgba(255,255,255,0.07)', backdropFilter: 'blur(12px)', animation: 'tmFade 0.4s ease-out' }}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/5">
-          <div className="flex items-center gap-2">
-            <Users className="w-3.5 h-3.5 text-dark-600" />
-            <span className="text-[13px] font-semibold text-white">Members</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full text-dark-500"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              {members.length}
-            </span>
+      <div className="card">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Users style={{ width: 16, height: 16, color: 'var(--text-secondary)' }} />
+            <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Members</span>
+            <span className="badge badge-neutral" style={{ marginLeft: 4 }}>{members.length}</span>
           </div>
         </div>
 
-        <div className="divide-y divide-white/[0.03]">
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
           {members.map((member, idx) => {
             const color = getAvatarColor(member.full_name || '')
             const isMe = member.id === user?.id
+
             return (
-              <div key={member.id} className="flex items-center gap-4 px-5 py-3.5 group transition-colors hover:bg-white/[0.01]"
-                style={{ animation: `tmFade 0.3s ease-out ${idx * 0.04}s both` }}>
+              <div
+                key={member.id}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 16, padding: '16px 24px',
+                  borderBottom: idx === members.length - 1 ? 'none' : '1px solid var(--border-subtle)'
+                }}
+              >
                 {/* Avatar */}
-                <div className="relative flex-shrink-0">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm"
-                    style={{ background: color }}>
+                <div style={{ position: 'relative', flexShrink: 0 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14, background: color }}>
                     {(member.full_name || '?')[0]?.toUpperCase()}
                   </div>
                   {isMe && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-dark-900" />
+                    <div style={{ position: 'absolute', bottom: -2, right: -2, width: 10, height: 10, borderRadius: '50%', background: 'var(--success)', border: '2px solid var(--bg-surface)' }} />
                   )}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-white truncate">{member.full_name}</p>
-                    {isMe && <span className="text-[9px] text-dark-600">(you)</span>}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.full_name}</p>
+                    {isMe && <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>(you)</span>}
                   </div>
-                  <p className="text-[11px] text-dark-600 truncate">{member.email}</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-tertiary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.email}</p>
                 </div>
 
                 <RoleBadge role={member.team_role} />
 
                 {!isMe && (
-                  <button onClick={() => setRemovingMember(member)}
-                    className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded-lg flex items-center justify-center transition-all"
-                    style={{ background: 'rgba(255,255,255,0.03)', color: '#3f3f46' }}
-                    onMouseEnter={e => { (e.currentTarget.style.background = 'rgba(220,38,38,0.1)'); (e.currentTarget.style.color = '#f87171') }}
-                    onMouseLeave={e => { (e.currentTarget.style.background = 'rgba(255,255,255,0.03)'); (e.currentTarget.style.color = '#3f3f46') }}>
-                    <Trash2 className="w-3.5 h-3.5" />
+                  <button
+                    onClick={() => setRemovingMember(member)}
+                    className="btn btn-ghost"
+                    style={{ width: 32, height: 32, padding: 0, color: 'var(--text-tertiary)' }}
+                  >
+                    <Trash2 style={{ width: 14, height: 14 }} />
                   </button>
                 )}
               </div>
@@ -271,11 +264,13 @@ export default function TeamPage() {
         </div>
       </div>
 
-      <ConfirmModal isOpen={!!removingMember} onClose={() => setRemovingMember(null)}
+      <ConfirmModal
+        isOpen={!!removingMember} onClose={() => setRemovingMember(null)}
         onConfirm={handleRemoveMember}
         title="Remove Member"
         message={`Remove ${removingMember?.full_name} from the team?`}
-        confirmLabel="Remove" isDangerous />
+        confirmLabel="Remove" isDangerous
+      />
     </div>
   )
 }
