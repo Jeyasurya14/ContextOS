@@ -76,28 +76,31 @@ function Sidebar({ user, pathname, onNavClick }: {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       
       {/* Workspace Switcher */}
-      <div style={{ padding: '16px', marginBottom: 20 }}>
+      <div style={{ padding: '18px 16px 20px' }}>
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          padding: '10px 12px', borderRadius: 'var(--r-md)',
-          background: 'var(--bg-raised)', border: '1px solid var(--border-base)',
-          cursor: 'pointer', transition: 'all var(--t-fast)'
+          display: 'flex', alignItems: 'center', gap: 11,
+          padding: '10px 12px', borderRadius: 10,
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))',
+          border: '1px solid var(--border-base)',
+          cursor: 'pointer', transition: 'all var(--t-fast)',
+          boxShadow: '0 1px 0 rgba(255,255,255,0.04) inset, 0 1px 2px rgba(0,0,0,0.3)',
         }}
-        className="hover:border-[rgba(255,255,255,0.12)]"
+        className="hover:border-[rgba(255,255,255,0.14)]"
         >
           <div style={{ 
-            width: 32, height: 32, borderRadius: 'var(--r-md)', 
-            background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+            width: 30, height: 30, borderRadius: 8, 
+            background: 'linear-gradient(135deg, #fbbf24, #d97706)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0
+            flexShrink: 0,
+            boxShadow: '0 0 0 1px rgba(245,158,11,0.3), 0 4px 12px rgba(245,158,11,0.25)',
           }}>
-            <Logo size={20} />
+            <Logo size={18} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.3, letterSpacing: '-0.01em' }}>ContextOS</p>
-            <p style={{ fontSize: 11, color: 'var(--text-tertiary)', margin: 0 }}>Workspace</p>
+            <p style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2, letterSpacing: '-0.015em' }}>ContextOS</p>
+            <p style={{ fontSize: 10.5, color: 'var(--text-tertiary)', margin: 0, marginTop: 2, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 500 }}>Workspace</p>
           </div>
-          <ChevronRight style={{ width: 16, height: 16, color: 'var(--text-tertiary)', opacity: 0.5 }} />
+          <ChevronRight style={{ width: 14, height: 14, color: 'var(--text-tertiary)', opacity: 0.4 }} />
         </div>
       </div>
 
