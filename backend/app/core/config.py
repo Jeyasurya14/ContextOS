@@ -157,25 +157,25 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_ID: str = ""
     GITHUB_CLIENT_SECRET: str = ""
     GITHUB_WEBHOOK_SECRET: str = ""
-    GITHUB_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/github/callback"
+    GITHUB_REDIRECT_URI: str = ""
 
     NOTION_CLIENT_ID: str = ""
     NOTION_CLIENT_SECRET: str = ""
-    NOTION_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/notion/callback"
+    NOTION_REDIRECT_URI: str = ""
 
     SLACK_CLIENT_ID: str = ""
     SLACK_CLIENT_SECRET: str = ""
     SLACK_SIGNING_SECRET: str = ""
-    SLACK_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/slack/callback"
+    SLACK_REDIRECT_URI: str = ""
 
     LINEAR_CLIENT_ID: str = ""
     LINEAR_CLIENT_SECRET: str = ""
     LINEAR_WEBHOOK_SECRET: str = ""
-    LINEAR_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/linear/callback"
+    LINEAR_REDIRECT_URI: str = ""
 
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_CLIENT_SECRET: str = ""
-    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/integrations/google/callback"
+    GOOGLE_REDIRECT_URI: str = ""
 
     RAZORPAY_KEY_ID: str = ""
     RAZORPAY_KEY_SECRET: str = ""

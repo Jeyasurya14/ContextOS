@@ -70,6 +70,37 @@ export default function IntegrationsPage() {
 
   useEffect(() => { fetchIntegrations() }, [])
 
+  // Read OAuth callback results (?success=<provider> | ?error=<provider>)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const success = params.get('success')
+    const error = params.get('error')
+    const username = params.get('username') || params.get('workspace') || params.get('team')
+
+    if (success) {
+      const label = {
+        github: 'GitHub', notion: 'Notion', slack: 'Slack',
+        linear: 'Linear', google: 'Google Drive', google_drive: 'Google Drive',
+      }[success] || success
+      toast.success(`${label} connected${username ? ` · ${username}` : ''}`)
+      setTab('connected')
+      // Refresh list to pick up the new integration (backend sync starts async)
+      setTimeout(() => fetchIntegrations(), 500)
+    } else if (error) {
+      const label = {
+        github: 'GitHub', notion: 'Notion', slack: 'Slack',
+        linear: 'Linear', google: 'Google Drive', google_drive: 'Google Drive',
+      }[error] || error
+      toast.error(`Failed to connect ${label}. Please try again.`)
+    }
+
+    // Clean URL so refresh doesn't re-toast
+    if (success || error) {
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+  }, [])
+
   const fetchIntegrations = async () => {
     setLoading(true)
     try {

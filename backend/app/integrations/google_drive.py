@@ -28,7 +28,14 @@ class GoogleDriveIntegration:
         """Initialize Google Drive integration with configured credentials."""
         self.client_id = settings.GOOGLE_CLIENT_ID
         self.client_secret = settings.GOOGLE_CLIENT_SECRET
-        self.redirect_uri = settings.GOOGLE_REDIRECT_URI
+
+    @property
+    def redirect_uri(self) -> str:
+        """Resolved redirect URI, falling back to BACKEND_URL when env var unset."""
+        return (
+            settings.GOOGLE_REDIRECT_URI
+            or f"{settings.BACKEND_URL}/api/v1/integrations/google/callback"
+        )
 
     def get_oauth_url(self, user_id: str, state: str) -> str:
         """Generate the Google OAuth authorization URL.

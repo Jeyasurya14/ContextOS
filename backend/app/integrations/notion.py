@@ -22,7 +22,14 @@ class NotionIntegration:
         """Initialize Notion integration with configured credentials."""
         self.client_id = settings.NOTION_CLIENT_ID
         self.client_secret = settings.NOTION_CLIENT_SECRET
-        self.redirect_uri = settings.NOTION_REDIRECT_URI
+
+    @property
+    def redirect_uri(self) -> str:
+        """Resolved redirect URI, falling back to BACKEND_URL when env var unset."""
+        return (
+            settings.NOTION_REDIRECT_URI
+            or f"{settings.BACKEND_URL}/api/v1/integrations/notion/callback"
+        )
 
     def _headers(self, access_token: str) -> dict:
         """Build standard Notion API headers."""
@@ -44,7 +51,7 @@ class NotionIntegration:
         """
         params = {
             "client_id": self.client_id,
-            "redirect_uri": self.redirect_uri or f"{settings.BACKEND_URL}/api/v1/integrations/notion/callback",
+            "redirect_uri": self.redirect_uri,
             "response_type": "code",
             "owner": "user",
             "state": state,
@@ -65,7 +72,7 @@ class NotionIntegration:
         credentials = base64.b64encode(
             f"{self.client_id}:{self.client_secret}".encode()
         ).decode()
-        redirect = self.redirect_uri or f"{settings.BACKEND_URL}/api/v1/integrations/notion/callback"
+        redirect = self.redirect_uri
 
         async with httpx.AsyncClient() as client:
             response = await client.post(

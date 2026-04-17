@@ -20,7 +20,14 @@ class LinearIntegration:
         """Initialize Linear integration with configured credentials."""
         self.client_id = settings.LINEAR_CLIENT_ID
         self.client_secret = settings.LINEAR_CLIENT_SECRET
-        self.redirect_uri = settings.LINEAR_REDIRECT_URI
+
+    @property
+    def redirect_uri(self) -> str:
+        """Resolved redirect URI, falling back to BACKEND_URL when env var unset."""
+        return (
+            settings.LINEAR_REDIRECT_URI
+            or f"{settings.BACKEND_URL}/api/v1/integrations/linear/callback"
+        )
 
     def _headers(self, access_token: str) -> dict:
         """Build standard Linear API headers."""
@@ -41,7 +48,7 @@ class LinearIntegration:
         """
         params = {
             "client_id": self.client_id,
-            "redirect_uri": self.redirect_uri or f"{settings.BACKEND_URL}/api/v1/integrations/linear/callback",
+            "redirect_uri": self.redirect_uri,
             "response_type": "code",
             "state": state,
             "scope": "read",
@@ -60,7 +67,7 @@ class LinearIntegration:
         Returns:
             Dict containing access_token and other details.
         """
-        redirect = self.redirect_uri or f"{settings.BACKEND_URL}/api/v1/integrations/linear/callback"
+        redirect = self.redirect_uri
 
         async with httpx.AsyncClient() as client:
             response = await client.post(

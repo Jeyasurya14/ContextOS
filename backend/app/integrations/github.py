@@ -25,6 +25,14 @@ class GitHubIntegration:
         self.client_id = settings.GITHUB_CLIENT_ID
         self.client_secret = settings.GITHUB_CLIENT_SECRET
 
+    @property
+    def redirect_uri(self) -> str:
+        """Resolved redirect URI, falling back to BACKEND_URL when env var unset."""
+        return (
+            settings.GITHUB_REDIRECT_URI
+            or f"{settings.BACKEND_URL}/api/v1/integrations/github/callback"
+        )
+
     def get_oauth_url(self, user_id: str, state: str) -> str:
         """Generate the GitHub OAuth authorization URL.
 
@@ -37,7 +45,7 @@ class GitHubIntegration:
         """
         params = {
             "client_id": self.client_id,
-            "redirect_uri": settings.GITHUB_REDIRECT_URI,
+            "redirect_uri": self.redirect_uri,
             "scope": self.SCOPES,
             "state": state,
         }

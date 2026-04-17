@@ -26,6 +26,14 @@ class SlackIntegration:
         self.client_secret = settings.SLACK_CLIENT_SECRET
         self.signing_secret = settings.SLACK_SIGNING_SECRET
 
+    @property
+    def redirect_uri(self) -> str:
+        """Resolved redirect URI, falling back to BACKEND_URL when env var unset."""
+        return (
+            settings.SLACK_REDIRECT_URI
+            or f"{settings.BACKEND_URL}/api/v1/integrations/slack/callback"
+        )
+
     def get_oauth_url(self, user_id: str, state: str) -> str:
         """Generate the Slack OAuth authorization URL.
 
@@ -39,7 +47,7 @@ class SlackIntegration:
         params = {
             "client_id": self.client_id,
             "scope": self.SCOPES,
-            "redirect_uri": f"{settings.BACKEND_URL}/api/v1/integrations/slack/callback",
+            "redirect_uri": self.redirect_uri,
             "state": state,
         }
         url = f"{self.AUTH_URL}?{urlencode(params)}"
@@ -62,7 +70,7 @@ class SlackIntegration:
                     "client_id": self.client_id,
                     "client_secret": self.client_secret,
                     "code": code,
-                    "redirect_uri": f"{settings.BACKEND_URL}/api/v1/integrations/slack/callback",
+                    "redirect_uri": self.redirect_uri,
                 },
                 timeout=30.0,
             )
