@@ -245,9 +245,17 @@ export default function PromptsPage() {
     setLoading(true)
     try {
       const res = await promptsApi.list()
-      setPrompts(res.data.prompts)
-    } catch {
-      toast.error('Failed to load prompts')
+      setPrompts(res.data.prompts || [])
+    } catch (e: any) {
+      console.error('Prompts load error:', e)
+      // Only show error if it's not a 404 or missing table (which is expected for new deployments)
+      const status = e?.response?.status
+      const detail = e?.response?.data?.detail || ''
+      if (status && status !== 404 && !detail.includes('does not exist')) {
+        toast.error(`Failed to load prompts: ${detail || e.message || 'Unknown error'}`)
+      }
+      // Gracefully set empty array so UI doesn't break
+      setPrompts([])
     } finally {
       setLoading(false)
     }

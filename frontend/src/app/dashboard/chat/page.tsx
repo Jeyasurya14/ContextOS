@@ -207,10 +207,13 @@ export default function ChatPage() {
 
   useEffect(() => {
     loadConversations()
-    // Preload the user's saved prompts for the / picker
+    // Preload the user's saved prompts for the / picker (non-fatal if it fails)
     promptsApi.list()
       .then(r => setAllPrompts(r.data.prompts || []))
-      .catch(() => {})
+      .catch(e => {
+        console.warn('Could not load prompts for picker (non-fatal):', e)
+        setAllPrompts([])
+      })
     // If the user came here from the Prompts library with "Use in chat",
     // seed the composer with the prompt body and focus it.
     if (typeof window !== 'undefined') {

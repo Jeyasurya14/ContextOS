@@ -14,7 +14,7 @@ from sqlalchemy.dialects import postgresql
 
 
 revision: str = "p1a2b3c4d5e6"
-down_revision: Union[str, None] = "create_query_counts_table"
+down_revision: Union[str, None] = "5731f53bce58"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -28,7 +28,7 @@ def upgrade() -> None:
         op.create_table(
             "prompts",
             sa.Column("id", sa.UUID(as_uuid=False), nullable=False),
-            sa.Column("user_id", sa.String(length=36), nullable=False),
+            sa.Column("user_id", sa.UUID(as_uuid=False), nullable=False),
             sa.Column("team_id", sa.String(length=36), nullable=True),
             sa.Column("title", sa.String(length=200), nullable=False),
             sa.Column("body", sa.Text(), nullable=False),
