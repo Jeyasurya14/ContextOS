@@ -108,6 +108,12 @@ class BillingService:
                 f"{missing_dependency}. Install backend dependencies including setuptools."
             ) from _razorpay_import_error
 
+        if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+            raise RuntimeError(
+                "Payments are not configured for this environment yet. "
+                "An administrator must set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET."
+            )
+
     @property
     def client(self) -> Any:
         """Lazy-initialize the Razorpay client."""

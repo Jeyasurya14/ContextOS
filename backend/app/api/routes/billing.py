@@ -128,10 +128,12 @@ async def create_order(
             detail=str(e),
         )
     except Exception as e:
-        logger.error(f"Failed to create order: {e}")
+        logger.exception("Failed to create Razorpay order")
+        # Surface the actual error class + message so the client toast is actionable
+        detail = f"Failed to create order: {type(e).__name__}: {e}" if str(e) else "Failed to create order"
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create order",
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=detail,
         )
 
 
