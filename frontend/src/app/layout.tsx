@@ -7,7 +7,7 @@ import { ToastProvider } from '@/components/ui/Toast'
 import {
   LayoutDashboard, MessageSquare, Plug, FolderOpen,
   Users, CreditCard, Settings, LogOut, ChevronRight, Menu, X, Zap,
-  Globe, Terminal, Activity, Database, Archive, Layers, RefreshCw
+  Globe, Terminal, Activity, Database, Archive, Layers, RefreshCw, BookOpen
 } from 'lucide-react'
 import Link from 'next/link'
 import '@/globals.css'
@@ -34,6 +34,7 @@ const NAV_GROUPS = [
       { href: '/dashboard/team',         icon: Users,           label: 'Team' },
       { href: '/dashboard/billing',      icon: CreditCard,      label: 'Billing' },
       { href: '/dashboard/settings',     icon: Settings,        label: 'Settings' },
+      { href: '/dashboard/guide',        icon: BookOpen,        label: 'Guide' },
     ]
   }
 ]
