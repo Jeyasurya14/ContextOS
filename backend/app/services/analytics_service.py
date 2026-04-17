@@ -189,7 +189,7 @@ async def get_activity_timeline(
             "activity_type": a.activity_type,
             "entity_type": a.entity_type,
             "entity_id": a.entity_id,
-            "metadata": a.metadata,
+            "extra_data": a.extra_data,
             "created_at": a.created_at.isoformat(),
         }
         for a in activities

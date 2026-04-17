@@ -42,9 +42,9 @@ class Activity(Base):
         UUID(as_uuid=False), nullable=True
     )
 
-    metadata: Mapped[dict | None] = mapped_column(
-        JSONB, nullable=True
-    )  # Additional context (title, description, etc.)
+    extra_data: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, name="metadata"
+    )  # Additional context (title, description, etc.) - stored as 'metadata' in DB
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

@@ -34,9 +34,9 @@ class UserInsight(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    metadata: Mapped[dict | None] = mapped_column(
-        JSONB, nullable=True
-    )  # Additional data (stats, recommendations, etc.)
+    extra_data: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True, name="metadata"
+    )  # Additional data (stats, recommendations, etc.) - stored as 'metadata' in DB
 
     is_read: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
