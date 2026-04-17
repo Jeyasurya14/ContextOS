@@ -134,6 +134,44 @@ export const healthApi = {
   getHealth: () => api.get('/api/v1/health'),
 }
 
+export type PromptScope = 'personal' | 'team'
+
+export interface PromptItem {
+  id: string
+  user_id: string
+  team_id: string | null
+  title: string
+  body: string
+  description: string | null
+  scope: PromptScope
+  tags: string[]
+  usage_count: number
+  created_at: string
+  updated_at: string
+}
+
+export const promptsApi = {
+  list: (params?: { scope?: PromptScope; q?: string }) =>
+    api.get<{ prompts: PromptItem[]; total: number }>('/api/v1/prompts', { params }),
+  create: (data: {
+    title: string
+    body: string
+    description?: string | null
+    scope?: PromptScope
+    tags?: string[]
+  }) => api.post<PromptItem>('/api/v1/prompts', data),
+  update: (id: string, data: Partial<{
+    title: string
+    body: string
+    description: string | null
+    scope: PromptScope
+    tags: string[]
+  }>) => api.patch<PromptItem>(`/api/v1/prompts/${id}`, data),
+  delete: (id: string) => api.delete(`/api/v1/prompts/${id}`),
+  recordUse: (id: string) => api.post<PromptItem>(`/api/v1/prompts/${id}/use`),
+  duplicate: (id: string) => api.post<PromptItem>(`/api/v1/prompts/${id}/duplicate`),
+}
+
 export const queryApi = {
   listConversations: () => api.get('/api/v1/query/conversations'),
   getConversation: (id: string) => api.get(`/api/v1/query/conversations/${id}`),

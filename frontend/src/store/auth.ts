@@ -11,6 +11,7 @@ interface User {
   plan: 'free' | 'pro' | 'team'
   is_active: boolean
   created_at: string
+  team_id?: string | null
 }
 
 interface AuthState {

@@ -19,6 +19,7 @@ from app.services.qdrant_service import init_collection, check_qdrant_health
 from app.api.routes.health import router as health_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.projects import router as projects_router
+from app.api.routes.prompts import router as prompts_router
 from app.api.routes.github import router as github_router
 from app.api.routes.notion import router as notion_router
 from app.api.routes.slack import router as slack_router
@@ -186,6 +187,7 @@ app.add_middleware(
 app.include_router(health_router, tags=["health"])
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(projects_router, prefix="/api/v1/projects", tags=["projects"])
+app.include_router(prompts_router, prefix="/api/v1/prompts", tags=["prompts"])
 app.include_router(context_router, prefix="/api/v1/context", tags=["context"])
 app.include_router(query_router, prefix="/api/v1/query", tags=["query"])
 app.include_router(github_router, prefix="/api/v1/integrations/github", tags=["github"])

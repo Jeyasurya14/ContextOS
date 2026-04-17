@@ -7,6 +7,7 @@ from app.models.context_chunk import ContextChunk
 from app.models.conversation import Conversation, ConversationMessage
 from app.models.team import Team, TeamInvitation
 from app.models.billing import BillingEvent, UsageRecord
+from app.models.prompt import Prompt
 
 __all__ = [
     "User",
@@ -19,4 +20,5 @@ __all__ = [
     "TeamInvitation",
     "BillingEvent",
     "UsageRecord",
+    "Prompt",
 ]

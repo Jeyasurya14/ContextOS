@@ -201,6 +201,16 @@ export default function ChatPage() {
 
   useEffect(() => {
     loadConversations()
+    // If the user came here from the Prompts library with "Use in chat",
+    // seed the composer with the prompt body and focus it.
+    if (typeof window !== 'undefined') {
+      const seeded = sessionStorage.getItem('contextos:seedPrompt')
+      if (seeded) {
+        sessionStorage.removeItem('contextos:seedPrompt')
+        setInput(seeded)
+        setTimeout(() => inputRef.current?.focus(), 50)
+      }
+    }
   }, [])
 
   useEffect(() => {
