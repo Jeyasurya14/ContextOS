@@ -19,7 +19,7 @@ from app.api.deps import get_current_user
 router = APIRouter(tags=["projects"])
 
 
-@router.post("/", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 async def create_project(
     data: ProjectCreate,
     db: AsyncSession = Depends(get_db),
@@ -40,7 +40,7 @@ async def create_project(
     return ProjectResponse.model_validate(project)
 
 
-@router.get("/", response_model=ProjectListResponse)
+@router.get("", response_model=ProjectListResponse)
 async def list_projects(
     skip: int = Query(default=0, ge=0),
     limit: int = Query(default=20, ge=1, le=100),
