@@ -84,6 +84,143 @@ function openUrl(url?: string) {
     if (url) vscode.env.openExternal(vscode.Uri.parse(url));
 }
 
+// ─── GIT WORKFLOW (commit + push + open PR) ────────────────────────────────
+
+type GitRepository = {
+    rootUri: vscode.Uri;
+    state: {
+        HEAD?: { name?: string; upstream?: { name?: string; remote?: string } };
+        workingTreeChanges: unknown[];
+        indexChanges: unknown[];
+        remotes: Array<{ name: string; fetchUrl?: string; pushUrl?: string }>;
+    };
+    add: (resources: vscode.Uri[]) => Promise<void>;
+    commit: (message: string, opts?: { all?: boolean }) => Promise<void>;
+    push: (remote?: string, branch?: string, setUpstream?: boolean) => Promise<void>;
+};
+
+function parseGitHubRemote(url: string): string | null {
+    // Handles git@github.com:owner/repo(.git) and https://github.com/owner/repo(.git)
+    const m = url.match(/github\.com[/:]([^/]+)\/([^/.]+?)(?:\.git)?$/i);
+    return m ? `${m[1]}/${m[2]}` : null;
+}
+
+async function getActiveGitRepository(): Promise<GitRepository | null> {
+    const gitExt = vscode.extensions.getExtension<any>('vscode.git');
+    if (!gitExt) {
+        vscode.window.showErrorMessage('VS Code Git extension not found.');
+        return null;
+    }
+    const api = (gitExt.isActive ? gitExt.exports : await gitExt.activate()).getAPI(1);
+    const repos: GitRepository[] = api.repositories;
+
+    if (!repos || repos.length === 0) {
+        vscode.window.showErrorMessage('No Git repository open in this workspace.');
+        return null;
+    }
+    if (repos.length === 1) return repos[0];
+
+    const pick = await vscode.window.showQuickPick(
+        repos.map((r, i) => ({ label: r.rootUri.fsPath, _index: i })),
+        { title: 'Select Git repository', placeHolder: 'Multiple repos detected' },
+    );
+    return pick ? repos[(pick as any)._index] : null;
+}
+
+export async function gitCommitPushOpenPR(context: vscode.ExtensionContext) {
+    const repo = await getActiveGitRepository();
+    if (!repo) return;
+
+    const branch = repo.state.HEAD?.name;
+    if (!branch) {
+        vscode.window.showErrorMessage('Could not determine current Git branch (detached HEAD?).');
+        return;
+    }
+    if (branch === 'main' || branch === 'master') {
+        const confirm = await vscode.window.showWarningMessage(
+            `You are on "${branch}". PRs usually come from feature branches. Continue anyway?`,
+            'Continue', 'Cancel',
+        );
+        if (confirm !== 'Continue') return;
+    }
+
+    // Detect GitHub remote
+    const origin = repo.state.remotes.find(r => r.name === 'origin') ?? repo.state.remotes[0];
+    const remoteUrl = origin?.pushUrl || origin?.fetchUrl || '';
+    const repoFullName = parseGitHubRemote(remoteUrl);
+    if (!repoFullName) {
+        vscode.window.showErrorMessage('Origin remote is not a GitHub repository; cannot open PR.');
+        return;
+    }
+
+    const hasChanges =
+        repo.state.workingTreeChanges.length > 0 || repo.state.indexChanges.length > 0;
+
+    // Commit step (skip if nothing to commit)
+    if (hasChanges) {
+        const message = await vscode.window.showInputBox({
+            prompt: 'Commit message',
+            placeHolder: 'feat: describe what changed',
+            ignoreFocusOut: true,
+            validateInput: v => v.trim() ? null : 'Commit message required',
+        });
+        if (!message) return;
+        try {
+            await repo.commit(message, { all: true });
+        } catch (e: any) {
+            vscode.window.showErrorMessage(`Commit failed: ${e?.message ?? e}`);
+            return;
+        }
+    }
+
+    // PR metadata
+    const title = await vscode.window.showInputBox({
+        prompt: 'Pull request title',
+        value: repo.state.HEAD?.name?.replace(/[-_/]/g, ' ') ?? '',
+        ignoreFocusOut: true,
+        validateInput: v => v.trim() ? null : 'Title required',
+    });
+    if (!title) return;
+
+    const body = await vscode.window.showInputBox({
+        prompt: 'Pull request description (optional)', ignoreFocusOut: true,
+    });
+
+    const base = await vscode.window.showInputBox({
+        prompt: 'Base branch',
+        value: 'main',
+        ignoreFocusOut: true,
+    });
+    if (!base) return;
+
+    // Push step
+    try {
+        await vscode.window.withProgress(
+            { location: vscode.ProgressLocation.Notification, title: `Pushing ${branch}…` },
+            async () => {
+                const hasUpstream = !!repo.state.HEAD?.upstream;
+                await repo.push('origin', branch, !hasUpstream);
+            },
+        );
+    } catch (e: any) {
+        vscode.window.showErrorMessage(`Push failed: ${e?.message ?? e}`);
+        return;
+    }
+
+    // Open PR via backend
+    const result = await apiCall<{ number: number; html_url: string }>(
+        context, 'POST', '/api/v1/actions/github/pr',
+        { repo: repoFullName, title, head: branch, base, body: body ?? '' },
+    );
+    if (!result) return;
+
+    const action = await vscode.window.showInformationMessage(
+        `Committed, pushed, and opened PR ${repoFullName}#${result.number}`,
+        'Open in browser',
+    );
+    if (action === 'Open in browser') openUrl(result.html_url);
+}
+
 // ─── GITHUB ────────────────────────────────────────────────────────────────
 
 export async function githubCreateIssue(context: vscode.ExtensionContext) {

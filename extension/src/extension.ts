@@ -6,10 +6,11 @@ import {
     linearCreateIssue,
     notionCreatePage,
     slackSendMessage,
+    gitCommitPushOpenPR,
 } from './actions.js';
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('[ContextOS] Extension activated — v2.1.0');
+    console.log('[ContextOS] Extension activated — v2.2.0');
 
     // ── Sidebar Webview ──────────────────────────────────────────────────────
     const provider = new ChatViewProvider(context.extensionUri, context);
@@ -188,6 +189,7 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('contextos.linear.createIssue', () => linearCreateIssue(context)),
         vscode.commands.registerCommand('contextos.notion.createPage', () => notionCreatePage(context)),
         vscode.commands.registerCommand('contextos.slack.sendMessage', () => slackSendMessage(context)),
+        vscode.commands.registerCommand('contextos.git.commitPushPR', () => gitCommitPushOpenPR(context)),
     );
 
     // Meta command: pick any integration action from one palette entry
@@ -197,6 +199,7 @@ export function activate(context: vscode.ExtensionContext) {
                 [
                     { label: '$(git-pull-request) GitHub: Create Issue',       command: 'contextos.github.createIssue' },
                     { label: '$(git-merge) GitHub: Create Pull Request',       command: 'contextos.github.createPR' },
+                    { label: '$(rocket) Git: Commit, Push & Open PR',          command: 'contextos.git.commitPushPR' },
                     { label: '$(checklist) Linear: Create Issue',              command: 'contextos.linear.createIssue' },
                     { label: '$(notebook) Notion: Create Page',                command: 'contextos.notion.createPage' },
                     { label: '$(comment) Slack: Send Message',                 command: 'contextos.slack.sendMessage' },

@@ -110,6 +110,12 @@
         "title": "ContextOS: Slack — Send Message",
         "category": "ContextOS",
         "icon": "$(comment)"
+      },
+      {
+        "command": "contextos.git.commitPushPR",
+        "title": "ContextOS: Git — Commit, Push & Open PR",
+        "category": "ContextOS",
+        "icon": "$(rocket)"
       }
     ],
     "menus": {
