@@ -7,7 +7,7 @@ import {
   Code2, FileText, Lightbulb, GitBranch, Trash2, Loader2
 } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
-import { queryApi } from '@/lib/api'
+import { queryApi, promptsApi, type PromptItem } from '@/lib/api'
 import { useToast } from '@/components/ui/Toast'
 
 /* ─── Types ─────────────────────────────────────────── */
@@ -196,11 +196,21 @@ export default function ChatPage() {
   const [copiedId, setCopiedId] = useState<number | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
+  // Prompt picker (triggered by typing '/' at the start of an empty input)
+  const [allPrompts, setAllPrompts] = useState<PromptItem[]>([])
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pickerQuery, setPickerQuery] = useState('')
+  const [pickerIndex, setPickerIndex] = useState(0)
+
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     loadConversations()
+    // Preload the user's saved prompts for the / picker
+    promptsApi.list()
+      .then(r => setAllPrompts(r.data.prompts || []))
+      .catch(() => {})
     // If the user came here from the Prompts library with "Use in chat",
     // seed the composer with the prompt body and focus it.
     if (typeof window !== 'undefined') {
@@ -335,6 +345,85 @@ export default function ChatPage() {
       })
     } finally {
       setIsStreaming(false)
+    }
+  }
+
+  /* ─── Prompt picker helpers ─── */
+
+  // Filter prompts against the query typed after the leading '/'
+  const filteredPrompts = (() => {
+    if (!pickerOpen) return []
+    const q = pickerQuery.trim().toLowerCase()
+    const base = allPrompts
+    if (!q) return base.slice(0, 8)
+    return base.filter(p =>
+      p.title.toLowerCase().includes(q) ||
+      (p.description || '').toLowerCase().includes(q) ||
+      p.tags.some(t => t.toLowerCase().includes(q))
+    ).slice(0, 8)
+  })()
+
+  const insertPrompt = async (p: PromptItem) => {
+    setInput(p.body)
+    setPickerOpen(false)
+    setPickerQuery('')
+    setPickerIndex(0)
+    // Fire and forget — counts help us surface popular prompts later
+    promptsApi.recordUse(p.id).catch(() => {})
+    setTimeout(() => {
+      const el = inputRef.current
+      if (!el) return
+      el.focus()
+      const end = el.value.length
+      el.setSelectionRange(end, end)
+    }, 0)
+  }
+
+  // Open picker when the entire input becomes exactly '/…'
+  const handleInputChange = (val: string) => {
+    setInput(val)
+    if (val.startsWith('/') && !val.includes('\n')) {
+      setPickerOpen(true)
+      setPickerQuery(val.slice(1))
+      setPickerIndex(0)
+    } else if (pickerOpen) {
+      setPickerOpen(false)
+      setPickerQuery('')
+    }
+  }
+
+  const handleComposerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (pickerOpen && filteredPrompts.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setPickerIndex(i => (i + 1) % filteredPrompts.length)
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setPickerIndex(i => (i - 1 + filteredPrompts.length) % filteredPrompts.length)
+        return
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        insertPrompt(filteredPrompts[pickerIndex])
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setPickerOpen(false)
+        setPickerQuery('')
+        return
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        insertPrompt(filteredPrompts[pickerIndex])
+        return
+      }
+    }
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
     }
   }
 
@@ -553,7 +642,14 @@ export default function ChatPage() {
 
           {/* Composer */}
           <div style={{ padding: '16px 24px 20px', flexShrink: 0 }}>
-            <div style={{ maxWidth: 760, margin: '0 auto' }}>
+            <div style={{ maxWidth: 760, margin: '0 auto', position: 'relative' }}>
+              <PromptPicker
+                open={pickerOpen}
+                prompts={filteredPrompts}
+                activeIndex={pickerIndex}
+                onHover={setPickerIndex}
+                onSelect={insertPrompt}
+              />
               <div style={{
                 display: 'flex', gap: 8, alignItems: 'flex-end',
                 padding: '10px 12px',
@@ -568,9 +664,9 @@ export default function ChatPage() {
                 <textarea
                   ref={inputRef}
                   value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-                  placeholder="Message ContextOS…"
+                  onChange={e => handleInputChange(e.target.value)}
+                  onKeyDown={handleComposerKeyDown}
+                  placeholder={allPrompts.length > 0 ? 'Message ContextOS… (type / to pick a prompt)' : 'Message ContextOS…'}
                   rows={1}
                   style={{
                     flex: 1,
@@ -616,5 +712,102 @@ export default function ChatPage() {
         </main>
       </div>
     </>
+  )
+}
+
+/* ─── Prompt picker popover ────────────────────────────── */
+
+function PromptPicker({
+  open, prompts, activeIndex, onHover, onSelect,
+}: {
+  open: boolean
+  prompts: PromptItem[]
+  activeIndex: number
+  onHover: (i: number) => void
+  onSelect: (p: PromptItem) => void
+}) {
+  if (!open) return null
+
+  return (
+    <div style={{
+      position: 'absolute',
+      bottom: 'calc(100% + 8px)',
+      left: 0, right: 0,
+      background: 'var(--bg-surface)',
+      border: '1px solid var(--border-base)',
+      borderRadius: 12,
+      boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+      overflow: 'hidden',
+      zIndex: 20,
+      maxHeight: 320,
+      display: 'flex', flexDirection: 'column',
+    }}>
+      <div style={{
+        padding: '8px 12px',
+        borderBottom: '1px solid var(--border-subtle)',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        fontSize: 11, color: 'var(--text-tertiary)',
+      }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Sparkles size={11} style={{ color: '#fbbf24' }} /> Prompts
+        </span>
+        <span style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+          ↑↓ navigate · enter to insert · esc
+        </span>
+      </div>
+
+      {prompts.length === 0 ? (
+        <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
+          No prompts match. <br />
+          <span style={{ fontSize: 11, opacity: 0.7 }}>Save one from the Prompts page to reuse it here.</span>
+        </div>
+      ) : (
+        <div style={{ overflowY: 'auto' }}>
+          {prompts.map((p, i) => (
+            <button
+              key={p.id}
+              onMouseEnter={() => onHover(i)}
+              onMouseDown={e => { e.preventDefault(); onSelect(p) }}
+              style={{
+                width: '100%', textAlign: 'left',
+                padding: '9px 12px', border: 'none', cursor: 'pointer',
+                background: i === activeIndex ? 'rgba(245,158,11,0.08)' : 'transparent',
+                borderLeft: i === activeIndex ? '2px solid #fbbf24' : '2px solid transparent',
+                display: 'flex', flexDirection: 'column', gap: 2,
+                borderBottom: i < prompts.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+                transition: 'background 0.08s',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{
+                  fontSize: 13, fontWeight: 600,
+                  color: i === activeIndex ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {p.title}
+                </span>
+                <span style={{
+                  fontSize: 10, padding: '2px 6px', borderRadius: 999,
+                  background: p.scope === 'team' ? 'rgba(59,130,246,0.1)' : 'rgba(255,255,255,0.04)',
+                  color: p.scope === 'team' ? '#60a5fa' : 'var(--text-tertiary)',
+                  border: p.scope === 'team' ? '1px solid rgba(59,130,246,0.2)' : '1px solid var(--border-subtle)',
+                  flexShrink: 0,
+                }}>
+                  {p.scope}
+                </span>
+              </div>
+              {p.description && (
+                <span style={{
+                  fontSize: 11, color: 'var(--text-tertiary)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {p.description}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
