@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/store/auth';
-import { ArrowRight, Github, FileText, MessageSquare, Code2, Zap, Shield, Users, Sparkles, Brain, Database, Search, Check, ChevronRight, Globe } from 'lucide-react';
+import { ArrowRight, Github, FileText, MessageSquare, Code2, Zap, Shield, Users, Sparkles, Brain, Database, Search, Check, ChevronRight, Globe, UserPlus, Plug, KeyRound, Terminal, Workflow, LayoutDashboard, Rocket, BookOpen } from 'lucide-react';
 
 function useInView(threshold = 0.2) {
   const ref = useRef<HTMLDivElement>(null);
@@ -352,6 +352,178 @@ export default function LandingPage() {
             <h2 className="text-4xl font-bold text-white tracking-tight">Four steps to full project context</h2>
           </div>
           <WorkflowAnimation />
+        </div>
+      </section>
+
+      {/* How to Use — Step-by-step guide */}
+      <section id="how-to-use" className="py-24 border-t border-dark-800/50">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand/5 border border-brand/10 text-brand text-[11px] font-medium tracking-wide uppercase mb-4">
+              <BookOpen className="w-3 h-3" /> Quick Guide
+            </div>
+            <h2 className="text-4xl font-bold text-white tracking-tight mb-4">
+              How to use ContextOS
+            </h2>
+            <p className="text-dark-400 max-w-xl mx-auto leading-relaxed">
+              From sign up to shipping your first PR in under five minutes. No config files, no setup scripts —
+              just connect your tools and start asking.
+            </p>
+          </div>
+
+          {/* 6 Numbered Steps */}
+          <div className="grid md:grid-cols-2 gap-4 mb-20">
+            {[
+              {
+                num: '01',
+                icon: UserPlus,
+                title: 'Create your account',
+                desc: 'Sign up with email. No credit card needed on the Free plan — 25 AI queries/day out of the box.',
+                detail: 'You land on the dashboard with an empty workspace ready to connect.',
+              },
+              {
+                num: '02',
+                icon: Plug,
+                title: 'Connect your tools',
+                desc: 'Open Integrations, pick GitHub, Notion, Slack, Linear, or Google Drive, and click Connect. One OAuth popup per tool — that\'s it.',
+                detail: 'Tokens are encrypted with AES-256-GCM before they ever touch our database.',
+              },
+              {
+                num: '03',
+                icon: Database,
+                title: 'Let it sync',
+                desc: 'ContextOS pulls your repos, pages, threads, and issues, splits them into semantic chunks, and embeds them into a unified context store.',
+                detail: 'Webhooks keep everything fresh automatically as your team commits, edits, and chats.',
+              },
+              {
+                num: '04',
+                icon: MessageSquare,
+                title: 'Ask anything in Chat',
+                desc: 'Go to the Chat page and ask a real question — "why did auth break last week?" — and get a cited answer grounded in your real commits, docs, and Slack threads.',
+                detail: 'Every answer lists its sources so you can click through and verify.',
+              },
+              {
+                num: '05',
+                icon: KeyRound,
+                title: 'Install the VS Code extension',
+                desc: 'Grab the ContextOS extension, paste the API key from Settings, and ask questions without ever leaving your editor.',
+                detail: 'The extension also has a Chat sidebar, inline selection queries, and a command palette full of actions.',
+              },
+              {
+                num: '06',
+                icon: Rocket,
+                title: 'Run actions from anywhere',
+                desc: 'Open the palette and run "Commit, Push & Open PR", create a Linear issue, post to Slack, or draft a Notion page — all from the editor using your connected accounts.',
+                detail: 'One workflow, every tool. No tab-switching, no context loss.',
+              },
+            ].map((s) => (
+              <div
+                key={s.num}
+                className="group relative bg-dark-900/40 border border-dark-800 rounded-xl p-6 hover:border-brand/30 hover:bg-dark-900/60 transition-all"
+              >
+                <div className="flex items-start gap-4">
+                  <div className="shrink-0 w-11 h-11 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center group-hover:bg-brand/20 transition-colors">
+                    <s.icon className="w-5 h-5 text-brand" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[10px] font-bold text-brand tracking-widest">{s.num}</span>
+                      <h3 className="text-base font-semibold text-white">{s.title}</h3>
+                    </div>
+                    <p className="text-sm text-dark-300 leading-relaxed mb-2">{s.desc}</p>
+                    <p className="text-xs text-dark-500 leading-relaxed italic">{s.detail}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Product Surfaces — What each part does */}
+          <div className="text-center mb-10">
+            <h3 className="text-2xl font-bold text-white tracking-tight mb-3">
+              What lives where
+            </h3>
+            <p className="text-dark-400 text-sm max-w-lg mx-auto">
+              Five surfaces, one context layer. Here's what each one is for.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              {
+                icon: LayoutDashboard,
+                title: 'Dashboard',
+                tagline: 'Your command center',
+                body: 'See every connected service, recent activity, system health, and how much context has been indexed. One glance tells you whether your AI has fresh data.',
+              },
+              {
+                icon: MessageSquare,
+                title: 'Chat',
+                tagline: 'Talk to your whole project',
+                body: 'A ChatGPT-style interface that answers from your actual GitHub, Notion, Slack, and Linear. Streaming responses, citations inline, history on the left.',
+              },
+              {
+                icon: Plug,
+                title: 'Integrations',
+                tagline: 'One-click OAuth, AES-256 encrypted',
+                body: 'Connect or disconnect any provider. See last sync time, force a re-sync, or revoke access. Tokens never leave our encrypted store in plaintext.',
+              },
+              {
+                icon: Terminal,
+                title: 'VS Code Extension',
+                tagline: 'Context where you code',
+                body: 'Sidebar chat, inline code questions, and a command palette with every workflow. Uses your API key so it\'s authenticated to your exact workspace.',
+              },
+              {
+                icon: Workflow,
+                title: 'Actions',
+                tagline: 'Write back to your tools',
+                body: 'From the extension palette: commit + push + open a PR, create a Linear issue, send a Slack message, or draft a Notion page — using your connected OAuth accounts, not a separate token.',
+              },
+            ].map((surface) => (
+              <div
+                key={surface.title}
+                className="group flex items-start gap-4 p-5 rounded-xl border border-dark-800 bg-dark-900/30 hover:border-dark-700 hover:bg-dark-900/50 transition-all"
+              >
+                <div className="shrink-0 w-10 h-10 rounded-lg bg-dark-800 border border-dark-700 flex items-center justify-center group-hover:border-brand/30 transition-colors">
+                  <surface.icon className="w-5 h-5 text-dark-300 group-hover:text-brand transition-colors" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-3 flex-wrap mb-1">
+                    <h4 className="text-base font-semibold text-white">{surface.title}</h4>
+                    <span className="text-xs text-brand font-medium">{surface.tagline}</span>
+                  </div>
+                  <p className="text-sm text-dark-400 leading-relaxed">{surface.body}</p>
+                </div>
+                <ChevronRight className="hidden md:block w-4 h-4 text-dark-700 group-hover:text-brand group-hover:translate-x-1 transition-all mt-3 shrink-0" />
+              </div>
+            ))}
+          </div>
+
+          {/* Tip callout */}
+          <div className="mt-12 rounded-xl border border-brand/20 bg-brand/[0.03] p-6 flex items-start gap-4">
+            <div className="shrink-0 w-9 h-9 rounded-lg bg-brand/10 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-brand" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-white mb-1">Pro tip — start with one integration</p>
+              <p className="text-sm text-dark-400 leading-relaxed">
+                You don't need to connect everything on day one. Plug in GitHub first, ask a few questions in Chat,
+                then layer on Slack or Notion once you see the value. The context store grows as you go.
+              </p>
+            </div>
+          </div>
+
+          {/* Final CTA inside section */}
+          <div className="text-center mt-14">
+            <Link
+              href={isMounted && token ? '/dashboard' : '/register'}
+              className="inline-flex items-center gap-2 bg-brand text-white px-6 py-3 rounded-lg font-medium hover:bg-brand-dark transition"
+            >
+              {isMounted && token ? 'Open your dashboard' : 'Start in 60 seconds'}
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </section>
 
