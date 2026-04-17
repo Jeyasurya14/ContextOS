@@ -100,19 +100,13 @@ class BillingService:
         self._client: Any | None = None
 
     def ensure_billing_provider_available(self) -> None:
-        """Raise a clear error if Razorpay or one of its dependencies is unavailable."""
+        """Raise a clear error if the Razorpay SDK itself is unavailable."""
         if razorpay is None:
             missing_dependency = _razorpay_import_error.name if _razorpay_import_error else "razorpay"
             raise RuntimeError(
                 "Razorpay billing is unavailable because a required dependency could not be imported: "
                 f"{missing_dependency}. Install backend dependencies including setuptools."
             ) from _razorpay_import_error
-
-        if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
-            raise RuntimeError(
-                "Payments are not configured for this environment yet. "
-                "An administrator must set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET."
-            )
 
     @property
     def client(self) -> Any:

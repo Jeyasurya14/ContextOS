@@ -129,11 +129,20 @@ async def create_order(
         )
     except Exception as e:
         logger.exception("Failed to create Razorpay order")
-        # Surface the actual error class + message so the client toast is actionable
-        detail = f"Failed to create order: {type(e).__name__}: {e}" if str(e) else "Failed to create order"
+        # Build a detail that is always informative, even if str(e) is empty
+        msg = str(e).strip() or repr(e)
+        # Razorpay SDK exceptions sometimes attach the upstream response body
+        upstream = getattr(e, "response", None)
+        if upstream is not None:
+            try:
+                body = upstream.text if hasattr(upstream, "text") else str(upstream)
+                if body:
+                    msg = f"{msg} — upstream: {body[:300]}"
+            except Exception:
+                pass
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=detail,
+            detail=f"Failed to create order: {type(e).__name__}: {msg}",
         )
 
 
