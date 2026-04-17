@@ -413,4 +413,85 @@ class NotionIntegration:
         )
 
 
+    async def find_parent_page(self, access_token: str) -> str | None:
+        """Find any page the user's integration has access to, to use as a parent.
+
+        Returns:
+            Page ID string, or None if nothing accessible.
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.API_BASE}/search",
+                headers=self._headers(access_token),
+                json={
+                    "filter": {"value": "page", "property": "object"},
+                    "page_size": 1,
+                },
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            results = response.json().get("results", [])
+            if not results:
+                return None
+            return results[0].get("id")
+
+    async def create_page(
+        self,
+        access_token: str,
+        title: str,
+        content: str = "",
+        parent_page_id: str | None = None,
+    ) -> dict:
+        """Create a new Notion page.
+
+        If parent_page_id not given, picks any accessible page as parent.
+
+        Returns:
+            Dict with id, url, title.
+        """
+        parent_id = parent_page_id or await self.find_parent_page(access_token)
+        if not parent_id:
+            raise ValueError(
+                "No parent page available. Share at least one Notion page with the ContextOS integration first."
+            )
+
+        # Split content into paragraph blocks (Notion limits each rich_text to 2000 chars)
+        blocks: list[dict] = []
+        if content:
+            for chunk in content.split("\n\n"):
+                if not chunk.strip():
+                    continue
+                blocks.append({
+                    "object": "block",
+                    "type": "paragraph",
+                    "paragraph": {
+                        "rich_text": [{"type": "text", "text": {"content": chunk[:2000]}}]
+                    },
+                })
+
+        payload = {
+            "parent": {"page_id": parent_id},
+            "properties": {
+                "title": {"title": [{"type": "text", "text": {"content": title[:200]}}]}
+            },
+            "children": blocks,
+        }
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.API_BASE}/pages",
+                headers=self._headers(access_token),
+                json=payload,
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            logger.info("Created Notion page {}", data.get("id"))
+            return {
+                "id": data.get("id"),
+                "url": data.get("url"),
+                "title": title,
+            }
+
+
 notion_integration = NotionIntegration()

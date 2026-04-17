@@ -172,5 +172,96 @@ class LinearIntegration:
         logger.info("Fetched {} Linear issues", len(issues))
         return issues
 
+    async def list_teams(self, access_token: str) -> list[dict]:
+        """List teams the user has access to.
+
+        Returns:
+            List of {id, key, name} dicts.
+        """
+        query = """
+        query {
+          teams(first: 50) {
+            nodes { id key name }
+          }
+        }
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.GRAPHQL_URL,
+                json={"query": query},
+                headers=self._headers(access_token),
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("data", {}).get("teams", {}).get("nodes", []) or []
+
+    async def create_issue(
+        self,
+        access_token: str,
+        team_id: str,
+        title: str,
+        description: str = "",
+    ) -> dict:
+        """Create a Linear issue on a team.
+
+        Returns:
+            Dict with id, identifier, url, title.
+        """
+        mutation = """
+        mutation ($teamId: String!, $title: String!, $description: String) {
+          issueCreate(input: { teamId: $teamId, title: $title, description: $description }) {
+            success
+            issue { id identifier url title }
+          }
+        }
+        """
+        variables = {"teamId": team_id, "title": title, "description": description or None}
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.GRAPHQL_URL,
+                json={"query": mutation, "variables": variables},
+                headers=self._headers(access_token),
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            payload = data.get("data", {}).get("issueCreate", {})
+            if not payload.get("success"):
+                logger.error("Linear issueCreate failed: {}", data)
+                raise ValueError("Linear refused the issue creation request")
+            issue = payload.get("issue", {})
+            logger.info("Created Linear issue {}", issue.get("identifier"))
+            return issue
+
+    async def add_comment(
+        self,
+        access_token: str,
+        issue_id: str,
+        body: str,
+    ) -> dict:
+        """Add a comment to a Linear issue (by GraphQL node ID)."""
+        mutation = """
+        mutation ($issueId: String!, $body: String!) {
+          commentCreate(input: { issueId: $issueId, body: $body }) {
+            success
+            comment { id url body }
+          }
+        }
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.GRAPHQL_URL,
+                json={"query": mutation, "variables": {"issueId": issue_id, "body": body}},
+                headers=self._headers(access_token),
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            payload = data.get("data", {}).get("commentCreate", {})
+            if not payload.get("success"):
+                raise ValueError("Linear refused the comment creation request")
+            return payload.get("comment", {})
+
 
 linear_integration = LinearIntegration()

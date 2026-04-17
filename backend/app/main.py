@@ -27,6 +27,7 @@ from app.api.routes.google_drive import router as google_drive_router
 from app.api.routes.context import router as context_router
 from app.api.routes.query import router as query_router
 from app.api.routes.integrations import router as integrations_router
+from app.api.routes.actions import router as actions_router
 from app.api.routes.teams import router as teams_router
 from app.api.routes.billing import router as billing_router
 from app.api.routes.admin import router as admin_router
@@ -193,6 +194,7 @@ app.include_router(slack_router, prefix="/api/v1/integrations/slack", tags=["sla
 app.include_router(linear_router, prefix="/api/v1/integrations/linear", tags=["linear"])
 app.include_router(google_drive_router, prefix="/api/v1/integrations/google", tags=["google_drive"])
 app.include_router(integrations_router, prefix="/api/v1/integrations", tags=["integrations"])
+app.include_router(actions_router, prefix="/api/v1/actions", tags=["actions"])
 app.include_router(teams_router, prefix="/api/v1/teams", tags=["teams"])
 app.include_router(billing_router, prefix="/api/v1/billing", tags=["billing"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["admin"])

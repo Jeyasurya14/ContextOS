@@ -295,6 +295,125 @@ class GitHubIntegration:
             logger.info("Posted comment to {}#{}", repo_full_name, issue_number)
             return response.json()
 
+    async def list_user_repos(self, access_token: str, limit: int = 50) -> list[dict]:
+        """List repositories the user has access to (sorted by most recently pushed).
+
+        Args:
+            access_token: Valid GitHub access token.
+            limit: Max repos to return (default 50).
+
+        Returns:
+            List of dicts with keys: full_name, private, description, default_branch.
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self.API_BASE}/user/repos",
+                params={"sort": "pushed", "per_page": min(limit, 100)},
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/vnd.github+json",
+                },
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            return [
+                {
+                    "full_name": r.get("full_name"),
+                    "private": r.get("private", False),
+                    "description": r.get("description"),
+                    "default_branch": r.get("default_branch", "main"),
+                }
+                for r in data
+            ]
+
+    async def create_issue(
+        self,
+        access_token: str,
+        repo_full_name: str,
+        title: str,
+        body: str = "",
+        labels: list[str] | None = None,
+    ) -> dict:
+        """Create a new issue on a repository.
+
+        Returns:
+            Dict with number, html_url, title, state.
+        """
+        payload: dict = {"title": title}
+        if body:
+            payload["body"] = body
+        if labels:
+            payload["labels"] = labels
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.API_BASE}/repos/{repo_full_name}/issues",
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/vnd.github+json",
+                },
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            logger.info("Created issue {}#{}", repo_full_name, data.get("number"))
+            return {
+                "number": data.get("number"),
+                "html_url": data.get("html_url"),
+                "title": data.get("title"),
+                "state": data.get("state"),
+            }
+
+    async def create_pull_request(
+        self,
+        access_token: str,
+        repo_full_name: str,
+        title: str,
+        head: str,
+        base: str = "main",
+        body: str = "",
+        draft: bool = False,
+    ) -> dict:
+        """Create a pull request on a repository.
+
+        Args:
+            head: Branch containing the changes (e.g. 'feature/foo').
+            base: Target branch to merge into (default 'main').
+
+        Returns:
+            Dict with number, html_url, title, state.
+        """
+        payload: dict = {
+            "title": title,
+            "head": head,
+            "base": base,
+            "draft": draft,
+        }
+        if body:
+            payload["body"] = body
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.API_BASE}/repos/{repo_full_name}/pulls",
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/vnd.github+json",
+                },
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            logger.info("Created PR {}#{}", repo_full_name, data.get("number"))
+            return {
+                "number": data.get("number"),
+                "html_url": data.get("html_url"),
+                "title": data.get("title"),
+                "state": data.get("state"),
+            }
+
     @staticmethod
     def verify_webhook_signature(
         body_bytes: bytes, signature_header: str, secret: str

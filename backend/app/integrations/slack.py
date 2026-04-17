@@ -399,5 +399,63 @@ class SlackIntegration:
 
         return "\n".join(parts)
 
+    async def list_channels(self, access_token: str, limit: int = 100) -> list[dict]:
+        """List public channels the bot can see.
+
+        Returns:
+            List of {id, name, is_private} dicts.
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{self.API_BASE}/conversations.list",
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={
+                    "limit": limit,
+                    "types": "public_channel,private_channel",
+                    "exclude_archived": "true",
+                },
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            if not data.get("ok"):
+                raise ValueError(f"Slack conversations.list failed: {data.get('error')}")
+            return [
+                {"id": c.get("id"), "name": c.get("name"), "is_private": c.get("is_private", False)}
+                for c in data.get("channels", [])
+            ]
+
+    async def post_message(
+        self,
+        access_token: str,
+        channel: str,
+        text: str,
+    ) -> dict:
+        """Post a message to a Slack channel (by id or name).
+
+        Returns:
+            Dict with channel, ts, permalink (permalink lookup is best-effort).
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.API_BASE}/chat.postMessage",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/json; charset=utf-8",
+                },
+                json={"channel": channel, "text": text},
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+            if not data.get("ok"):
+                logger.error("Slack postMessage failed: {}", data.get("error"))
+                raise ValueError(f"Slack error: {data.get('error')}")
+            logger.info("Posted Slack message to {}", channel)
+            return {
+                "channel": data.get("channel"),
+                "ts": data.get("ts"),
+            }
+
 
 slack_integration = SlackIntegration()

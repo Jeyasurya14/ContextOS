@@ -1,5 +1,12 @@
 import * as vscode from 'vscode';
 import { ChatViewProvider } from './ChatViewProvider.js';
+import {
+    githubCreateIssue,
+    githubCreatePR,
+    linearCreateIssue,
+    notionCreatePage,
+    slackSendMessage,
+} from './actions.js';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('[ContextOS] Extension activated — v2.1.0');
@@ -172,6 +179,32 @@ export function activate(context: vscode.ExtensionContext) {
                 '@ext:JeyaSuryaM.contextos-copilot'
             );
         })
+    );
+
+    // ── Integration action commands ────────────────────────────────────────────
+    context.subscriptions.push(
+        vscode.commands.registerCommand('contextos.github.createIssue', () => githubCreateIssue(context)),
+        vscode.commands.registerCommand('contextos.github.createPR', () => githubCreatePR(context)),
+        vscode.commands.registerCommand('contextos.linear.createIssue', () => linearCreateIssue(context)),
+        vscode.commands.registerCommand('contextos.notion.createPage', () => notionCreatePage(context)),
+        vscode.commands.registerCommand('contextos.slack.sendMessage', () => slackSendMessage(context)),
+    );
+
+    // Meta command: pick any integration action from one palette entry
+    context.subscriptions.push(
+        vscode.commands.registerCommand('contextos.actions', async () => {
+            const pick = await vscode.window.showQuickPick(
+                [
+                    { label: '$(git-pull-request) GitHub: Create Issue',       command: 'contextos.github.createIssue' },
+                    { label: '$(git-merge) GitHub: Create Pull Request',       command: 'contextos.github.createPR' },
+                    { label: '$(checklist) Linear: Create Issue',              command: 'contextos.linear.createIssue' },
+                    { label: '$(notebook) Notion: Create Page',                command: 'contextos.notion.createPage' },
+                    { label: '$(comment) Slack: Send Message',                 command: 'contextos.slack.sendMessage' },
+                ],
+                { title: 'ContextOS Actions', placeHolder: 'Run a workflow against a connected integration' },
+            );
+            if (pick) vscode.commands.executeCommand((pick as any).command);
+        }),
     );
 
     // ── Config change listener ────────────────────────────────────────────────

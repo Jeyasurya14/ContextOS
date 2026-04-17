@@ -2,7 +2,7 @@
   "name": "contextos-copilot",
   "displayName": "ContextOS",
   "description": "The AI Copilot that knows everything about your workspace.",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "publisher": "JeyaSuryaM",
   "icon": "images/icon.png",
   "repository": {
@@ -74,6 +74,42 @@
         "title": "ContextOS: Open Settings",
         "category": "ContextOS",
         "icon": "$(gear)"
+      },
+      {
+        "command": "contextos.actions",
+        "title": "ContextOS: Run Integration Action",
+        "category": "ContextOS",
+        "icon": "$(rocket)"
+      },
+      {
+        "command": "contextos.github.createIssue",
+        "title": "ContextOS: GitHub — Create Issue",
+        "category": "ContextOS",
+        "icon": "$(git-pull-request)"
+      },
+      {
+        "command": "contextos.github.createPR",
+        "title": "ContextOS: GitHub — Create Pull Request",
+        "category": "ContextOS",
+        "icon": "$(git-merge)"
+      },
+      {
+        "command": "contextos.linear.createIssue",
+        "title": "ContextOS: Linear — Create Issue",
+        "category": "ContextOS",
+        "icon": "$(checklist)"
+      },
+      {
+        "command": "contextos.notion.createPage",
+        "title": "ContextOS: Notion — Create Page",
+        "category": "ContextOS",
+        "icon": "$(notebook)"
+      },
+      {
+        "command": "contextos.slack.sendMessage",
+        "title": "ContextOS: Slack — Send Message",
+        "category": "ContextOS",
+        "icon": "$(comment)"
       }
     ],
     "menus": {
