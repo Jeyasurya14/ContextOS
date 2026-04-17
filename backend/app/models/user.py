@@ -88,6 +88,18 @@ class User(Base):
     conversations: Mapped[list["Conversation"]] = relationship(
         "Conversation", back_populates="user", lazy="selectin"
     )
+    activities: Mapped[list["Activity"]] = relationship(
+        "Activity", back_populates="user", lazy="selectin"
+    )
+    favorites: Mapped[list["Favorite"]] = relationship(
+        "Favorite", back_populates="user", lazy="selectin"
+    )
+    collections: Mapped[list["Collection"]] = relationship(
+        "Collection", back_populates="user", lazy="selectin"
+    )
+    insights: Mapped[list["UserInsight"]] = relationship(
+        "UserInsight", back_populates="user", lazy="selectin"
+    )
 
     @property
     def name(self) -> str:

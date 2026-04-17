@@ -198,4 +198,18 @@ export const queryApi = {
   },
 }
 
+// Search API
+export const searchApi = {
+  global: (query: string) => api.get(`/search/global?q=${encodeURIComponent(query)}`),
+}
+
+// Analytics API
+export const analyticsApi = {
+  getOverview: () => api.get('/analytics/overview'),
+  getConversations: (days: number = 30) => api.get(`/analytics/conversations?days=${days}`),
+  getIntegrations: () => api.get('/analytics/integrations'),
+  getPrompts: () => api.get('/analytics/prompts'),
+  getActivity: (days: number = 7) => api.get(`/analytics/activity?days=${days}`),
+}
+
 export default api

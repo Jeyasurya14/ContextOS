@@ -4,10 +4,11 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState, useMemo } from 'react'
 import { useAuthStore } from '@/store/auth'
 import { ToastProvider } from '@/components/ui/Toast'
+import { CommandPalette } from '@/components/CommandPalette'
 import {
   LayoutDashboard, MessageSquare, Plug, FolderOpen,
   Users, CreditCard, Settings, LogOut, ChevronRight, Menu, X, Zap,
-  Globe, Terminal, Activity, Database, Archive, Layers, RefreshCw, BookOpen, Sparkles
+  Globe, Terminal, Activity, Database, Archive, Layers, RefreshCw, BookOpen, Sparkles, BarChart
 } from 'lucide-react'
 import Link from 'next/link'
 import '@/globals.css'
@@ -21,6 +22,7 @@ const NAV_GROUPS = [
       { href: '/dashboard/chat',         icon: MessageSquare,   label: 'Chat' },
       { href: '/dashboard/prompts',      icon: Sparkles,        label: 'Prompts' },
       { href: '/dashboard/projects',     icon: FolderOpen,      label: 'Projects' },
+      { href: '/dashboard/analytics',    icon: BarChart,        label: 'Analytics' },
     ]
   },
   {
@@ -159,7 +161,7 @@ function Sidebar({ user, pathname, onNavClick }: {
   )
 }
 
-function TopHeader({ pathname }: { pathname: string | null }) {
+function TopHeader({ pathname, onSearchClick }: { pathname: string | null; onSearchClick: () => void }) {
   const segments = useMemo(() => {
     if (!pathname) return []
     return pathname.split('/').filter(Boolean).map(s => s.charAt(0).toUpperCase() + s.slice(1))
@@ -191,6 +193,7 @@ function TopHeader({ pathname }: { pathname: string | null }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {/* Faux search — hotkey hint */}
         <button
+          onClick={onSearchClick}
           style={{
             display: 'flex', alignItems: 'center', gap: 10,
             padding: '6px 10px 6px 12px',
@@ -231,6 +234,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const router = useRouter()
   const { user, isInitialized, initialize, token } = useAuthStore()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
 
   useEffect(() => { initialize() }, [])
 
@@ -239,6 +243,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     if (isDashboard && isInitialized && !token) window.location.href = '/login'
   }, [isDashboard, isInitialized, token])
+
+  // Command Palette hotkey (Cmd/Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setCommandPaletteOpen(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   if (isDashboard && (!isInitialized || (isInitialized && !token))) {
     return (
@@ -259,6 +275,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <ToastProvider>
+          <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
           {isDashboard ? (
             <div style={{ display: 'flex', height: '100dvh', background: 'var(--bg-base)', overflow: 'hidden' }}>
 
@@ -288,7 +305,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
                 {/* Top Desktop Header */}
                 <div className="hidden lg:block">
-                  <TopHeader pathname={pathname} />
+                  <TopHeader pathname={pathname} onSearchClick={() => setCommandPaletteOpen(true)} />
                 </div>
 
                 {/* Main Content Scrollable */}

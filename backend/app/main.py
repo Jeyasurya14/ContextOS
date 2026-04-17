@@ -32,6 +32,8 @@ from app.api.routes.actions import router as actions_router
 from app.api.routes.teams import router as teams_router
 from app.api.routes.billing import router as billing_router
 from app.api.routes.admin import router as admin_router
+from app.api.routes.search import router as search_router
+from app.api.routes.analytics import router as analytics_router
 
 
 @asynccontextmanager
@@ -200,3 +202,5 @@ app.include_router(actions_router, prefix="/api/v1/actions", tags=["actions"])
 app.include_router(teams_router, prefix="/api/v1/teams", tags=["teams"])
 app.include_router(billing_router, prefix="/api/v1/billing", tags=["billing"])
 app.include_router(admin_router, prefix="/api/v1/admin", tags=["admin"])
+app.include_router(search_router, prefix="/api/v1/search", tags=["search"])
+app.include_router(analytics_router, prefix="/api/v1/analytics", tags=["analytics"])
