@@ -114,7 +114,7 @@ function PromptEditor({
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="e.g. Write a PR description"
-              className="input"
+              className="field-input"
               autoFocus
             />
           </Field>
@@ -125,7 +125,7 @@ function PromptEditor({
               value={description}
               onChange={e => setDescription(e.target.value)}
               placeholder="One-line explanation (optional)"
-              className="input"
+              className="field-input"
               maxLength={500}
             />
           </Field>
@@ -136,8 +136,8 @@ function PromptEditor({
               onChange={e => setBody(e.target.value)}
               placeholder="The actual prompt text. Supports {{variables}} that stay as-is when inserted into chat."
               rows={8}
-              className="input"
-              style={{ resize: 'vertical', minHeight: 120, fontFamily: 'var(--font-mono, monospace)', fontSize: 13 }}
+              className="field-input"
+              style={{ resize: 'vertical', minHeight: 120, fontFamily: 'var(--font-mono, monospace)', fontSize: 13, height: 'auto', padding: 12 }}
             />
           </Field>
 
@@ -147,7 +147,7 @@ function PromptEditor({
               value={tags}
               onChange={e => setTags(e.target.value)}
               placeholder="comma, separated, tags"
-              className="input"
+              className="field-input"
             />
           </Field>
 
@@ -179,8 +179,8 @@ function PromptEditor({
           padding: 16, borderTop: '1px solid var(--border-subtle)',
           display: 'flex', gap: 8, justifyContent: 'flex-end',
         }}>
-          <button onClick={onClose} className="btn btn-secondary" disabled={saving}>Cancel</button>
-          <button onClick={handleSave} className="btn btn-primary" disabled={saving}>
+          <button onClick={onClose} className="btn btn-md btn-secondary" disabled={saving}>Cancel</button>
+          <button onClick={handleSave} className="btn btn-md btn-primary" disabled={saving}>
             {saving ? <Loader2 size={13} className="spin" /> : (isEdit ? 'Save changes' : 'Create prompt')}
           </button>
         </footer>
@@ -345,7 +345,7 @@ export default function PromptsPage() {
         </div>
         <button
           onClick={() => { setEditing(null); setEditorOpen(true) }}
-          className="btn btn-primary"
+          className="btn btn-md btn-primary"
           style={{ gap: 6 }}
         >
           <Plus size={14} /> New prompt
@@ -386,7 +386,7 @@ export default function PromptsPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by title, body, or tag…"
-            className="input"
+            className="field-input"
             style={{ paddingLeft: 30 }}
           />
         </div>
@@ -415,7 +415,7 @@ export default function PromptsPage() {
               : 'Try a different search or switch tabs.'}
           </p>
           {prompts.length === 0 && (
-            <button onClick={() => { setEditing(null); setEditorOpen(true) }} className="btn btn-primary" style={{ gap: 6 }}>
+            <button onClick={() => { setEditing(null); setEditorOpen(true) }} className="btn btn-md btn-primary" style={{ gap: 6 }}>
               <Plus size={14} /> New prompt
             </button>
           )}
