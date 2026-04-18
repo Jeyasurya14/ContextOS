@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState, useMemo } from 'react'
+import Script from 'next/script'
 import { useAuthStore } from '@/store/auth'
 import { ToastProvider } from '@/components/ui/Toast'
 import { CommandPalette } from '@/components/CommandPalette'
@@ -11,6 +12,7 @@ import {
   Globe, Terminal, Activity, Database, Archive, Layers, RefreshCw, BookOpen, Sparkles, BarChart
 } from 'lucide-react'
 import Link from 'next/link'
+import { GA_TRACKING_ID, pageview } from '@/lib/analytics'
 import '@/globals.css'
 
 /* ─── Navigation Definitions ─── */
@@ -256,6 +258,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  // Track pageviews with Google Analytics
+  useEffect(() => {
+    if (pathname) {
+      pageview(pathname)
+    }
+  }, [pathname])
+
   if (isDashboard && (!isInitialized || (isInitialized && !token))) {
     return (
       <html lang="en" className="dark">
@@ -274,6 +283,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
       </head>
       <body>
+        {/* Google Analytics */}
+        {GA_TRACKING_ID && (
+          <>
+            <Script
+              strategy="afterInteractive"
+              src={`https://www.googletagmanager.com/gtag/js?id=${GA_TRACKING_ID}`}
+            />
+            <Script
+              id="gtag-init"
+              strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${GA_TRACKING_ID}', {
+                    page_path: window.location.pathname,
+                  });
+                `,
+              }}
+            />
+          </>
+        )}
+        
         <ToastProvider>
           <CommandPalette open={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
           {isDashboard ? (
