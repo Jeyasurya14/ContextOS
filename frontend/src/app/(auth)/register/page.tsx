@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Head from 'next/head'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 import { Eye, EyeOff, AlertCircle, Loader2, Check, Zap } from 'lucide-react'
@@ -123,7 +124,19 @@ export default function RegisterPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
+    <>
+      <Head>
+        <title>Start Free - ContextOS | AI Developer Assistant</title>
+        <meta name="description" content="Create your free ContextOS account. Get 25 AI queries/day, connect GitHub and Notion, and start building with AI-powered project intelligence. No credit card required." />
+        <meta name="keywords" content="ContextOS sign up, free AI developer tools, create account, GitHub integration, Notion AI" />
+        
+        {/* Open Graph */}
+        <meta property="og:title" content="Start Free with ContextOS - AI Developer Assistant" />
+        <meta property="og:description" content="Create your free account. 25 AI queries/day, connect GitHub and Notion. No credit card required." />
+        <meta property="og:url" content="https://contextos.com/register" />
+      </Head>
+      
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
 
       {/* ═══════════ LEFT PANEL ═══════════ */}
       <div
@@ -375,5 +388,6 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }

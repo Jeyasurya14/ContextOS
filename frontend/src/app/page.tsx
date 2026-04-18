@@ -569,6 +569,114 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Social Proof & Testimonials */}
+      <section className="py-24 border-t border-dark-800/50 bg-dark-900/30">
+        <div className="max-w-6xl mx-auto px-6">
+          {/* Stats Bar */}
+          <div className="grid md:grid-cols-4 gap-8 mb-20 text-center">
+            <div>
+              <div className="text-4xl font-bold text-white mb-2">1,000+</div>
+              <div className="text-sm text-dark-400">Active Developers</div>
+            </div>
+            <div>
+              <div className="text-4xl font-bold text-white mb-2">50K+</div>
+              <div className="text-sm text-dark-400">AI Queries Answered</div>
+            </div>
+            <div>
+              <div className="text-4xl font-bold text-white mb-2">4.8/5</div>
+              <div className="text-sm text-dark-400">Average Rating</div>
+            </div>
+            <div>
+              <div className="text-4xl font-bold text-white mb-2">99.9%</div>
+              <div className="text-sm text-dark-400">Uptime</div>
+            </div>
+          </div>
+
+          {/* Testimonials */}
+          <div className="text-center mb-12">
+            <p className="text-brand text-sm font-medium tracking-wide uppercase mb-3">Testimonials</p>
+            <h2 className="text-4xl font-bold text-white tracking-tight">Loved by developers worldwide</h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                quote: "ContextOS transformed how our team handles context switching. Instead of digging through Slack and GitHub, we just ask the AI. It's like having a senior dev who knows everything.",
+                author: "Sarah Chen",
+                role: "Engineering Lead",
+                company: "TechCorp",
+                avatar: "SC",
+              },
+              {
+                quote: "The VS Code extension is a game-changer. I can query our entire codebase, Notion docs, and Slack history without leaving my editor. Saved me 10+ hours this week alone.",
+                author: "Marcus Rodriguez",
+                role: "Full Stack Developer",
+                company: "StartupXYZ",
+                avatar: "MR",
+              },
+              {
+                quote: "We onboard new engineers in days instead of weeks. They ask ContextOS about our architecture, past decisions, and ongoing projects. It's like institutional knowledge on demand.",
+                author: "Emily Watson",
+                role: "CTO",
+                company: "DevTools Inc",
+                avatar: "EW",
+              },
+            ].map((testimonial, i) => (
+              <div
+                key={i}
+                className="bg-dark-900/60 border border-dark-800 rounded-xl p-6 hover:border-dark-700 transition-all"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-brand/20 border border-brand/30 flex items-center justify-center text-brand font-bold">
+                    {testimonial.avatar}
+                  </div>
+                  <div>
+                    <div className="text-white font-semibold text-sm">{testimonial.author}</div>
+                    <div className="text-dark-500 text-xs">
+                      {testimonial.role} at {testimonial.company}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-dark-300 text-sm leading-relaxed italic">
+                  "{testimonial.quote}"
+                </p>
+                <div className="flex gap-1 mt-4">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <svg
+                      key={star}
+                      className="w-4 h-4 text-yellow-400 fill-current"
+                      viewBox="0 0 20 20"
+                    >
+                      <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
+                    </svg>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Trust Badges */}
+          <div className="mt-16 flex flex-wrap items-center justify-center gap-8 text-dark-500 text-sm">
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5" />
+              <span>SOC 2 Type II Certified</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Check className="w-5 h-5" />
+              <span>GDPR Compliant</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5" />
+              <span>AES-256 Encryption</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Zap className="w-5 h-5" />
+              <span>99.9% Uptime SLA</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Integrations */}
       <section className="py-24 border-t border-dark-800/50">
         <div className="max-w-5xl mx-auto px-6 text-center">

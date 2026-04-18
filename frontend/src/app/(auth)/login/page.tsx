@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import Head from 'next/head'
 import { authApi } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 import { Eye, EyeOff, AlertCircle, Loader2, Github, Zap } from 'lucide-react'
@@ -73,7 +74,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
+    <>
+      <Head>
+        <title>Sign In to ContextOS | AI Developer Assistant</title>
+        <meta name="description" content="Sign in to your ContextOS account. Access your AI-powered project intelligence platform and connect to GitHub, Notion, Slack, and more." />
+        <meta name="robots" content="noindex, nofollow" />
+      </Head>
+      
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-base)' }}>
 
       {/* ═══════════ LEFT PANEL ═══════════ */}
       <div
@@ -332,5 +340,6 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+    </>
   )
 }
