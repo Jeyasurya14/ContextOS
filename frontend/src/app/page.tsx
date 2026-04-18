@@ -3,8 +3,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Head from 'next/head';
 import { useAuthStore } from '@/store/auth';
 import { ArrowRight, Github, FileText, MessageSquare, Code2, Zap, Shield, Users, Sparkles, Brain, Database, Search, Check, ChevronRight, Globe, UserPlus, Plug, KeyRound, Terminal, Workflow, LayoutDashboard, Rocket, BookOpen } from 'lucide-react';
+import { generateStructuredData } from '@/lib/structured-data';
 
 function useInView(threshold = 0.2) {
   const ref = useRef<HTMLDivElement>(null);
@@ -242,8 +244,48 @@ export default function LandingPage() {
     setIsMounted(true);
   }, []);
 
+  const organizationData = generateStructuredData({
+    type: 'Organization',
+    data: {},
+  });
+
+  const websiteData = generateStructuredData({
+    type: 'WebSite',
+    data: {},
+  });
+
+  const softwareData = generateStructuredData({
+    type: 'SoftwareApplication',
+    data: {},
+  });
+
   return (
-    <div className="min-h-screen bg-dark-950">
+    <>
+      <Head>
+        <title>ContextOS - AI-Powered Project Intelligence | Connect GitHub, Notion, Slack</title>
+        <meta name="description" content="Connect GitHub, Notion, Slack, and VS Code into one intelligent AI assistant. Get answers grounded in your real project data. Start free with 25 AI queries/day." />
+        <meta name="keywords" content="AI developer tools, project context, GitHub integration, Notion AI, Slack bot, code assistant, developer productivity, AI assistant, team collaboration, knowledge base" />
+        
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://contextos.com" />
+        <meta property="og:title" content="ContextOS - AI-Powered Project Intelligence" />
+        <meta property="og:description" content="Connect GitHub, Notion, Slack, and VS Code into one intelligent AI assistant. Get answers grounded in your real project data." />
+        <meta property="og:image" content="https://contextos.com/og-image.png" />
+        
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="ContextOS - AI-Powered Project Intelligence" />
+        <meta name="twitter:description" content="Connect GitHub, Notion, Slack, and VS Code into one intelligent AI assistant." />
+        <meta name="twitter:image" content="https://contextos.com/og-image.png" />
+        
+        {/* Structured Data */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: organizationData }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: websiteData }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: softwareData }} />
+      </Head>
+      
+      <div className="min-h-screen bg-dark-950">
       {/* Nav */}
       <nav className="border-b border-dark-800/50 bg-dark-950/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
@@ -756,5 +798,6 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
+    </>
   );
 }
